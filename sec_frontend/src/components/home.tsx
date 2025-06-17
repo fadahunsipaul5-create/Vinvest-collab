@@ -8,32 +8,6 @@ import { TooltipProps } from 'recharts';
 import baseUrl from './api';
 console.log("Using baseUrl:", baseUrl);
 
-// const data = [
-//   { date: 'Jan 16', revenue: 15000, cost: 8000 },
-//   { date: 'Jul 16', revenue: 19000, cost: 8500 },
-//   { date: 'Jan 17', revenue: 16500, cost: 9000 },
-//   { date: 'Jul 17', revenue: 17500, cost: 9800 },
-//   { date: 'Jan 18', revenue: 19000, cost: 8500 },
-//   { date: 'Jul 18', revenue: 23000, cost: 9000 },
-// ];
-
-// const peersData = [
-//   { date: 'Jan 16', apple: 15000, microsoft: 12000, google: 14000 },
-//   { date: 'Jul 16', apple: 19000, microsoft: 15000, google: 18000 },
-//   { date: 'Jan 17', apple: 16500, microsoft: 14500, google: 16000 },
-//   { date: 'Jul 17', apple: 17500, microsoft: 16000, google: 19000 },
-//   { date: 'Jan 18', apple: 19000, microsoft: 18000, google: 21000 },
-//   { date: 'Jul 18', apple: 23000, microsoft: 20000, google: 24000 }, chat
-// ];
-
-// const industryData = [
-//   { date: 'Jan 16', automotive: 12000, technology: 15000, healthcare: 13000 },
-//   { date: 'Jul 16', automotive: 14000, technology: 18000, healthcare: 16000 },
-//   { date: 'Jan 17', automotive: 13500, technology: 16500, healthcare: 15500 },
-//   { date: 'Jul 17', automotive: 15500, technology: 19500, healthcare: 17500 },
-//   { date: 'Jan 18', automotive: 16000, technology: 21000, healthcare: 19000 },
-//   { date: 'Jul 18', automotive: 18000, technology: 24000, healthcare: 21000 },
-// ];
 
 // Define metric colors and interface
 interface MetricConfig {
@@ -88,18 +62,6 @@ interface ChartDataPoint {
   [key: string]: string | number | null;  // Allow null for dynamic metrics
 }
 
-// Add this interface near other interfaces
-// interface StickyTooltip {
-//   x: number;
-//   y: number;
-//   payload: any[];
-// }
-
-// Add these interfaces at the top of the file
-// interface YourChartDataType {
-//   [metric: string]: number[];
-// }
-
 // Update the activeTooltip interface
 interface ActiveTooltip {
   x: number;
@@ -110,20 +72,6 @@ interface ActiveTooltip {
   [key: string]: any;  // Add index signature for dynamic metric access
 }
 
-// Define a mapping of tickers to company names
-// const tickerToCompanyNameMap = {
-//   AAPL: 'Apple Inc.',
-//   META: 'Meta Platforms',
-//   A: 'Agilent Technologies',
-//   AA: 'Alcoa Corporation',
-//   // Add more mappings as needed
-// };
-
-// function getCompanyNameFromTicker(ticker: string): string | undefined {
-//   return tickerToCompanyNameMap[ticker];
-// }
-
-// Add interface for data items
 interface DataItem {
   name: string;
   value: number;
@@ -649,55 +597,9 @@ const Dashboard: React.FC = () => {
   console.log('peerChartData:', peerChartData);
   console.log('fixed2024Data:', fixed2024Data);
 
-  // Update the diff calculation to handle null
-  // const calculatePercentage = (current: number, previous: number | null) => {
-  //   if (previous === null || previous === 0) return null;
-  //   return ((current - previous) / previous) * 100;
-  // };
-
-  // Update DefaultTooltipContent usage
-  // const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
-  //   if (!active || !payload) return null;
-  //   return (
-  //     <div className="custom-tooltip bg-white p-2 border rounded shadow">
-  //       <p className="label">{label}</p>
-  //       {payload.map((entry: any) => (
-  //         <p key={entry.name} style={{ color: entry.color }}>
-  //           {entry.name}: {entry.value}
-  //         </p>
-  //       ))}
-  //     </div>
-  //   );
-  // };
-
-  // Example of fetching companies
-  // const fetchCompanies = async (tickers: string[]) => {
-  //   try {
-  //     console.log('Fetching companies for tickers:', tickers);
-  //     const response = await fetch(`http://127.0.0.1:8000/api/companies?tickers=${tickers.join(',')}`);
-  //     const data = await response.json();
-  //     console.log('Received company data:', data);
-      
-  //     // Transform the data to match our expected structure
-  //     const companies = data.map((company: any) => ({
-  //       ticker: company.ticker,
-  //       name: company.name
-  //     }));
-      
-  //     setSelectedCompanies(companies);
-  //   } catch (error) {
-  //     console.error('Error fetching companies:', error);
-  //   }
-  // };
-
   useEffect(() => {
     console.log('Current selectedCompanies:', selectedCompanies);
   }, [selectedCompanies]);
-
-  // Remove or comment out the existing useEffect that references selectedIndustryCompanies:
-  // useEffect(() => {
-  //   console.log('Selected Industry Companies:', selectedIndustryCompanies);
-  // }, [selectedIndustryCompanies]);
 
   // Ensure this useEffect is called when the industry is selected
   useEffect(() => {
@@ -714,13 +616,6 @@ const Dashboard: React.FC = () => {
     }
   }, [selectedPeerMetric]);
 
-  // Update the peer metric selection handler
-  // const handlePeerMetricSelection = (metric: string) => {
-  //   console.log('Selected peer metric:', metric);
-  //   setSelectedPeerMetric(metric);
-  //   setSelectedPeerMetrics([metric]); // Update the metrics array
-  //   setShowPeerMetricDropdown(false);
-  // };
 
   useEffect(() => {
     const clearHandler = () => {
@@ -1133,9 +1028,11 @@ const Dashboard: React.FC = () => {
                       {availableIndustries
                         .flatMap(industry => industry.companies)
                         .filter((ticker, index, self) => self.indexOf(ticker) === index) // Remove duplicates
-                        .filter(ticker => 
-                          ticker.toLowerCase().includes(companyInput.toLowerCase())
-                        )
+                        .filter(ticker => {
+                          const displayName = companyMap[ticker] || ticker;
+                          return ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
+                                 displayName.toLowerCase().includes(companyInput.toLowerCase());
+                        })
                         .sort((a, b) => a.localeCompare(b))
                         .map(ticker => {
                           const displayName = companyMap[ticker] || ticker;
@@ -1196,9 +1093,11 @@ const Dashboard: React.FC = () => {
                       {availableIndustries
                         .find(ind => ind.value === selectedIndustry)
                         ?.companies
-                        .filter(ticker => 
-                          ticker.toLowerCase().includes(companySearch.toLowerCase())
-                        )
+                        .filter(ticker => {
+                          const displayName = companyMap[ticker] || ticker;
+                          return ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
+                                 displayName.toLowerCase().includes(companySearch.toLowerCase());
+                        })
                         .sort((a, b) => a.localeCompare(b))
                         .map(ticker => {
                           const displayName = companyMap[ticker] || ticker;
@@ -1259,9 +1158,11 @@ const Dashboard: React.FC = () => {
                   {showCompanyDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
                       {availableIndustries.flatMap(industry => 
-                        industry.companies.filter(ticker =>
-                          ticker.toLowerCase().includes(searchValue.toLowerCase())
-                        ).map(ticker => {
+                        industry.companies.filter(ticker => {
+                          const displayName = companyMap[ticker] || ticker;
+                          return ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
+                                 displayName.toLowerCase().includes(searchValue.toLowerCase());
+                        }).map(ticker => {
                           const displayName = companyMap[ticker] || ticker;
                           return (
                             <div
@@ -1599,7 +1500,7 @@ const Dashboard: React.FC = () => {
                                 maximumFractionDigits: 1
                               }).format(value)}
                             />
-                            
+                             
                             {/* Regular hover tooltip */}
                             <Tooltip
                               formatter={((value: string | number, name: string) => {
@@ -1753,7 +1654,27 @@ const Dashboard: React.FC = () => {
                       <div ref={chartContainerRef} style={{ position: 'relative', width: '100%', height: 400 }}>
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart 
-                            data={peerChartData}
+                            data={peerChartData.filter(dataPoint => {
+                              // Filter out dummy data points based on selected period
+                              if (selectedPeriod === '2Y') {
+                                // Only keep valid 2Y periods
+                                return ['2005-06', '2007-08', '2009-10', '2011-12', '2013-14', 
+                                        '2015-16', '2017-18', '2019-20', '2021-22', '2023-24'].includes(dataPoint.name);
+                              } else if (selectedPeriod === '3Y') {
+                                return ['2007-09', '2010-12', '2013-15', '2016-18', '2019-21', '2022-24'].includes(dataPoint.name);
+                              } else if (selectedPeriod === '4Y') {
+                                return ['2005-08', '2009-12', '2013-16', '2017-20', '2021-24'].includes(dataPoint.name);
+                              } else if (selectedPeriod === '5Y') {
+                                return ['2005-09', '2010-14', '2015-19', '2020-24'].includes(dataPoint.name);
+                              } else if (selectedPeriod === '10Y') {
+                                return ['2005-14', '2015-24'].includes(dataPoint.name);
+                              } else if (selectedPeriod === '15Y') {
+                                return ['2010-24'].includes(dataPoint.name);
+                              } else if (selectedPeriod === '20Y') {
+                                return ['2005-24'].includes(dataPoint.name);
+                              }
+                              return true;
+                            })}
                             onMouseMove={e => {
                               if (e && e.activePayload && e.activePayload.length > 0) {
                                 const payload = e.activePayload[0].payload;
@@ -1776,12 +1697,14 @@ const Dashboard: React.FC = () => {
                             <XAxis 
                               dataKey="name" 
                               tickFormatter={(value) => {
-                                if (typeof value === 'string' && value.includes('-')) {
+                                // Display the full range for multi-year periods
+                                if (typeof value === 'string') {
                                   if (selectedPeriod !== '1Y') {
-                                    return value;
+                                    return value; // Return the full range (e.g., "2005-06", "2007-08")
+                                  } else {
+                                    // For 1Y period, just show the year
+                                    return value.includes('-') ? value.split('-')[0] : value;
                                   }
-                                  const [startYear] = value.split('-');
-                                  return startYear;
                                 }
                                 return value;
                               }}
@@ -1861,7 +1784,15 @@ const Dashboard: React.FC = () => {
                             }}
                           >
                             <div className="font-medium mb-1">
-                              {selectedPeriod === '1Y' ? '2024' : fixed2024Data.name}
+                              {selectedPeriod === '1Y' ? '2024' : 
+                               selectedPeriod === '2Y' ? '2023-24' :
+                               selectedPeriod === '3Y' ? '2022-24' :
+                               selectedPeriod === '4Y' ? '2021-24' :
+                               selectedPeriod === '5Y' ? '2020-24' :
+                               selectedPeriod === '10Y' ? '2015-24' :
+                               selectedPeriod === '15Y' ? '2010-24' :
+                               selectedPeriod === '20Y' ? '2005-24' :
+                               fixed2024Data.name}
                             </div>
                             {selectedCompanies.map((company, idx) => {
                               const value = fixed2024Data[selectedPeerMetric]?.[company.ticker];

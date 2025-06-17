@@ -169,11 +169,6 @@ class ChatbotAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-@api_view(['GET'])
-def get_sec_data(request):
-    return Response({"message": "Hello, world!"})
-
 @api_view(['GET'])
 def extract_financials(request):
     ticker = request.GET.get('ticker', 'AAPL')
@@ -181,10 +176,8 @@ def extract_financials(request):
     data = fetch_financial_data(ticker)
     if data and data.get('filings'):
         try:
-            # Log sample filing details
             sample_filing = data['filings'][0]
-            # Check if the data has the expected structure for save_financial_data_to_db
-            # Check if there's any 'data' field in the filing that would contain metrics
+           
             if 'data' in sample_filing:
                 logger.info(f"Sample metrics: {list(sample_filing['data'].keys())[:5]}")
             else:
@@ -203,38 +196,6 @@ def extract_financials(request):
         except Exception as e:
             return JsonResponse({"error": f"Error saving data: {str(e)}"}, status=500)
     return JsonResponse({"error": "No valid 10-K filings found"}, status=500)
-
-@api_view(['GET'])
-def test_sec_api(request):
-    ticker = request.GET.get('ticker', 'AAPL')
-    try:
-        api_key = settings.SEC_API_KEY
-        headers = {'Authorization': api_key}
-        
-        # Test direct API call
-        api_url = "https://api.sec-api.io/api/search"
-        payload = {
-            "query": {
-                "query_string": {
-                    "query": f"ticker:{ticker} AND formType:\"10-K\""
-                }
-            },
-            "from": "0",
-            "size": "10",
-            "sort": [{"filedAt": {"order": "desc"}}]
-        }
-        
-        response = requests.post(api_url, headers=headers, json=payload)
-        
-        return JsonResponse({
-            'status_code': response.status_code,
-            'content': response.text[:1000] if response.text else None,
-            'headers': dict(response.headers)
-        })
-        
-    except Exception as e:
-        logger.error(f"Error testing API: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=500)
 
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):

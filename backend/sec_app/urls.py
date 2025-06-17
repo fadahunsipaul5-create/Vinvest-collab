@@ -15,9 +15,7 @@ router.register(r'financial-metrics', FinancialMetricViewSet)
 
 urlpatterns = [
     path('load-data/', load_data, name='load_data'),
-    path('sec-data/', get_sec_data, name='get_sec_data'),
     path('extract-financials/', extract_financials, name='extract_financials'),
-    path('test-api/', test_sec_api, name='test_api'),
 
     path('chart-data/', ChartDataAPIView.as_view(), name='chart_data'),
     path('insights/', InsightsAPIView.as_view(), name='insights'),
