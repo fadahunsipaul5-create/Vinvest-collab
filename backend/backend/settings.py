@@ -261,7 +261,7 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD') 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'paul@nanikworkforce.com')
 
-SITE_URL = "https://sec-insights-app.onrender.com"
+SITE_URL = ""
 
 # Allow WebSockets
 SECURE_CROSS_ORIGIN_OPENER_POLICY = None
