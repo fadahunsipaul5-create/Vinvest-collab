@@ -1,31 +1,30 @@
-# 🏗️ Build Stage
-FROM node:18-alpine as build
+# Use the official Node.js image
+FROM node:18 as build
+
+# Set working directory inside container
 WORKDIR /app
-COPY . .
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
 RUN npm install
+
+# Copy the rest of the frontend code
+COPY . .
+
+# Build the frontend
 RUN npm run build
 
+# Use nginx to serve the built app
 FROM nginx:alpine
 
-RUN rm /etc/nginx/conf.d/default.conf
-
+# Copy built files to nginx directory
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy custom nginx config (optional)
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-FROM node:18-alpine as build
-WORKDIR /app
-COPY . .
-RUN npm install
-RUN npm run build
 
-FROM nginx:alpine
-
-RUN rm /etc/nginx/conf.d/default.conf
-
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
