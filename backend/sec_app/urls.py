@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CompanyViewSet, FilingViewSet, FinancialMetricViewSet,
     ChartDataAPIView, InsightsAPIView, CustomQueryAPIView, IndustryComparisonAPIView,
-    get_sec_data, extract_financials, test_sec_api, IndustryAPIView,BoxPlotDataAPIView,AggregatedDataAPIView,
+     extract_financials, IndustryAPIView,BoxPlotDataAPIView,AggregatedDataAPIView,
     get_available_metrics, check_company,ChatbotAPIView,load_data
 )
 
