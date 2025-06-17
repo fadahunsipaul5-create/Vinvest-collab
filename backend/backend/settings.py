@@ -37,7 +37,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-le1olj%(+vr!8xu+u&7q*%mhuctpi#l=qs$)hpmmf6z)^f$t8v'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -261,10 +261,7 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD') 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'paul@nanikworkforce.com')
 
-if DEBUG:
-    SITE_URL = "http://localhost:3000"
-else:
-    SITE_URL = "https://sec-insights-app.onrender.com"
+SITE_URL = "https://sec-insights-app.onrender.com"
 
 # Allow WebSockets
 SECURE_CROSS_ORIGIN_OPENER_POLICY = None
