@@ -115,7 +115,6 @@ class ChatbotAPIView(APIView):
                 if "metric" in context:
                     context["metric_name"] = context["metric"]
                 answer = query_data_from_db(context)
-            # Step 4: If not all keywords, check payload
             elif payload and payload.get("company"):
                 # Check if multiple companies are selected
                 companies = payload.get("companies", [])
