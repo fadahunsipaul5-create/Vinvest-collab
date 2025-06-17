@@ -119,7 +119,7 @@ DATABASES = {
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),  # Set to /cloudsql/INSTANCE_CONNECTION_NAME
+        'HOST': os.environ.get('DB_HOST'),  
         'PORT': '5432',
     }
 }
