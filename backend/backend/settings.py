@@ -119,8 +119,8 @@ DATABASES = {
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),  # Set to /cloudsql/INSTANCE_CONNECTION_NAME
-        'PORT': '5432',
+        'HOST':'/home/valueaccel/Sec-Insights-App/backend/cloudsql/getdeepaiapp:us-central1:sec-db',
+        'PORT': '',
     }
 }
 
@@ -136,11 +136,11 @@ DATABASES = {
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'insightg_db',
-#         'USER': 'insight_user',
-#         'PASSWORD': 'InsightG123!',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
+#         'NAME':  os.getenv('DB_NAME'),
+#         'USER': os.getenv('DB_USER'),
+#         'PASSWORD': os.getenv('DB_PASSWORD'),
+#         'HOST': '/home/valueaccel/Sec-Insights-App/backend/cloudsql/getdeepaiapp:us-central1:sec-db',',
+#'PORT': '',
 #     }
 # }
 
