@@ -110,7 +110,6 @@ class ChatbotAPIView(APIView):
                     "growth": True
                 }
                 answer = query_data_from_db(context)
-            # Step 3: Valid company in keywords
             elif keywords.get("company"):
                 context = keywords
                 if "metric" in context:
