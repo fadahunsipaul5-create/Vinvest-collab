@@ -25,3 +25,5 @@ dist-ssr
 *.jsonl
 *.json
 !vercel.json
+!package.json
+!package-lock.json
