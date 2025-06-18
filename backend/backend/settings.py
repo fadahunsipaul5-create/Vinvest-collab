@@ -79,7 +79,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # React frontend
-    "https://sec-insights-app.vercel.app",
+    "https://sec-frontend-791634680391.us-central1.run.app",
 
 ]
 
@@ -118,7 +118,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORd')
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
         'HOST':'/home/valueaccel/Sec-Insights-App/backend/cloudsql/getdeepaiapp:us-central1:sec-db',
         'PORT': '',
     }
