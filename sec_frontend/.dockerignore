@@ -1,6 +1,5 @@
 node_modules
 dist
 .dockerignore
-Dockerfile
 nginx.conf
 .env
