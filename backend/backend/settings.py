@@ -79,7 +79,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # React frontend
-    "https://sec-insights-app.vercel.app",
+    "https://sec-frontend-791634680391.us-central1.run.app",
 
 ]
 
