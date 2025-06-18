@@ -118,7 +118,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORd')
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
         'HOST':'/home/valueaccel/Sec-Insights-App/backend/cloudsql/getdeepaiapp:us-central1:sec-db',
         'PORT': '',
     }
