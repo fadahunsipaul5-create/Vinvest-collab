@@ -1,0 +1,13 @@
+# This is the most important part for fixing your error.
+# We will ignore BOTH possible socket directory names to be safe.
+cloudsql/
+cloudsql-sockets/
+
+# Other standard Python/Django ignores
+venv/
+env/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.gcloudignore

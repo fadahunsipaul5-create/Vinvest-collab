@@ -1,0 +1,2 @@
+2025/06/17 19:56:43 Authorizing with Application Default Credentials
+2025/06/17 19:56:43 Error starting proxy: [100%[======================================================================================] Unable to mount socket: config error: invalid connection name, expected PROJECT:REGION:INSTANCE format or valid DNS domain name (connection name = "100%[======================================================================================")
