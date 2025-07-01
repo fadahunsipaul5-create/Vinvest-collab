@@ -9,9 +9,6 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Load environment variables for LOCAL DEVELOPMENT ONLY.
-# Assumes .env is in ~/Sec-Insights-App/backend/
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 
@@ -20,13 +17,10 @@ IS_CLOUD_ENV = os.getenv('K_SERVICE', False) or os.getenv('GAE_APPLICATION', Fal
 IS_DOCKER_BUILD = os.getenv('DJANGO_BUILD_ENVIRONMENT', 'False') == 'True'
 
 
-# --- DEBUG Mode ---
 DEBUG = not IS_CLOUD_ENV and not IS_DOCKER_BUILD
 
 
-# --- SECURITY WARNING: SECRET_KEY (FIXED for Docker Build) ---
-# On Cloud Run, it comes from Secret Manager. During Docker build, it comes from ENV SECRET_KEY_BUILD_TIME.
-# Locally, it comes from export.
+
 if IS_DOCKER_BUILD:
     SECRET_KEY = os.environ.get('SECRET_KEY_BUILD_TIME')
 else:
@@ -51,37 +45,62 @@ else:
     ALLOWED_HOSTS.append('127.0.0.1')
     ALLOWED_HOSTS.append('localhost')
     ALLOWED_HOSTS.append('[::1]') # IPv6
-    # Add your frontend dev server if it's on a custom port
-    # ALLOWED_HOSTS.append('localhost:3000') # Example for React Vite dev server
+   
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.environ.get('DB_NAME'),
+#         'USER': os.environ.get('DB_USER'),
+#         'PASSWORD': os.environ.get('DB_PASSWORD'),
+#     }
+# }
+
+# if IS_CLOUD_ENV:
+#     DATABASES['default']['HOST'] = f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}'
+#     print(f"INFO: Using Cloud Run DB config. Host: {DATABASES['default']['HOST']}")
+
+# elif IS_DOCKER_BUILD:
+#     DATABASES['default'] = dj_database_url.config(
+#         default='sqlite:///tmp/build_db.sqlite3'
+#     )
+#     print("INFO: Using SQLite for Docker build environment (collectstatic).")
+
+# else: # Local development
+#     DATABASES['default']['HOST'] = os.environ.get('DB_HOST', '127.0.0.1')
+#     DATABASES['default']['PORT'] = os.environ.get('DB_PORT', '5432')
+#     print(f"INFO: Using Local DB config. Host: {DATABASES['default']['HOST']}:{DATABASES['default']['PORT']}")
 
 
-# --- DATABASES Configuration ---
 DATABASES = {
-    'default': {
-        # Use the modern, correct engine name for psycopg (v3+)
+    'default': {} # Start with an empty default
+}
+
+if IS_CLOUD_ENV:
+    # Production: Use PostgreSQL on Google Cloud SQL
+    print("INFO: Using Cloud Run DB config.")
+    DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}'
     }
-}
-
-if IS_CLOUD_ENV:
-    # Correct configuration for Cloud Run: Use the socket, DO NOT set a port.
-    DATABASES['default']['HOST'] = f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}'
-    print(f"INFO: Using Cloud Run DB config. Host: {DATABASES['default']['HOST']}")
 
 elif IS_DOCKER_BUILD:
+    # Docker Build: Use a temporary SQLite database
+    print("INFO: Using SQLite for Docker build environment.")
     DATABASES['default'] = dj_database_url.config(
         default='sqlite:///tmp/build_db.sqlite3'
     )
-    print("INFO: Using SQLite for Docker build environment (collectstatic).")
 
-else: # Local development
-    # For local development, you might connect via TCP
-    DATABASES['default']['HOST'] = os.environ.get('DB_HOST', '127.0.0.1')
-    DATABASES['default']['PORT'] = os.environ.get('DB_PORT', '5432')
-    print(f"INFO: Using Local DB config. Host: {DATABASES['default']['HOST']}:{DATABASES['default']['PORT']}")
+else:
+    # Local Development: Use a simple SQLite file
+    print("INFO: Using local SQLite database.")
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 
 
 print(f"DEBUG DB HOST: {DATABASES['default'].get('HOST')}")
@@ -90,8 +109,7 @@ print(f"DEBUG DB USER: {os.environ.get('DB_USER')}")
 print(f"DEBUG DB PASSWORD: {os.environ.get('DB_PASSWORD')}")
 print(f"DEBUG DB NAME: {os.environ.get('DB_NAME')}")
 
-# --- Django Standard Settings (add your specific app settings below) ---
-# Assuming these are correct from your project
+
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
@@ -104,7 +122,6 @@ INSTALLED_APPS = [
     "account",
     'backend', # Assuming 'backend' is also an app, or your 'sec_app' if it's main
     'sec_app', # Example app
-    # Third-party apps from requirements.txt
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -250,14 +267,6 @@ REST_FRAMEWORK = {
         'sec_app.renderers.CustomJSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
-
-
-
-
-
-
-
-
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
@@ -266,40 +275,14 @@ REST_FRAMEWORK = {
     ]
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com" # Or your SMTP provider's host
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True # Use TLS for port 587
 # EMAIL_USE_SSL = False # Only one of TLS or SSL should be True
-
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'paul@nanikworkforce.com')
-
-
 
 LOGGING = {
     'version': 1,
@@ -316,7 +299,7 @@ LOGGING = {
 }
 
 # SERVER_EMAIL = DEFAULT_FROM_EMAIL # For error reporting emails (optional)
-
-
-
 SITE_URL = "https://sec-frontend-791634680391.us-central1.run.app"
+
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
