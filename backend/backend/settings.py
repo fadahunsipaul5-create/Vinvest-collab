@@ -76,8 +76,13 @@ DATABASES = {
     'default': {} # Start with an empty default
 }
 
-if IS_CLOUD_ENV:
-    # Production: Use PostgreSQL on Google Cloud SQL
+if IS_DOCKER_BUILD:
+    print("INFO: Using SQLite for Docker build environment.")
+    DATABASES['default'] = dj_database_url.config(
+        default='sqlite:///tmp/build_db.sqlite3'
+    )
+
+elif IS_CLOUD_ENV:
     print("INFO: Using Cloud Run DB config.")
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
@@ -87,15 +92,7 @@ if IS_CLOUD_ENV:
         'HOST': f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}'
     }
 
-elif IS_DOCKER_BUILD:
-    # Docker Build: Use a temporary SQLite database
-    print("INFO: Using SQLite for Docker build environment.")
-    DATABASES['default'] = dj_database_url.config(
-        default='sqlite:///tmp/build_db.sqlite3'
-    )
-
 else:
-    # Local Development: Use a simple SQLite file
     print("INFO: Using local SQLite database.")
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.sqlite3',
