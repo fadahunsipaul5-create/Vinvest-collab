@@ -31,7 +31,13 @@ if not SECRET_KEY and not (DEBUG or IS_DOCKER_BUILD): # Check for key if not in 
 
 
 # --- ALLOWED_HOSTS ---
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',                     # For local dev
+    '127.0.0.1',                     # Local IPv4
+    '[::1]',                         # Local IPv6
+    'sec-insights-backend-791634680391.us-central1.run.app', 
+]
+
 if IS_CLOUD_ENV:
     cloud_run_url = os.getenv('K_SERVICE_URL')
     if cloud_run_url:
