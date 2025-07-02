@@ -1,3 +1,4 @@
+logsBucket: 'gs://getdeepaiapp_cloudbuild' 
 steps:
   # Step 1: Build the Docker image (this also runs collectstatic)
   - name: 'gcr.io/cloud-builders/docker'
