@@ -24,6 +24,7 @@ import pandas as pd
 import os
 import math
 from .utility.chatbox import answer_question
+import traceback
 
 logger = logging.getLogger(__name__)
 from .utility.bot import *
@@ -187,12 +188,11 @@ def load_data(request):
 #             return Response(
 #                 {"error": "Failed to process question. Please try again."},
 #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,jjj
-#             )jj
+#             )
 
 class ExternalChatbotProxyView(APIView):
     def post(self, request):
         try:
-            # Forward the question, chat_history, and filtered_context
             chatbot_payload = {
                 "question": request.data.get("question"),
                 "chat_history": request.data.get("chat_history", []),
@@ -205,7 +205,10 @@ class ExternalChatbotProxyView(APIView):
                 timeout=30,
             )
             return Response(chatbot_response.json(), status=chatbot_response.status_code)
+
         except requests.exceptions.RequestException as e:
+            logging.error("Chatbot request failed: %s", str(e))
+            traceback.print_exc()
             return Response(
                 {"error": "Chatbot service unavailable", "details": str(e)},
                 status=status.HTTP_502_BAD_GATEWAY,
