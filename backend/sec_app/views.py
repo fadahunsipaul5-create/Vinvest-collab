@@ -186,7 +186,7 @@ def load_data(request):
 #             logger.error(f"Error in ChatbotAPIView: {str(e)}")
 #             return Response(
 #                 {"error": "Failed to process question. Please try again."},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,jjj
 #             )
 
 class ExternalChatbotProxyView(APIView):
