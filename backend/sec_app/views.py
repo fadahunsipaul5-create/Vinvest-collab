@@ -13,7 +13,7 @@ from .models.chatlog import ChatLog
 from django.db.models import Avg, Sum
 from .models.query import Query
 from .serializer import *
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view,permission_classes
 from .api_client import fetch_financial_data
 from .utility.utils import *
 from django.http import JsonResponse
