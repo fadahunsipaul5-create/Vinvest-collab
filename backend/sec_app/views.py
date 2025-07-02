@@ -199,19 +199,37 @@ class ExternalChatbotProxyView(APIView):
                 "filtered_context": request.data.get("filtered_context", {}),
             }
 
-            chatbot_response = requests.post(
+            response = requests.post(
                 "http://34.68.84.147:8080/api/qa_bot",
                 json=chatbot_payload,
                 timeout=30,
             )
-            return Response(chatbot_response.json(), status=chatbot_response.status_code)
+
+            try:
+                data = response.json()
+            except ValueError:
+                logger.error("Failed to parse JSON response from chatbot")
+                return Response(
+                    {"error": "Invalid response from chatbot service"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            return Response(data, status=response.status_code)
 
         except requests.exceptions.RequestException as e:
-            logging.error("Chatbot request failed: %s", str(e))
+            logger.error("Chatbot request failed: %s", str(e))
             traceback.print_exc()
             return Response(
                 {"error": "Chatbot service unavailable", "details": str(e)},
                 status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        except Exception as ex:
+            logger.error("Unexpected error: %s", str(ex))
+            traceback.print_exc()
+            return Response(
+                {"error": "Internal error occurred", "details": str(ex)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
