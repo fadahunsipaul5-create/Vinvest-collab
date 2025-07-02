@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { baseUrl } from './api';
+import baseUrl from './api';
 
 interface ChatboxProps {
   chartData: any[];
