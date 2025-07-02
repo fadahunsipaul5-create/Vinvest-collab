@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import baseUrl from './api';
+import { baseUrl } from './api';
 
 interface ChatboxProps {
   chartData: any[];
@@ -137,7 +137,11 @@ export const useChat = ({
       
       const aiMessage: Message = {
         role: 'assistant',
-        content: data.answer || data.error || 'No response from server'
+        content:
+          data.answer ||
+          data.data ||
+          data.error ||
+          'Sorry, I didn’t get a proper response from the server.'
       };
       setMessages(prev => [...prev, aiMessage]);
 
