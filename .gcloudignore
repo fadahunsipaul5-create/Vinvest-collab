@@ -1,0 +1,31 @@
+# .gcloudignore
+
+# General
+.DS_Store
+.env
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE Config
+.vscode/
+.idea/
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+*.cover
+*.sqlite3
+db.sqlite3
+/backend/env/  # Exclude the entire Python virtual environment in backend
+/backend/venv/ # Also exclude 'venv' just in case
+
+# Node / Frontend
+/node_modules/
+/sec_frontend/node_modules/ # Exclude frontend dependencies
+/sec_frontend/build/
+/sec_frontend/dist/

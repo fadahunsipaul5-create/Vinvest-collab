@@ -1,0 +1,61 @@
+steps:
+  # Step 1: Build the Docker image (this also runs collectstatic)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--tag=gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID'
+      - '-f'
+      - 'backend/Dockerfile'
+      - '--build-arg=DJANGO_BUILD_ENVIRONMENT=True'
+      - '--build-arg=SECRET_KEY=build-time-dummy-key' # Used only during build for Django collectstatic
+      - '.'
+
+  # Step 2: Push the image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID']
+
+  # Step 3: Run database migrations
+  # IMPORTANT: The current setup uses hardcoded DB_NAME, DB_USER, DB_PASSWORD
+  # here. If this step connects to your *production* database, it's a security
+  # risk. Ideally, this step should either connect to a build-time test DB,
+  # or also pull credentials from Secret Manager (requiring Secret Manager
+  # access for the Cloud Build service account itself).
+  # For now, we are leaving it as-is to resolve the Cloud Run deployment error.
+  - name: 'gcr.io/google-appengine/exec-wrapper'
+    args:
+      - '-i'
+      - 'gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID'
+      - '-s'
+      - 'getdeepaiapp:us-central1:sec-db'
+      - '-e'
+      - 'SECRET_KEY=build-time-dummy-key'
+      - '-e'
+      - 'DB_NAME=sec_db'
+      - '-e'
+      - 'DB_USER=sec_user'
+      - '-e'
+      - 'DB_PASSWORD=B#Y(mEd:*v/:0OJy'
+      - '--'
+      - 'python'
+      - 'manage.py'
+      - 'migrate'
+    dir: 'backend'
+
+  # ✅ Step 4: Deploy to Cloud Run (updated to handle EMAIL_HOST_USER/PASSWORD as secrets)
+  - name: 'google/cloud-sdk:slim'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'sec-insights-backend'
+      - '--image=gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      # All secrets go here (updated to include EMAIL_HOST_USER/PASSWORD):
+      - '--set-secrets=SECRET_KEY=sec-insights-django-secret-key:latest,DB_NAME=sec-insights-db-name:latest,DB_USER=sec-insights-db-user:latest,DB_PASSWORD=sec-insights-db-password:latest,INSTANCE_CONNECTION_NAME=sec-insights-instance-connection-name:latest,EMAIL_HOST_USER=sec-insights-email-user:latest,EMAIL_HOST_PASSWORD=sec-insights-email-password:latest'
+      # All non-secret plain environment variables go here (EMAIL_HOST_USER/PASSWORD removed):
+      - '--update-env-vars=DB_HOST=/cloudsql/getdeepaiapp:us-central1:sec-db,DB_PORT=5432,REACT_APP_API_BASE_URL=https://sec-frontend-791634680391.us-central1.run.app/'
+
+images:
+  - 'gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID'
