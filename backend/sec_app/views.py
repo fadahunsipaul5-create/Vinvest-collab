@@ -214,6 +214,7 @@ class ExternalChatbotProxyView(APIView):
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
 
+            logger.info(f"Chatbot response: {response.status_code}")
             return Response(data, status=response.status_code)
 
         except requests.exceptions.RequestException as e:
@@ -231,7 +232,6 @@ class ExternalChatbotProxyView(APIView):
                 {"error": "Internal error occurred", "details": str(ex)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
 
 @api_view(["GET"])
 def extract_financials(request):
