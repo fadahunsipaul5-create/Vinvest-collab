@@ -202,7 +202,7 @@ class ExternalChatbotProxyView(APIView):
             response = requests.post(
                 "https://api.arvatech.info/api/qa_bot",
                 json=chatbot_payload,
-                timeout=30,
+                timeout=60,
             )
 
             try:
