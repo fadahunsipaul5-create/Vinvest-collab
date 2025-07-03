@@ -200,7 +200,7 @@ class ExternalChatbotProxyView(APIView):
             }
 
             response = requests.post(
-                "http://34.68.84.147:8080/api/qa_bot",
+                "https://api.arvatech.info/api/qa_bot",
                 json=chatbot_payload,
                 timeout=30,
             )
