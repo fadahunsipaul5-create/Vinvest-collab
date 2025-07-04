@@ -220,6 +220,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://sec-frontend-791634680391.us-central1.run.app",
     "https://sec-insights-backend-791634680391.us-central1.run.app",
+    "https://sec-insights-app.vercel.app",
+    "https://sec-insights-backend.onrender.com",
 ]
 
 
@@ -302,7 +304,7 @@ LOGGING = {
 }
 
 # SERVER_EMAIL = DEFAULT_FROM_EMAIL # For error reporting emails (optional)
-SITE_URL = "https://sec-frontend-791634680391.us-central1.run.app"
+SITE_URL = "https://sec-insights-app.vercel.app"
 
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
