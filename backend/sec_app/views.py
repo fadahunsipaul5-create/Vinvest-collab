@@ -188,7 +188,7 @@ def load_data(request):
 #             return Response(
 #                 {"error": "Failed to process question. Please try again."},
 #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,jjj
-#             )jjhellow
+#             )
 
 class ExternalChatbotProxyView(APIView):
     def post(self, request):
@@ -197,7 +197,7 @@ class ExternalChatbotProxyView(APIView):
                 "question": request.data.get("question"),
                 "chat_history": request.data.get("chat_history", []),
                 "filtered_context": request.data.get("filtered_context", {}),
-            }
+            } 
 
             response = requests.post(
                 "https://api.arvatech.info/api/qa_bot",
