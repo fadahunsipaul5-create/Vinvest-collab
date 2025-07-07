@@ -17,4 +17,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . /app
 
 # The startup.sh script is now responsible for starting the processes
-ENTRYPOINT ["/app/startup.sh"]
+CMD ["/app/startup.sh"]

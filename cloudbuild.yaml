@@ -1,14 +1,14 @@
 logsBucket: 'gs://getdeepaiapp_cloudbuild'  
 
 steps:
-  # Step 1: Build the Docker image
+  # Step 1: Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     id: Build
     args:
       - 'build'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
-      - 'backend/' # Sets the correct build directory
+      - 'backend/'
 
   # Step 2: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -17,41 +17,50 @@ steps:
     waitFor: ['Build']
 
   # Step 3: Run database migrations securely
-  # This version uses an entrypoint override to ensure the correct command is run
+  # This now works because the Dockerfile uses CMD, which can be overridden
   - name: 'gcr.io/google-appengine/exec-wrapper'
     id: Migrate
-    entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        /exec_wrapper \
-          -i us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID \
-          -s getdeepaiapp:us-central1:sec-db \
-          -e IS_CLOUD_ENV=True \
-          -e SECRET_KEY=dummy-key-for-build \
-          -e DB_USER=${_DB_USER} \
-          -e DB_PASSWORD=${_DB_PASSWORD} \
-          -e DB_NAME=${_DB_NAME} \
-          -- python manage.py migrate
+      - '-i'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
+      - '-s'
+      - 'getdeepaiapp:us-central1:sec-db'
+      # Inject secrets as environment variables
+      - '-e'
+      - 'DB_PASSWORD=${_DB_PASSWORD}'
+      - '-e'
+      - 'DB_USER=${_DB_USER}'
+      - '-e'
+      - 'DB_NAME=${_DB_NAME}'
+      # Set other necessary environment variables
+      - '-e'
+      - 'IS_CLOUD_ENV=True' 
+      - '-e'
+      - 'SECRET_KEY=dummy-key'
+      - '--'
+      # The command to run, which now overrides the CMD
+      - 'python'
+      - 'manage.py'
+      - 'migrate'
     secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME']
     waitFor: ['Push']
 
   # Step 4: Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
-    - 'run'
-    - 'deploy'
-    - 'sec-insights-backend'
-    - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
-    - '--region=us-central1'
-    - '--allow-unauthenticated'
-    - '--add-cloudsql-instances=getdeepaiapp:us-central1:sec-db'
-    - '--service-account=sec-insights-runner@getdeepaiapp.iam.gserviceaccount.com'
-    - '--memory=2Gi'
-    - '--set-secrets=DB_NAME=sec-insights-db-name:latest,DB_USER=sec-insights-db-user:latest,DB_PASSWORD=sec-insights-db-password:latest,SECRET_KEY=sec-insights-django-secret-key:latest'
+      - 'run'
+      - 'deploy'
+      - 'sec-insights-backend'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--add-cloudsql-instances=getdeepaiapp:us-central1:sec-db'
+      - '--service-account=sec-insights-runner@getdeepaiapp.iam.gserviceaccount.com'
+      - '--memory=2Gi'
+      - '--set-secrets=DB_NAME=sec-insights-db-name:latest,DB_USER=sec-insights-db-user:latest,DB_PASSWORD=sec-insights-db-password:latest,SECRET_KEY=sec-insights-django-secret-key:latest'
     waitFor: ['Migrate']
 
-# This section tells Cloud Build how to access secrets for the migrate step
+# This section tells Cloud Build how to access the secrets for the migrate step
 availableSecrets:
   secretManager:
   - versionName: 'projects/$PROJECT_ID/secrets/sec-insights-db-password/versions/latest'
