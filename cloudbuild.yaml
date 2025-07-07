@@ -9,8 +9,7 @@ steps:
       - 'backend/Dockerfile'
       - '--build-arg=DJANGO_BUILD_ENVIRONMENT=True'
       - '--build-arg=SECRET_KEY=build-time-dummy-key' # Used only during build for Django collectstatic
-      - '.'
-    dir: 'backend'
+      - 'backend/'
 
   # Step 2: Push the image
   - name: 'gcr.io/cloud-builders/docker'
