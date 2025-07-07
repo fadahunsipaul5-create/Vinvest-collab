@@ -15,8 +15,6 @@ interface Message {
   content: string;
 }
 
-// const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
 export const useChat = ({
   chartData,
   searchValue,
@@ -61,13 +59,12 @@ export const useChat = ({
     try {
       const allChartData = chartData;
 
-      // Use allChartData (full dataset) for chat, not just the displayed/filtered data
       const formattedChartData = allChartData
-        .filter(point => {
-          return selectedMetrics.some(metric => 
+        .filter(point =>
+          selectedMetrics.some(metric =>
             point[metric] !== null && point[metric] !== undefined
-          );
-        })
+          )
+        )
         .map(point => {
           const formattedPoint: Record<string, any> = { name: point.date || point.name };
           selectedMetrics.forEach(metric => {
@@ -78,12 +75,9 @@ export const useChat = ({
           return formattedPoint;
         });
 
-      // Prepare payload
       const getLatestYear = () => {
-        // Try to find the latest year in your chart data
         const years = chartData
           .map(point => {
-            // Try to extract year from date or name
             if (point.date) return parseInt(point.date);
             if (point.name) return parseInt(point.name);
             return null;
@@ -95,22 +89,17 @@ export const useChat = ({
       const getYearFromPeriod = (period: string) => {
         const latestYear = getLatestYear();
         if (!period) return null;
-        if (period === '1Y') return latestYear;
-        if (period === '2Y') return latestYear - 1;
-        if (period === '3Y') return latestYear - 2;
-        if (period === '4Y') return latestYear - 3;
-        if (period === '5Y') return latestYear - 4;
-        if (period === '10Y') return latestYear - 9;
-        if (period === '15Y') return latestYear - 14;
-        if (period === '20Y') return latestYear - 19;
-        return null;
+        const mapping: { [key: string]: number } = {
+          '1Y': 0, '2Y': 1, '3Y': 2, '4Y': 3, '5Y': 4, '10Y': 9, '15Y': 14, '20Y': 19
+        };
+        return mapping[period] !== undefined ? latestYear - mapping[period] : null;
       };
 
       const payload = {
         company: company,
-        metric_name: selectedMetrics, // Pass all selected metrics
-        year: getYearFromPeriod(selectedPeriod), // Convert period to numeric year
-        companies: selectedCompanies.map(c => c.ticker) // Pass all selected companies
+        metric_name: selectedMetrics,
+        year: getYearFromPeriod(selectedPeriod),
+        companies: selectedCompanies.map(c => c.ticker)
       };
 
       const response = await fetch(`${baseUrl}/api/chat/`, {
@@ -120,7 +109,7 @@ export const useChat = ({
         },
         body: JSON.stringify({
           question: message,
-          payload: payload, // Pass the payload
+          payload: payload,
           company,
           period: selectedPeriod || 'ALL',
           metrics: selectedMetrics || [],
@@ -133,16 +122,22 @@ export const useChat = ({
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      
+      const responseText = await response.text();
+      console.log("Raw text from server:", responseText);
+
+      const data = JSON.parse(responseText);
+      console.log("Parsed JSON response:", data);
+
+      const aiMessageContent =
+        typeof data === 'string' ? data :
+        data.answer || data.data || data.result || data.message || data.error ||
+        'Sorry, I didn’t get a proper response from the server.';
+
       const aiMessage: Message = {
         role: 'assistant',
-        content:
-          data.answer ||
-          data.data ||
-          data.error ||
-          'Sorry, I didn’t get a proper response from the server.'
+        content: aiMessageContent
       };
+
       setMessages(prev => [...prev, aiMessage]);
 
     } catch (error) {

@@ -1,30 +1,20 @@
-# Use modern Python with newer SQLite
-FROM python:3.11-slim-bullseye
+# Final, Correct Dockerfile
+FROM python:3.11-slim
 
-# Environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV PORT 8080
-EXPOSE $PORT
+
+RUN apt-get update && apt-get install -y wget && \
+    wget https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.2/cloud-sql-proxy.linux.amd64 -O /usr/local/bin/cloud-sql-proxy && \
+    chmod +x /usr/local/bin/cloud-sql-proxy && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    gcc \
-    --no-install-recommends && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip
+COPY . /app
 
-# Install Python dependencies
-COPY backend/requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy project files
-COPY backend/ /app/
-
-
-# Gunicorn run command
-CMD gunicorn --bind 0.0.0.0:${PORT} backend.wsgi:application
+# The startup.sh script is now responsible for starting the processes
+ENTRYPOINT ["/app/startup.sh"]
