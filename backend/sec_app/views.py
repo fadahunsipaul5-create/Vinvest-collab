@@ -25,6 +25,8 @@ import os
 import math
 from .utility.chatbox import answer_question
 import traceback
+from django.http import StreamingHttpResponse
+import json
 
 logger = logging.getLogger(__name__)
 from .utility.bot import *
@@ -203,10 +205,18 @@ class ExternalChatbotProxyView(APIView):
                 "https://api.arvatech.info/api/qa_bot",
                 json=chatbot_payload,
                 timeout=60,
+#                stream=True
+            )
+            return StreamingHttpResponse(
+                response.iter_content(chunk_size=8192),
+                content_type=response.headers.get('Content-Type'),
+                status=response.status_code
             )
 
             try:
                 data = response.json()
+                response_size = len(json.dumps(data))
+                logger.info(f"Chatbot response size: {response_size} bytes") 
             except ValueError:
                 logger.error("Failed to parse JSON response from chatbot")
                 return Response(
@@ -386,7 +396,7 @@ class InsightsAPIView(APIView):
 
         insights = []
         revenue_trend = FinancialMetric.objects.filter(
-            period__company=company, name="Revenue"
+            period__company=company,metric_name="Revenue"
         ).order_by("period__year")
 
         if revenue_trend.count() >= 5:
@@ -421,7 +431,7 @@ class CustomQueryAPIView(APIView):
             data[metric] = {}
             for period in periods:
                 fm = FinancialMetric.objects.filter(
-                    period__company=company, name=metric, period__year=period
+                    period__company=company, metric_name=metric, period__year=period
                 ).first()
                 data[metric][period] = fm.value if fm else None
 

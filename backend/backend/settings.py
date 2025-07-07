@@ -95,7 +95,10 @@ elif IS_CLOUD_ENV:
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}'
+#        'HOST': f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}',
+#        'HOST': f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}',
+        'HOST': '127.0.0.1', 
+        'PORT': '5432',
     }
 
 else:
