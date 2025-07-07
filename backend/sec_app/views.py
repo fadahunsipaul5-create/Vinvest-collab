@@ -182,7 +182,7 @@ def load_data(request):
 #                 ChatLog.objects.create(
 #                     question=question,
 #                     answer=answer,
-#                 )
+#                 )h
 
 #             return Response({"answer": answer})
 #         except Exception as e:
@@ -197,7 +197,6 @@ class ExternalChatbotProxyView(APIView):
         try:
             logger.info(f"Incoming data: {request.data}")
 
-            # ✅ Extract and sanitize question
             raw_question = request.data.get("question")
             question = raw_question.strip() if isinstance(raw_question, str) else ""
             if not question:
@@ -208,7 +207,6 @@ class ExternalChatbotProxyView(APIView):
 
             chat_history = request.data.get("chat_history", [])
 
-            # ✅ Check for pre-computed filtered_context
             if "filtered_context" in request.data:
                 filtered_context = request.data["filtered_context"]
             else:
@@ -217,7 +215,6 @@ class ExternalChatbotProxyView(APIView):
                 metric_list = request.data.get("metrics", [])
                 selected_peers = payload.get("companies", [])
 
-                # 🔍 Try to find the company by ticker or name
                 sector = ""
                 industry = ""
                 if company_identifier:
@@ -242,7 +239,6 @@ class ExternalChatbotProxyView(APIView):
                     "selected_peers": selected_peers,
                 }
 
-            # ✅ Final chatbot payload
             chatbot_payload = {
                 "question": question,
                 "chat_history": chat_history,
@@ -251,14 +247,12 @@ class ExternalChatbotProxyView(APIView):
 
             logger.info(f"Forwarding to chatbot: {chatbot_payload}")
 
-            # ✅ Forward request to external chatbot API
             response = requests.post(
                 "https://api.arvatech.info/api/qa_bot",
                 json=chatbot_payload,
                 timeout=60,
             )
 
-            # ✅ Try parsing response
             try:
                 data = response.json()
             except ValueError:
