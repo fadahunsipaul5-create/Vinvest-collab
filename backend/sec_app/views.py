@@ -205,17 +205,24 @@ class ExternalChatbotProxyView(APIView):
                 "https://api.arvatech.info/api/qa_bot",
                 json=chatbot_payload,
                 timeout=60,
+#                headers={"Content-Type": "application/json"},
+#                logger.info(f"Forwarding to chatbot: {chatbot_payload}")
+#                logger.error(f"Raw response from chatbot: {response.text}")
+
 #                stream=True
             )
-            return StreamingHttpResponse(
-                response.iter_content(chunk_size=8192),
-                content_type=response.headers.get('Content-Type'),
-                status=response.status_code
-            )
+
+
+#            return StreamingHttpResponse(
+#                response.iter_content(chunk_size=8192),
+#                content_type=response.headers.get('Content-Type'),
+#                status=response.status_code
+#            )
 
             try:
                 data = response.json()
                 response_size = len(json.dumps(data))
+                logger.info(f"Received request data: {request.data}")
                 logger.info(f"Chatbot response size: {response_size} bytes") 
             except ValueError:
                 logger.error("Failed to parse JSON response from chatbot")
