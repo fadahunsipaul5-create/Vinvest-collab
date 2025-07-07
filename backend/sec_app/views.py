@@ -25,6 +25,8 @@ import os
 import math
 from .utility.chatbox import answer_question
 import traceback
+from django.http import StreamingHttpResponse
+import json
 
 logger = logging.getLogger(__name__)
 from .utility.bot import *
@@ -180,7 +182,7 @@ def load_data(request):
 #                 ChatLog.objects.create(
 #                     question=question,
 #                     answer=answer,
-#                 )
+#                 )h
 
 #             return Response({"answer": answer})
 #         except Exception as e:
@@ -193,11 +195,57 @@ def load_data(request):
 class ExternalChatbotProxyView(APIView):
     def post(self, request):
         try:
+            logger.info(f"Incoming data: {request.data}")
+
+            raw_question = request.data.get("question")
+            question = raw_question.strip() if isinstance(raw_question, str) else ""
+            if not question:
+                return Response(
+                    {"error": "Question cannot be empty", "success": False},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            chat_history = request.data.get("chat_history", [])
+
+            if "filtered_context" in request.data:
+                filtered_context = request.data["filtered_context"]
+            else:
+                payload = request.data.get("payload", {})
+                company_identifier = request.data.get("company", "").strip()
+                metric_list = request.data.get("metrics", [])
+                selected_peers = payload.get("companies", [])
+
+                sector = ""
+                industry = ""
+                if company_identifier:
+                    try:
+                        company = Company.objects.get(ticker__iexact=company_identifier)
+                    except Company.DoesNotExist:
+                        try:
+                            company = Company.objects.get(name__iexact=company_identifier)
+                        except Company.DoesNotExist:
+                            company = None
+                            logger.warning(f"Company '{company_identifier}' not found in DB.")
+
+                    if company:
+                        sector = company.sector or ""
+                        industry = company.industry or ""
+
+                filtered_context = {
+                    "company": company_identifier,
+                    "metric": metric_list[0] if metric_list else "",
+                    "sector": sector,
+                    "industry": industry,
+                    "selected_peers": selected_peers,
+                }
+
             chatbot_payload = {
-                "question": request.data.get("question"),
-                "chat_history": request.data.get("chat_history", []),
-                "filtered_context": request.data.get("filtered_context", {}),
-            } 
+                "question": question,
+                "chat_history": chat_history,
+                "filtered_context": filtered_context,
+            }
+
+            logger.info(f"Forwarding to chatbot: {chatbot_payload}")
 
             response = requests.post(
                 "https://api.arvatech.info/api/qa_bot",
@@ -208,13 +256,16 @@ class ExternalChatbotProxyView(APIView):
             try:
                 data = response.json()
             except ValueError:
-                logger.error("Failed to parse JSON response from chatbot")
+                logger.error(f"Non-JSON response from chatbot: {response.text}")
                 return Response(
-                    {"error": "Invalid response from chatbot service"},
+                    {
+                        "error": "Invalid response from chatbot service",
+                        "raw_response": response.text,
+                    },
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
 
-            logger.info(f"Chatbot response: {response.status_code}")
+            logger.info(f"Chatbot returned {response.status_code}: {data}")
             return Response(data, status=response.status_code)
 
         except requests.exceptions.RequestException as e:
@@ -226,7 +277,7 @@ class ExternalChatbotProxyView(APIView):
             )
 
         except Exception as ex:
-            logger.error("Unexpected error: %s", str(ex))
+            logger.exception("Unexpected error")
             traceback.print_exc()
             return Response(
                 {"error": "Internal error occurred", "details": str(ex)},
@@ -386,7 +437,7 @@ class InsightsAPIView(APIView):
 
         insights = []
         revenue_trend = FinancialMetric.objects.filter(
-            period__company=company, name="Revenue"
+            period__company=company,metric_name="Revenue"
         ).order_by("period__year")
 
         if revenue_trend.count() >= 5:
@@ -421,7 +472,7 @@ class CustomQueryAPIView(APIView):
             data[metric] = {}
             for period in periods:
                 fm = FinancialMetric.objects.filter(
-                    period__company=company, name=metric, period__year=period
+                    period__company=company, metric_name=metric, period__year=period
                 ).first()
                 data[metric][period] = fm.value if fm else None
 
