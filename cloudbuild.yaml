@@ -6,10 +6,10 @@ steps:
       - 'build'
       - '--tag=gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID'
       - '-f'
-      - 'backend/Dockerfile'
+      - 'Dockerfile'
       - '--build-arg=DJANGO_BUILD_ENVIRONMENT=True'
       - '--build-arg=SECRET_KEY=build-time-dummy-key' # Used only during build for Django collectstatic
-      - '.'
+      - 'backend'
 
   # Step 2: Push the image
   - name: 'gcr.io/cloud-builders/docker'
