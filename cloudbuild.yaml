@@ -35,12 +35,12 @@ steps:
       - '-e'
       - 'DB_USER=sec_user'
       - '-e'
-      - 'DB_PASSWORD=B#Y(mEd:*v/:0OJy'
+      - 'DB_PASSWORD=YX~qs8,#s$<&B1LT'
       - '--'
       - 'python'
       - 'manage.py'
       - 'migrate'
-    dir: 'backend'
+    # dir: 'backend'
 
   # ✅ Step 4: Deploy to Cloud Run (updated to handle EMAIL_HOST_USER/PASSWORD as secrets)
   - name: 'google/cloud-sdk:slim'
