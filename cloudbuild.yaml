@@ -34,7 +34,7 @@ steps:
       - 'python'
       - 'manage.py'
       - 'migrate'
-      dir: 'backend'
+    dir: 'backend'
 
   # ✅ Step 4: Deploy to Cloud Run (updated to handle EMAIL_HOST_USER/PASSWORD as secrets)
   - name: 'google/cloud-sdk:slim'
