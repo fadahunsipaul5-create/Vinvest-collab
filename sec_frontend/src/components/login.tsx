@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
 import baseUrl from './api';
 
 const Login = () => {
@@ -9,7 +7,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -47,7 +44,6 @@ const Login = () => {
   const handleGoogleLoginSuccess = async (credentialResponse: any) => {
     try {
       const { credential } = credentialResponse;
-      const decoded: any = jwtDecode(credential);
 
       const res = await fetch(`${baseUrl}/account/google-auth/`, {
         method: 'POST',
