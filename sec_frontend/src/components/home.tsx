@@ -126,6 +126,7 @@ const Dashboard: React.FC = () => {
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltip | null>(null);
   const [fixed2024Data, setFixed2024Data] = useState<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
   const [fixedTooltipPos, setFixedTooltipPos] = useState<{ left: number, top: number } | null>(null);
   const [companyMap, setCompanyMap] = useState<{ [ticker: string]: string }>({});
 
@@ -137,7 +138,8 @@ const Dashboard: React.FC = () => {
     inputValue,
     setInputValue,
     handleSendMessage,
-    setMessages
+    setMessages,
+    isLoading: isChatLoading
   } = useChat({
     chartData: activeChart === 'peers'
       ? peerChartData
@@ -629,6 +631,13 @@ const Dashboard: React.FC = () => {
     window.addEventListener('clearChat', clearHandler);
     return () => window.removeEventListener('clearChat', clearHandler);
   }, []);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   // Example usage:
   // const getChatboxPayload = () => {
@@ -1912,7 +1921,10 @@ const Dashboard: React.FC = () => {
                   </div>
                   
                   {/* Chat Messages */}
-                  <div className="h-[300px] sm:h-[350px] xl:h-[550px] overflow-y-auto p-4 xl:p-6 space-y-4">
+                  <div 
+                    ref={chatMessagesRef}
+                    className="h-[300px] sm:h-[350px] xl:h-[550px] overflow-y-auto p-4 xl:p-6 space-y-4"
+                  >
                     {messages.map((message, index) => 
                       message.role === 'assistant' ? (
                         <div key={index} className="flex gap-3 xl:gap-4">
@@ -1920,7 +1932,9 @@ const Dashboard: React.FC = () => {
                             AI
                           </div>
                           <div className="flex-1">
-                            <div className="bg-[#E5F0F6] rounded-lg p-3 xl:p-4 text-sm xl:text-base">
+                            <div className={`bg-[#E5F0F6] rounded-lg p-3 xl:p-4 text-sm xl:text-base ${
+                              message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600' : ''
+                            }`}>
                               {message.content}
                             </div>
                           </div>
@@ -1957,15 +1971,19 @@ const Dashboard: React.FC = () => {
                         placeholder="Ask Me Anything..."
                         className="flex-1 px-3 xl:px-4 py-2 xl:py-3 text-sm xl:text-base border rounded-lg"
                       />
-                      <button type="button" className="p-2 xl:p-3">
-                        <img src="/mic-icon.svg" alt="Voice" className="w-5 xl:w-6 h-5 xl:h-6" />
+                      <button 
+                        type="button" 
+                        className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100"
+                        title="Voice Input"
+                      >
+                        <img src="/audio.jpg" alt="Voice" className="w-9 xl:w-10 h-9 xl:h-10 object-cover rounded" />
                       </button>
                       <button 
                         type="submit" 
-                        className="p-2 xl:p-3"
-                        disabled={!inputValue.trim()}
+                        className="p-2 xl:p-3 bg-[#1B5A7D] text-white rounded hover:bg-[#164964] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        disabled={!inputValue.trim() || isChatLoading}
                       >
-                        <img src="/send-icon.svg" alt="Send" className="w-5 xl:w-6 h-5 xl:h-6" />
+                        <span className="text-lg">{isChatLoading ? '⏳' : '➤'}</span>
                       </button>
                     </form>
                   </div>

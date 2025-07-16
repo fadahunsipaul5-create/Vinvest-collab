@@ -24,10 +24,73 @@ import jwt
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-
+import requests
+from google.oauth2 import id_token  
+from rest_framework import permissions
+from google.auth.transport import requests as google_requests
 
 User = get_user_model()
 
+class GoogleAuthView(APIView):
+    def post(self, request):
+        token = request.data.get("token")
+
+        if not token:
+            return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not settings.GOOGLE_CLIENT_ID:
+            print("ERROR: GOOGLE_CLIENT_ID not configured in settings")
+            return Response({"error": "Server configuration error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            # Verify Google token
+            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
+
+            email = idinfo["email"]
+            full_name = idinfo.get("name", "")
+            first_name = full_name.split(" ")[0] if full_name else ""
+            last_name = " ".join(full_name.split(" ")[1:]) if len(full_name.split()) > 1 else ""
+
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "is_verified": True,
+                },
+            )
+
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": {
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_verified": user.is_verified,
+                },
+            })
+
+        except ValueError as e:
+            print(f"Google token verification error: {str(e)}")
+            return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"Google authentication error: {str(e)}")
+            return Response({"error": "Authentication failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"detail": "Successfully logged out."}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name="dispatch")
 class UserRegistrationViewset(viewsets.ViewSet):

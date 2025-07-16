@@ -30,6 +30,7 @@ export const useChat = ({
     }
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   // Log context changes
   useEffect(() => {
@@ -55,6 +56,14 @@ export const useChat = ({
       content: message
     };
     setMessages(prev => [...prev, userMessage]);
+
+    // Add thinking message
+    const thinkingMessage: Message = {
+      role: 'assistant',
+      content: 'Thinking...'
+    };
+    setMessages(prev => [...prev, thinkingMessage]);
+    setIsChatLoading(true);
 
     try {
       const allChartData = chartData;
@@ -133,20 +142,28 @@ export const useChat = ({
         data.answer || data.data || data.result || data.message || data.error ||
         'Sorry, I didn’t get a proper response from the server.';
 
+      // Remove the thinking message and add the AI response
+      setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+      
       const aiMessage: Message = {
         role: 'assistant',
         content: aiMessageContent
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      setIsChatLoading(false);
 
     } catch (error) {
       console.error('Error sending message:', error);
+      // Remove the thinking message
+      setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+      
       const errorMessage: Message = {
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please try again.'
       };
       setMessages(prev => [...prev, errorMessage]);
+      setIsChatLoading(false);
     }
   };
 
@@ -156,6 +173,7 @@ export const useChat = ({
     setInputValue,
     handleSendMessage,
     setMessages,
+    isLoading: isChatLoading,
   };
 };
 

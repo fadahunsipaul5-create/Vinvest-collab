@@ -11,11 +11,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 # --- Environment Detection ---
 IS_CLOUD_ENV = os.getenv('K_SERVICE', False) or os.getenv('GAE_APPLICATION', False)
 IS_DOCKER_BUILD = os.getenv('DJANGO_BUILD_ENVIRONMENT', 'False') == 'True'
-
 
 DEBUG = not IS_CLOUD_ENV and not IS_DOCKER_BUILD
 
@@ -26,8 +27,8 @@ if IS_DOCKER_BUILD:
 else:
     SECRET_KEY = os.environ.get('SECRET_KEY')
 
-if not SECRET_KEY and not (DEBUG or IS_DOCKER_BUILD): # Check for key if not in dev/build
-    raise EnvironmentError("SECRET_KEY environment variable is not set. Required for production.")
+if not SECRET_KEY:
+    SECRET_KEY = 'django-insecure-development-key-change-in-production'
 
 
 # --- ALLOWED_HOSTS ---
@@ -84,9 +85,7 @@ DATABASES = {
 
 if IS_DOCKER_BUILD:
     print("INFO: Using SQLite for Docker build environment.")
-    DATABASES['default'] = dj_database_url.config(
-        default='sqlite:///tmp/build_db.sqlite3'
-    )
+    DATABASES['default'] = dict(dj_database_url.parse('sqlite:///tmp/build_db.sqlite3'))
 
 elif IS_CLOUD_ENV:
     print("INFO: Using Cloud Run DB config.")
@@ -136,6 +135,16 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_filters',  
     'whitenoise', 
+
+    #google auth
+    'django.contrib.sites',
+    'rest_framework.authtoken',
+    'allauth',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+
 ]
 
 MIDDLEWARE = [
@@ -149,6 +158,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+SITE_ID = 1
+
 
 ROOT_URLCONF = 'backend.urls' # Assuming your main urls.py is in backend/backend/urls.py
 
@@ -217,10 +229,32 @@ SEC_USER_AGENT = os.getenv('SEC_USER_AGENT', 'Nanik Workforce paul@nanikworkforc
 
 # CORS Headers configuration
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
     "https://sec-frontend-791634680391.us-central1.run.app",
     "https://sec-insights-backend-791634680391.us-central1.run.app",
     "https://sec-insights-app-d9wp.vercel.app",
@@ -290,6 +324,20 @@ EMAIL_USE_TLS = True # Use TLS for port 587
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'paul@nanikworkforce.com')
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_USERNAME_REQUIRED = False
+
+# Fix for dj_rest_auth with custom User model
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+REST_USE_JWT = True
 
 LOGGING = {
     'version': 1,

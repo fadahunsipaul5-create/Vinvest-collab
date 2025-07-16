@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.views import APIView
@@ -10,9 +10,10 @@ from .models.period import FinancialPeriod
 from .models.filling import FilingDocument
 from .models.metric import FinancialMetric
 from .models.chatlog import ChatLog
+from django.db import models
 from django.db.models import Avg, Sum
 from .models.query import Query
-from .serializer import *
+from .serializer import * 
 from rest_framework.decorators import api_view,permission_classes
 from .api_client import fetch_financial_data
 from .utility.utils import *
@@ -51,146 +52,6 @@ def load_data(request):
         return Response({"status": "success"})
     except Exception as e:
         return Response({"error": str(e)}, status=500)
-
-
-# class ChatbotAPIView(APIView):
-#     def post(self, request):
-#         try:
-#             question = request.data.get("question")
-#             payload = request.data.get("payload", {})
-#             context = {}
-
-#             # Check for introspective questions first
-#             if is_introspective_question(question):
-#                 return Response({"answer": describe_payload_intent(payload)})
-
-#             keywords = extract_keywords(question)
-
-#             logger.info(f"Payload received: {payload}")
-#             logger.info(f"Keywords extracted: {keywords}")
-
-#             # Handle invalid company/ticker
-#             if keywords.get("invalid_company"):
-#                 return Response(
-#                     {
-#                         "answer": f"'{keywords['invalid_company']}' is not a valid ticker or company. Please provide a valid ticker or company name."
-#                     }
-#                 )
-
-#             # Handle news queries
-#             if keywords.get("news_company"):
-#                 news_company = keywords["news_company"]
-#                 # Use the fetch_google_news function from bot.py to get the news link
-#                 try:
-#                     news_link = fetch_google_news(news_company)
-#                     answer = f"Here are the latest news headlines for {news_company}: {news_link}"
-#                 except Exception as e:
-#                     logger.error(f"Error fetching news link: {str(e)}")
-#                     answer = f"Here are the latest news headlines for {news_company}: (News link unavailable. This is a placeholder. News integration coming soon.)"
-#                 with transaction.atomic():
-#                     ChatLog.objects.create(
-#                         question=question,
-#                         answer=answer,
-#                     )
-#                 return Response({"answer": answer})
-
-#             # Step 1: If we have company and metric in keywords, use those directly
-#             if keywords.get("company") and keywords.get("metric"):
-#                 context = {
-#                     "company": keywords["company"],
-#                     "metric_name": to_camel_case(keywords["metric"]),
-#                     "year": keywords.get("year"),
-#                     "time_range": keywords.get("time_range"),
-#                     "year_range": keywords.get("year_range"),
-#                     "growth": keywords.get("growth", False),
-#                 }
-#                 answer = query_data_from_db(context)
-#             # Step 1.5: If only company or only metric is present, ask for clarification
-#             elif keywords.get("company") and not keywords.get("metric"):
-#                 answer = f"What would you like to know about {keywords['company']}? Please refine your search with a metric or year."
-#             elif keywords.get("metric") and not keywords.get("company"):
-#                 answer = f"Which company would you like to know about {keywords['metric']}? Please specify a company."
-#             # Step 2: Valid keywords with growth intent
-#             elif keywords.get("growth"):
-#                 # Use payload company if not in keywords
-#                 company = keywords.get("company") or payload.get("company")
-#                 metric = keywords.get("metric") or (
-#                     payload["metric_name"][0]
-#                     if isinstance(payload.get("metric_name"), list)
-#                     else payload.get("metric_name")
-#                 )
-#                 context = {
-#                     "company": company,
-#                     "metric_name": to_camel_case(metric) if metric else None,
-#                     "growth": True,
-#                 }
-#                 answer = query_data_from_db(context)
-#             elif keywords.get("company"):
-#                 context = keywords
-#                 if "metric" in context:
-#                     context["metric_name"] = context["metric"]
-#                 answer = query_data_from_db(context)
-#             elif payload and payload.get("company"):
-#                 # Check if multiple companies are selected
-#                 companies = payload.get("companies", [])
-#                 if len(companies) > 1 and not keywords.get("company"):
-#                     # If multiple companies and user didn't specify one, ask them to choose
-#                     company_list = ", ".join(companies)
-#                     answer = f"There are {len(companies)} companies selected on the chart, {company_list}. Please specify which company you want to find its {payload['metric_name'][0] if isinstance(payload['metric_name'], list) else payload['metric_name']}."
-#                     return Response({"answer": answer})
-
-#                 # Get the metric the user is asking about
-#                 asked_metric = (
-#                     keywords.get("metric", "").lower()
-#                     if keywords.get("metric")
-#                     else None
-#                 )
-
-#                 # If user asked for a specific metric, find it in payload metrics
-#                 if asked_metric:
-#                     metric_to_use = to_camel_case(
-#                         asked_metric
-#                     )  # Always use camelCase for metric name
-#                 else:
-#                     # Default to first metric if no specific metric asked
-#                     metric_to_use = (
-#                         payload["metric_name"][0]
-#                         if isinstance(payload["metric_name"], list)
-#                         else payload["metric_name"]
-#                     )
-
-#                 # Use payload data
-#                 context = {
-#                     "company": payload["company"],
-#                     "metric_name": metric_to_use,
-#                     "year": keywords.get("year") or payload.get("year"),
-#                 }
-#                 # Add time_range and year_range if present in keywords
-#                 if keywords.get("time_range"):
-#                     context["time_range"] = keywords["time_range"]
-#                 if keywords.get("year_range"):
-#                     context["year_range"] = keywords["year_range"]
-#                 logger.info(f"Using payload context: {context}")
-#                 answer = query_data_from_db(context)
-#             # Step 5: If neither, fallback
-#             else:
-#                 answer = "Can you please specify the company, metric, or year you're interested in?"
-#                 context = {}
-
-#             # Save to chat log
-#             with transaction.atomic():
-#                 ChatLog.objects.create(
-#                     question=question,
-#                     answer=answer,
-#                 )h
-
-#             return Response({"answer": answer})
-#         except Exception as e:
-#             logger.error(f"Error in ChatbotAPIView: {str(e)}")
-#             return Response(
-#                 {"error": "Failed to process question. Please try again."},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,jjj
-#             )
 
 class ExternalChatbotProxyView(APIView):
     def post(self, request):
@@ -285,7 +146,7 @@ class ExternalChatbotProxyView(APIView):
             )
 
 @api_view(["GET"])
-def extract_financials(request):
+async def extract_financials(request):
     ticker = request.GET.get("ticker", "AAPL")
 
     data = fetch_financial_data(ticker)
@@ -300,7 +161,7 @@ def extract_financials(request):
                     "No 'data' field found in filing - metrics may not be saved"
                 )
 
-            save_financial_data_to_db(data)
+            await save_financial_data_to_db(data)
             return JsonResponse(
                 {
                     "message": f"Data fetched and saved for {ticker}",
