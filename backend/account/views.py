@@ -19,6 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from .serializer import *
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import Util, user_email, generate_six_digit_code, send_reset_code
+from .models import ResetPassword
 from datetime import datetime, timedelta
 import jwt
 from django.core.mail import send_mail
@@ -28,9 +29,11 @@ import requests
 from google.oauth2 import id_token  
 from rest_framework import permissions
 from google.auth.transport import requests as google_requests
+from django.core.exceptions import ObjectDoesNotExist
 
 User = get_user_model()
 
+@method_decorator(csrf_exempt, name="dispatch")
 class GoogleAuthView(APIView):
     def post(self, request):
         token = request.data.get("token")
@@ -92,39 +95,28 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-@method_decorator(csrf_exempt, name="dispatch")
-class UserRegistrationViewset(viewsets.ViewSet):
-    serializer_class = UserRegistrationSerializer
+@method_decorator(csrf_exempt, name='dispatch')
+class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
 
-    @action(detail=False, methods=["post"])
-    def register(self, request):
+    def post(self, request):
         try:
-            print("Received registration data:", request.data)
-
-            first_name = request.data.get("first_name")
-            last_name = request.data.get("last_name")
-            email = request.data.get("email", "").lower().strip()
-            password = request.data.get("password", "").strip()
-            confirm_password = request.data.get("confirm_password", "").strip()
+            data = request.data
+            first_name = data.get("first_name")
+            last_name = data.get("last_name")
+            email = data.get("email", "").lower().strip()
+            password = data.get("password", "").strip()
+            confirm_password = data.get("confirm_password", "").strip()
 
             if not all([email, password, confirm_password, first_name, last_name]):
-                return Response(
-                    {"error": "All fields are required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
 
             if User.objects.filter(email=email).exists():
-                return Response(
-                    {"error": "Email already exists"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
             if password != confirm_password:
-                return Response(
-                    {"error": "Passwords do not match"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
+
             user = User.objects.create_user(
                 email=email,
                 password=password,
@@ -133,102 +125,78 @@ class UserRegistrationViewset(viewsets.ViewSet):
                 is_active=False,
                 is_verified=False,
             )
+
             user_email(request, user)
-            return Response(
-                {
+
+            return Response({
                     "message": "Registration successful! Please check your email to verify your account.",
+                "user": {
                     "email": user.email,
-                },
-                status=status.HTTP_201_CREATED,
-            )
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_verified": user.is_verified,
+                }
+            }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            print(f"Registration error: {str(e)}")
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
-    def logout(self, request):
-        logout(request)
-        return Response(_("Logout Successful"), status=status.HTTP_200_OK)
+            print("Registration error:", str(e))
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class LoginViewset(viewsets.GenericViewSet):
-    serializer_class = UserLoginSerializer
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
 
-    @action(detail=False, methods=["post"])
-    def login(self, request):
+    def post(self, request):
         try:
-            data = request.data
-            email = data.get("email", "").lower().strip()
-            password = data.get("password", "")
+            email = request.data.get("email", "").lower().strip()
+            password = request.data.get("password", "").strip()
+
+            print(f"Login attempt - Email: {email}, Password Provided: {'Yes' if password else 'No'}")
+
             if not email or not password:
-                return Response(
-                    {"error": "Please provide both email and password"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            try:
-                user = User.objects.get(email=email)
-                from django.contrib.auth.hashers import check_password
-                password_valid = check_password(password, user.password)
-                auth_user1 = authenticate(request, username=email, password=password)
-                auth_user2 = authenticate(request, email=email, password=password)
-                if password_valid and not (auth_user1 or auth_user2):
-                    login(request, user)
-                    refresh = RefreshToken.for_user(user)
-                    return Response(
-                        {
-                            "message": "Login successful",
-                            "token": {
-                                "access": str(refresh.access_token),
-                                "refresh": str(refresh),
-                            },
-                        },
-                        status=status.HTTP_200_OK,
-                    )
-            except User.DoesNotExist:
-                print(f"No user found with email: {email}")
-                return Response(
-                    {"error": "Invalid email or password"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
+                print("Missing email or password")
+                return Response({"error": "Email and password are required"}, status=400)
+
+            # Try authenticating the user
             user = authenticate(request, email=email, password=password)
             if not user:
+                print("Auth by email failed, trying username...")
                 user = authenticate(request, username=email, password=password)
+
             if not user:
-                return Response(
-                    {"error": "Invalid email or password"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
+                print(f"Authentication failed for email/username: {email}")
+                return Response({"error": "Invalid credentials"}, status=401)
+
+            print(f"User found: {user.email}, Verified: {user.is_verified}, Active: {user.is_active}")
+
             if not user.is_verified:
-                return Response(
-                    {"error": "Please verify your email before logging in"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
+                print("User email not verified")
+                return Response({"error": "Email not verified"}, status=401)
+
             if not user.is_active:
-                return Response(
-                    {"error": "Your account is not active"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            # Login successful
-            login(request, user)
+                print("User account not active")
+                return Response({"error": "Account not active"}, status=401)
+
             refresh = RefreshToken.for_user(user)
-            return Response(
-                {
+
+            print("Login successful. Returning tokens.")
+
+            return Response({
                     "message": "Login successful",
-                    "token": {
                         "access": str(refresh.access_token),
                         "refresh": str(refresh),
-                    },
-                },
-                status=status.HTTP_200_OK,
-            )
+                "user": {
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_verified": user.is_verified,
+                }
+            }, status=200)
+
         except Exception as e:
             print(f"Login error: {str(e)}")
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": "Login failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def logout(self, request):
@@ -262,7 +230,9 @@ class VerifyEmailViewSet(viewsets.GenericViewSet):
 
             if not user.is_verified:
                 user.is_verified = True
+                user.is_active = True  # Also activate the user
                 user.save()
+                print(f"User {user.email} verified and activated successfully")
 
             return Response({'email': 'User is successfully activated'}, status=status.HTTP_200_OK)
 
@@ -272,7 +242,7 @@ class VerifyEmailViewSet(viewsets.GenericViewSet):
         except jwt.DecodeError:
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
 
-        except User.DoesNotExist:
+        except ObjectDoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
     @staticmethod
@@ -295,15 +265,22 @@ class RequestPasswordResetEmail(generics.GenericAPIView):
         if not serializer.is_valid():
             return Response({'error': 'Invalid input'}, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.validated_data.get('email')
+        validated_data = serializer.validated_data  # type: ignore
+        email = validated_data.get('email')  # type: ignore
 
         # Always respond the same way to prevent email enumeration
         try:
             user = User.objects.get(email=email)
             code = generate_six_digit_code()
             ResetPassword.objects.create(user=user, code=code)
-            send_reset_code(user, code)
-        except User.DoesNotExist:
+            
+            # Only send email in production
+            if not settings.DEBUG:
+                send_reset_code(user, code)
+            else:
+                print(f"Development mode: Reset code for {email} is {code}")
+                
+        except ObjectDoesNotExist:
             pass
 
         return Response({'message': 'If your email is registered, a reset code has been sent.'}, status=status.HTTP_200_OK)
@@ -314,22 +291,49 @@ class VerifyPasswordReset(generics.GenericAPIView):
     serializer_class = PasswordResetSerializer
 
     def post(self, request):
+        print(f"Password reset request data: {request.data}")
+        
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            print(f"Password reset validation errors: {serializer.errors}")
+            
+            # Handle password validation errors with user-friendly messages
+            errors = serializer.errors
+            if 'new_password' in errors:
+                password_errors = errors['new_password']
+                user_friendly_errors = []
+                
+                for error in password_errors:
+                    if 'too short' in str(error).lower():
+                        user_friendly_errors.append('This password is too short. It must contain at least 8 characters.')
+                    elif 'too common' in str(error).lower():
+                        user_friendly_errors.append('This password is too common.')
+                    elif 'numeric' in str(error).lower():
+                        user_friendly_errors.append('This password is entirely numeric.')
+                    elif 'similar' in str(error).lower():
+                        user_friendly_errors.append('This password is too similar to your personal information.')
+                    else:
+                        user_friendly_errors.append(str(error))
+                
+                return Response({'error': user_friendly_errors[0] if user_friendly_errors else 'Invalid password.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({'error': 'Invalid input data.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.validated_data['email']
-        code = serializer.validated_data['code']
-        new_password = serializer.validated_data['new_password']
+        validated_data = serializer.validated_data  # type: ignore
+        email = validated_data['email']
+        code = validated_data['code']
+        new_password = validated_data['new_password']
+        
+        print(f"Password reset validated data - Email: {email}, Code: {code}")
 
         try:
             user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        except ObjectDoesNotExist:
             return Response({'error': 'Invalid email or code.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             reset_code = ResetPassword.objects.get(user=user, code=code)
-        except ResetPassword.DoesNotExist:
+        except ObjectDoesNotExist:
             return Response({'error': 'Invalid email or code.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not reset_code.is_valid():

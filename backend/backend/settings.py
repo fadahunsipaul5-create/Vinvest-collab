@@ -159,6 +159,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# CSRF settings for API endpoints
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
+
 SITE_ID = 1
 
 
@@ -260,9 +265,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://sec-insights-app-d9wp.vercel.app",
 ]
 
-
-
-
+# CSRF settings for API endpoints
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 
@@ -354,7 +357,10 @@ LOGGING = {
 }
 
 # SERVER_EMAIL = DEFAULT_FROM_EMAIL # For error reporting emails (optional)
-SITE_URL = "https://sec-insights-app-d9wp.vercel.app"
 
+# Set SITE_URL based on environment
 if DEBUG:
+    SITE_URL = "http://127.0.0.1:8000"
     CORS_ALLOW_ALL_ORIGINS = True
+else:
+    SITE_URL = "sec-insights-backend-791634680391.us-central1.run.app"

@@ -8,6 +8,15 @@ import { TooltipProps } from 'recharts';
 import baseUrl from './api';
 console.log("Using baseUrl:", baseUrl);
 
+// Add TypeScript declarations for Speech Recognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+
 
 // Define metric colors and interface
 interface MetricConfig {
@@ -85,7 +94,318 @@ interface TimePoint {
 
 
 const Dashboard: React.FC = () => {
+  // Add logout function
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const logout = () => {
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
+    localStorage.removeItem('user_info');
+    window.location.href = '/login';
+  };
+
+  // Add microphone functionality
+  const [isListening, setIsListening] = useState(false);
+
+  // Add save chart functionality
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingConversation, setIsSavingConversation] = useState(false);
+
+  // Add subscription/pricing functionality
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [userSubscription, setUserSubscription] = useState(() => {
+    const saved = localStorage.getItem('user_subscription');
+    return saved ? JSON.parse(saved) : { plan: 'free', questionsUsed: 0, questionsLimit: 5 };
+  });
+  const [questionsAsked, setQuestionsAsked] = useState(0);
+
+  const saveConversation = async () => {
+    setIsSavingConversation(true);
+    try {
+      // Create PDF content
+      const pdfContent = {
+        title: 'AI Conversation Report',
+        timestamp: new Date().toLocaleString(),
+        messages: messages,
+        chartInfo: {
+          type: activeChart,
+          company: searchValue,
+          metrics: activeChart === 'metrics' ? selectedSearchMetrics : 
+                  activeChart === 'peers' ? [selectedPeerMetric] : 
+                  selectedIndustryMetrics,
+          period: selectedPeriod,
+          companies: activeChart === 'peers' ? selectedCompanies.map(c => c.name) : []
+        }
+      };
+
+      // Convert to PDF using jsPDF
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.text('AI Conversation Report', 20, 20);
+      
+      // Add timestamp
+      doc.setFontSize(12);
+      doc.text(`Generated on: ${pdfContent.timestamp}`, 20, 30);
+      
+      // Add chart information
+      doc.setFontSize(14);
+      doc.text('Chart Configuration:', 20, 45);
+      doc.setFontSize(10);
+      doc.text(`Type: ${activeChart}`, 20, 55);
+      if (searchValue) doc.text(`Company: ${searchValue}`, 20, 65);
+      if (selectedSearchMetrics.length > 0) doc.text(`Metrics: ${selectedSearchMetrics.join(', ')}`, 20, 75);
+      if (selectedPeriod) doc.text(`Period: ${selectedPeriod}`, 20, 85);
+      
+      // Add conversation messages
+      let yPosition = 105;
+      doc.setFontSize(14);
+      doc.text('Conversation:', 20, yPosition);
+      yPosition += 10;
+      
+      doc.setFontSize(10);
+      messages.forEach((message) => {
+        const role = message.role === 'assistant' ? 'AI' : 'User';
+        const content = message.content;
+        
+        // Check if we need a new page
+        if (yPosition > 280) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        // Add role and content
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${role}:`, 20, yPosition);
+        yPosition += 5;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        // Split content into lines that fit the page width
+        const maxWidth = 170;
+        const words = content.split(' ');
+        let line = '';
+        
+        for (const word of words) {
+          const testLine = line + word + ' ';
+          const testWidth = doc.getTextWidth(testLine);
+          
+          if (testWidth > maxWidth) {
+            doc.text(line, 20, yPosition);
+            yPosition += 5;
+            line = word + ' ';
+            
+            // Check if we need a new page
+            if (yPosition > 280) {
+              doc.addPage();
+              yPosition = 20;
+            }
+          } else {
+            line = testLine;
+          }
+        }
+        
+        // Add remaining line
+        if (line) {
+          doc.text(line, 20, yPosition);
+          yPosition += 5;
+        }
+        
+        yPosition += 5; // Add space between messages
+      });
+      
+      // Save the PDF
+      const fileName = `conversation_report_${Date.now()}.pdf`;
+      doc.save(fileName);
+      
+      // Show success message
+      alert('Conversation saved as PDF successfully!');
+      
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+      alert('Failed to save conversation. Please try again.');
+    } finally {
+      setIsSavingConversation(false);
+    }
+  };
+
+  const saveChart = async () => {
+    setIsSaving(true);
+    try {
+      // Prepare chart data based on active chart type
+      let chartDataToSave = {};
+      
+      if (activeChart === 'metrics') {
+        chartDataToSave = {
+          type: 'metrics',
+          company: searchValue,
+          metrics: selectedSearchMetrics,
+          period: selectedPeriod,
+          data: chartData,
+          timestamp: new Date().toISOString()
+        };
+      } else if (activeChart === 'peers') {
+        chartDataToSave = {
+          type: 'peers',
+          companies: selectedCompanies.map(c => ({ ticker: c.ticker, name: c.name })),
+          metric: selectedPeerMetric,
+          period: selectedPeriod,
+          data: peerChartData,
+          timestamp: new Date().toISOString()
+        };
+      } else if (activeChart === 'industry') {
+        chartDataToSave = {
+          type: 'industry',
+          industry: selectedIndustry,
+          metrics: selectedIndustryMetrics,
+          period: selectedPeriod,
+          data: industryChartData,
+          companyNames: industryCompanyNames,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // Save to localStorage for now (you can extend this to save to backend)
+      const savedCharts = JSON.parse(localStorage.getItem('savedCharts') || '[]');
+      const chartId = `chart_${Date.now()}`;
+      const chartToSave = {
+        id: chartId,
+        name: `Chart ${savedCharts.length + 1}`,
+        ...chartDataToSave
+      };
+      
+      savedCharts.push(chartToSave);
+      localStorage.setItem('savedCharts', JSON.stringify(savedCharts));
+      
+      // Show success message
+      alert('Chart saved successfully!');
+      
+    } catch (error) {
+      console.error('Error saving chart:', error);
+      alert('Failed to save chart. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Subscription plans configuration
+  const subscriptionPlans = [
+    {
+      id: 'free',
+      name: 'Free',
+      price: '$0',
+      period: 'forever',
+      questionsLimit: 5,
+      features: [
+        '5 questions per month',
+        'Basic chart analysis',
+        'Standard support'
+      ],
+      popular: false
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: '$29',
+      period: 'per month',
+      questionsLimit: 100,
+      features: [
+        '100 questions per month',
+        'Advanced analytics',
+        'Priority support',
+        'Export to PDF',
+        'Custom reports'
+      ],
+      popular: true
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: '$99',
+      period: 'per month',
+      questionsLimit: 1000,
+      features: [
+        '1000 questions per month',
+        'Unlimited analytics',
+        'Dedicated support',
+        'API access',
+        'Custom integrations',
+        'Team collaboration'
+      ],
+      popular: false
+    }
+  ];
+
+  const handleUpgrade = (planId: string) => {
+    // In a real app, this would redirect to payment processing
+    const selectedPlan = subscriptionPlans.find(plan => plan.id === planId);
+    if (selectedPlan) {
+      setUserSubscription({
+        plan: planId,
+        questionsUsed: 0,
+        questionsLimit: selectedPlan.questionsLimit
+      });
+      localStorage.setItem('user_subscription', JSON.stringify({
+        plan: planId,
+        questionsUsed: 0,
+        questionsLimit: selectedPlan.questionsLimit
+      }));
+      setShowPricingModal(false);
+      alert(`Upgraded to ${selectedPlan.name} plan!`);
+    }
+  };
+
+  const checkQuestionLimit = () => {
+    if (userSubscription.plan === 'free' && questionsAsked >= userSubscription.questionsLimit) {
+      setShowPricingModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const startListening = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+      
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
+          .join('');
+        
+        setInputValue(transcript);
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognition.start();
+    } else {
+      alert('Speech recognition is not supported in this browser.');
+    }
+  };
+
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [userName, setUserName] = useState('Guest User');
+  const [userInitials, setUserInitials] = useState('GU');
   const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry'>('metrics');
   const [searchValue, setSearchValue] = useState('');
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
@@ -133,6 +453,9 @@ const Dashboard: React.FC = () => {
   // Add these lines for peer metrics
   const [selectedPeerMetrics, setSelectedPeerMetrics] = useState<string[]>([]);
 
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+
   const {
     messages,
     inputValue,
@@ -157,6 +480,38 @@ const Dashboard: React.FC = () => {
     activeChart,
     selectedCompanies
   });
+
+  // Get user info from localStorage
+  useEffect(() => {
+    const userInfo = localStorage.getItem('user_info');
+    console.log('User info from localStorage:', userInfo);
+    
+    if (userInfo) {
+      try {
+        const user = JSON.parse(userInfo);
+        console.log('Parsed user info:', user);
+        
+        const firstName = user.first_name || '';
+        const lastName = user.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        console.log('First name:', firstName);
+        console.log('Last name:', lastName);
+        console.log('Full name:', fullName);
+        
+        if (fullName) {
+          setUserName(fullName);
+          setUserInitials(`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase());
+        } else {
+          console.log('No name found in user info');
+        }
+      } catch (error) {
+        console.error('Error parsing user info:', error);
+      }
+    } else {
+      console.log('No user info found in localStorage');
+    }
+  }, []);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -644,6 +999,21 @@ const Dashboard: React.FC = () => {
   //   // ... (original implementation)
   // };
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target as Node)
+      ) {
+        setProfileDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
@@ -683,12 +1053,12 @@ const Dashboard: React.FC = () => {
           <div className="space-y-2">
             <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
               <span className="text-xl">+</span>
-                <span>Customize GetDeep (DIY)</span>
+                <span>Upload Context Files (Optional)</span>
             </button>
-            <div className="pl-8 space-y-2 text-sm text-gray-600">
+            {/* <div className="pl-8 space-y-2 text-sm text-gray-600">
               <div>Add data sources</div>
               <div>Change model</div>
-            </div>
+            </div> */}
           </div>
 
           <div className="space-y-2">
@@ -768,23 +1138,82 @@ const Dashboard: React.FC = () => {
             {/* GetDeeper icon container with user profile */}
             <div className="flex-1 flex justify-end items-center gap-6">
               <div className="lg:mr-[33%] absolute top-8">  
-                <img 
-                  src="/GetDeeperIcons.png" 
-                  alt="Pro" 
-                  className="w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-18"
-                />
+                <button
+                  onClick={() => setShowPricingModal(true)}
+                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                  title="Upgrade to Pro"
+                >
+                  <img 
+                    src="/GetDeeperIcons.png" 
+                    alt="Pro" 
+                    className="w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-18"
+                  />
+                </button>
               </div>
               
               {/* User Profile - hide on mobile */}
-              <div className="hidden lg:block absolute right-6">
-          <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-xl xl:text-2xl">
-                      Anand Manthena
-                    </div>
+              <div className="hidden lg:block absolute right-6" ref={profileDropdownRef}>
+                <div className="flex items-center gap-4">
+                  <div className="text-right relative">
+                    <button
+                      className="text-xl xl:text-2xl font-medium focus:outline-none"
+                      onClick={() => setProfileDropdownOpen((open) => !open)}
+                    >
+                      {userName}
+                    </button>
+                    {profileDropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
+                        {/* User Profile Section */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                              {userInitials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {userName}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {(() => {
+                                  const userInfo = localStorage.getItem('user_info');
+                                  if (userInfo) {
+                                    try {
+                                      const user = JSON.parse(userInfo);
+                                      return user.email || 'No email';
+                                    } catch (error) {
+                                      return 'No email';
+                                    }
+                                  }
+                                  return 'No email';
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="py-1">
+                          <button
+                            onClick={() => {
+                              // TODO: Navigate to profile page
+                              setProfileDropdownOpen(false);
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            View Profile
+                          </button>
+                          <button
+                            onClick={logout}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Sign out
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="w-10 xl:w-12 h-10 xl:h-12 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-base xl:text-lg">
-                    AM
+                    {userInitials}
                   </div>
                 </div>
               </div>
@@ -801,8 +1230,25 @@ const Dashboard: React.FC = () => {
                 {/* Chart Header with Save Button */}
                 <div className="flex justify-between items-center mb-4 xl:mb-6">
                   <h2 className="text-lg sm:text-xl xl:text-2xl font-medium">Business Performance</h2>
-                  <button className="px-3 xl:px-4 py-2 text-sm xl:text-base bg-[#1B5A7D] text-white rounded hover:bg-[#164964]">
-                    Save chart
+                  <button 
+                    onClick={saveChart}
+                    disabled={isSaving || (
+                      (activeChart === 'metrics' && (!searchValue || selectedSearchMetrics.length === 0)) ||
+                      (activeChart === 'peers' && (selectedCompanies.length === 0 || !selectedPeerMetric)) ||
+                      (activeChart === 'industry' && (!selectedIndustry || selectedIndustryMetrics.length === 0))
+                    )}
+                    className={`px-3 xl:px-4 py-2 text-sm xl:text-base rounded transition-colors ${
+                      isSaving 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
+                    }`}
+                    title={
+                      isSaving 
+                        ? 'Saving...' 
+                        : 'Save current chart configuration and data'
+                    }
+                  >
+                    {isSaving ? 'Saving...' : 'Save chart'}
                   </button>
         </div>
 
@@ -1896,13 +2342,13 @@ const Dashboard: React.FC = () => {
                   <div className="p-4 xl:p-6 border-b flex justify-between items-center">
                     <div className="flex items-center gap-2 xl:gap-3">
                       <h2 className="text-lg sm:text-xl xl:text-2xl font-medium">Insights Generation</h2>
-                      <button className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] text-white rounded text-xl">+</button>
+                      {/* <button className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] text-white rounded text-xl">+</button> */}
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Clear Chat Button */}
                       <button
                         className="px-2 py-2 text-sm xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        title="Clear Chat"
+                        title="Click to reset conversation"
                         onClick={() => {
                           const event = new CustomEvent('clearChat');
                           window.dispatchEvent(event);
@@ -1913,9 +2359,24 @@ const Dashboard: React.FC = () => {
                           <path d="M6 6l8 8M6 14L14 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
                       </button>
-                      {/* Save Report Button */}
-                      <button className="px-3 xl:px-4 py-2 text-sm xl:text-base bg-[#1B5A7D] text-white rounded">
-                        Save Report
+                      {/* Save Conversation Button */}
+                      <button 
+                        onClick={saveConversation}
+                        disabled={isSavingConversation || messages.length <= 1}
+                        className={`px-3 xl:px-4 py-2 text-sm xl:text-base rounded transition-colors ${
+                          isSavingConversation || messages.length <= 1
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
+                        }`}
+                        title={
+                          isSavingConversation 
+                            ? 'Generating PDF...' 
+                            : messages.length <= 1
+                            ? 'No conversation to save'
+                            : 'Save conversation as PDF report'
+                        }
+                      >
+                        {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
                       </button>
                     </div>
                   </div>
@@ -1960,8 +2421,11 @@ const Dashboard: React.FC = () => {
                       className="flex gap-2 xl:gap-3"
                       onSubmit={(e) => {
                         e.preventDefault();
-                        handleSendMessage(inputValue);
-                        setInputValue('');
+                        if (checkQuestionLimit()) {
+                          handleSendMessage(inputValue);
+                          setInputValue('');
+                          setQuestionsAsked(prev => prev + 1);
+                        }
                       }}
                     >
                       <input 
@@ -1973,10 +2437,22 @@ const Dashboard: React.FC = () => {
                       />
                       <button 
                         type="button" 
-                        className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100"
-                        title="Voice Input"
+                        className={`p-1 xl:p-2 rounded transition-colors ${
+                          isListening 
+                            ? 'bg-red-100 hover:bg-red-200' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                        title={isListening ? "Listening... Click to stop" : "Click to speak"}
+                        onClick={startListening}
+                        disabled={isListening}
                       >
-                        <img src="/audio.jpg" alt="Voice" className="w-9 xl:w-10 h-9 xl:h-10 object-cover rounded" />
+                        <img 
+                          src="/audio.jpg" 
+                          alt="Voice" 
+                          className={`w-9 xl:w-10 h-9 xl:h-10 object-cover rounded ${
+                            isListening ? 'animate-pulse' : ''
+                          }`} 
+                        />
                       </button>
                       <button 
                         type="submit" 
@@ -1993,6 +2469,101 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Pricing Modal */}
+      {showPricingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Choose Your Plan</h2>
+                <button
+                  onClick={() => setShowPricingModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {subscriptionPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className={`relative p-6 border rounded-lg ${
+                      plan.popular 
+                        ? 'border-[#1B5A7D] ring-2 ring-[#1B5A7D]' 
+                        : 'border-gray-200'
+                    }`}
+                  >
+                    {plan.popular && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <span className="bg-[#1B5A7D] text-white px-3 py-1 rounded-full text-sm font-medium">
+                          Most Popular
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="text-center">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
+                      <div className="mb-4">
+                        <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
+                        <span className="text-gray-600 ml-1">{plan.period}</span>
+                      </div>
+                      
+                      <ul className="space-y-3 mb-6 text-left">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-center">
+                            <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <button
+                        onClick={() => handleUpgrade(plan.id)}
+                        className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+                          plan.popular
+                            ? 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
+                            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                        }`}
+                      >
+                        {plan.id === 'free' ? 'Current Plan' : 'Upgrade'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Usage Info */}
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">Current Usage</h4>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Questions used: {questionsAsked} / {userSubscription.questionsLimit}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    Plan: {userSubscription.plan.charAt(0).toUpperCase() + userSubscription.plan.slice(1)}
+                  </span>
+                </div>
+                {userSubscription.plan === 'free' && (
+                  <div className="mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-[#1B5A7D] h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(questionsAsked / userSubscription.questionsLimit) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -32,8 +32,14 @@ const Login = () => {
 
       localStorage.setItem('access', data.access);
       localStorage.setItem('refresh', data.refresh);
+      
+      // Store user information for display
+      if (data.user) {
+        localStorage.setItem("user_info", JSON.stringify(data.user));
+      }
+      
       // Force page reload to update authentication state
-      window.location.href = '/dashboard';
+      window.location.href = '/home';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

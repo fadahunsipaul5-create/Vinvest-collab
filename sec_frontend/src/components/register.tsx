@@ -46,6 +46,11 @@ const Register = () => {
       const response = await axios.post(`${baseUrl}/account/register/`, formData);
       
       if (response.status === 201) {
+        // Store user information for display
+        if (response.data.user) {
+          localStorage.setItem("user_info", JSON.stringify(response.data.user));
+        }
+        
         alert('Registration successful! Please check your email to verify your account.');
         navigate('/login');
       }
@@ -68,6 +73,11 @@ const Register = () => {
       const data = response.data;
       localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
+      
+      // Store user information for display
+      if (data.user) {
+        localStorage.setItem("user_info", JSON.stringify(data.user));
+      }
 
       // Force page reload to update authentication state
       window.location.href = '/home';

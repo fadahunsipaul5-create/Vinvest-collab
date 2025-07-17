@@ -16,7 +16,7 @@ class User(AbstractUser):
     email = models.EmailField(_("Email Address"), unique=True)
     first_name = models.CharField(_("First Name"), max_length=150)
     last_name = models.CharField(_("Last Name"), max_length=150)
-    is_verified = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False)  # type: ignore
     date_joined = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(auto_now=True)
     groups = models.ManyToManyField(
@@ -54,4 +54,4 @@ class ResetPassword(models.Model):
         return f'Code {self.code} generated for {self.user}'
 
     def is_valid(self):
-        return timezone.now() < self.created_at + timezone.timedelta(minutes=5)
+        return timezone.now() < self.created_at + timezone.timedelta(minutes=5)  # type: ignore
