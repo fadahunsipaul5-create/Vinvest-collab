@@ -363,4 +363,4 @@ if DEBUG:
     SITE_URL = "http://127.0.0.1:8000"
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    SITE_URL = "sec-insights-backend-791634680391.us-central1.run.app"
+    SITE_URL = "https://sec-insights-backend-791634680391.us-central1.run.app"

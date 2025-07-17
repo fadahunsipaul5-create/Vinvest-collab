@@ -34,30 +34,44 @@ class Util:
 
 
 def user_email(request, user):
-    expiration = datetime.utcnow() + timedelta(hours=24)
-    token = jwt.encode(
-        {"user_id": user.id, "exp": expiration, "iat": datetime.utcnow()},
-        settings.SECRET_KEY,
-        algorithm="HS256",
-    )
-    absurl = f"{settings.SITE_URL}/account/verify-email/?token={token}" 
+    try:
+        print(f"Starting email verification for user: {user.email}")
+        print(f"Current SITE_URL: {settings.SITE_URL}")
+        
+        expiration = datetime.utcnow() + timedelta(hours=24)
+        token = jwt.encode(
+            {"user_id": user.id, "exp": expiration, "iat": datetime.utcnow()},
+            settings.SECRET_KEY,
+            algorithm="HS256",
+        )
+        absurl = f"{settings.SITE_URL}/account/verify-email/?token={token}" 
+        
+        print(f"Generated verification URL: {absurl}")
 
-    email_body = f"""
-    Hi {user.email},
-    
-    Thank you for registering! Please click the link below to verify your account:
-    
-    {absurl}
-    
-    This link will expire in 24 hours.
-    """
+        email_body = f"""
+        Hi {user.email},
+        
+        Thank you for registering! Please click the link below to verify your account:
+        
+        {absurl}
+        
+        This link will expire in 24 hours.
+        """
 
-    data = {
-        "email_body": email_body,
-        "to_email": user.email,
-        "Subject": "Verify Your Email",
-    }
-    Util.send_email(data)
+        data = {
+            "email_body": email_body,
+            "to_email": user.email,
+            "Subject": "Verify Your Email",
+        }
+        
+        print(f"Email data prepared: {data}")
+        Util.send_email(data)
+        print(f"Email verification process completed for {user.email}")
+        
+    except Exception as e:
+        print(f"Error in user_email function: {e}")
+        # Don't raise the exception to prevent registration failure
+        # The user will still be created but won't receive verification email
 
 
 def generate_six_digit_code():
