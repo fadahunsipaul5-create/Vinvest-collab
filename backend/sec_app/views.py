@@ -219,7 +219,7 @@ class ChartDataAPIView(APIView):
 
             if (
                 not tickers or not tickers[0]
-            ):  # Check if tickers list is empty or contains empty string 
+            ):  # Check if tickers list is empty or contains empty string or not
                 return Response(
                     {"error": "Tickers are required."},
                     status=status.HTTP_400_BAD_REQUEST,
