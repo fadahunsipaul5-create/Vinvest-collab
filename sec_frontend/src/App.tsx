@@ -35,6 +35,7 @@ import Login from './components/login';
 import Register from './components/register';
 import RequestPasswordReset from './components/request-password-reset';
 import PasswordReset from './components/password-reset';
+import EmailVerification from './components/email-verification';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Overview from './components/overview';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -53,6 +54,7 @@ function App() {
           <Route path="/" element={<Navigate to="/register" replace />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/email-verification" element={<EmailVerification />} />
           <Route path="/request-password-reset" element={<RequestPasswordReset />} />
           <Route path="/password-reset" element={<PasswordReset />} />
           <Route path="/home" element={<Home />} />

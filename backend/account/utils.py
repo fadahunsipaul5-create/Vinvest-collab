@@ -44,7 +44,7 @@ def user_email(request, user):
             settings.SECRET_KEY,
             algorithm="HS256",
         )
-        absurl = f"{settings.SITE_URL}/account/verify-email/?token={token}" 
+        absurl = f"https://sec-frontend-791634680391.us-central1.run.app/email-verification?token={token}" 
         
         print(f"Generated verification URL: {absurl}")
 

@@ -30,6 +30,7 @@ from google.oauth2 import id_token
 from rest_framework import permissions
 from google.auth.transport import requests as google_requests
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
 
 User = get_user_model()
 
@@ -234,7 +235,7 @@ class VerifyEmailViewSet(viewsets.GenericViewSet):
                 user.save()
                 print(f"User {user.email} verified and activated successfully")
 
-            return Response({'email': 'User is successfully activated'}, status=status.HTTP_200_OK)
+            return Response({'message': 'User is successfully activated'}, status=status.HTTP_200_OK)
 
         except jwt.ExpiredSignatureError:
             return Response({'error': 'Email activation link has expired'}, status=status.HTTP_400_BAD_REQUEST)
