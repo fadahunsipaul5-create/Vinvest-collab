@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import InsightsGenerators from './InsightsGenerators';
+import AIOTPlatformSolutions from './AIOTPlatformSolutions';
+import OperationsVirtualization from './OperationsVirtualization';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import BoxPlot from './BoxPlot';
 import { useChat } from './chatbox';
@@ -117,6 +120,16 @@ const Dashboard: React.FC = () => {
     return saved ? JSON.parse(saved) : { plan: 'free', questionsUsed: 0, questionsLimit: 5 };
   });
   const [questionsAsked, setQuestionsAsked] = useState(0);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showInsightsModal, setShowInsightsModal] = useState(false);
+  const [showApproachModal, setShowApproachModal] = useState(false);
+  const [showWhyUsModal, setShowWhyUsModal] = useState(false);
+  const [showValueServicesModal, setShowValueServicesModal] = useState(false);
+  const [showCapabilitiesDropdown, setShowCapabilitiesDropdown] = useState(false);
+  const [showAIOTModal, setShowAIOTModal] = useState(false);
+  const [showOperationsModal, setShowOperationsModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveConversation = async () => {
     setIsSavingConversation(true);
@@ -358,6 +371,48 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const contactData = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      company: formData.get('company') as string,
+      phone: formData.get('phone') as string,
+      message: formData.get('message') as string,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Send email using mailto link as fallback
+      const mailtoLink = `mailto:info@valueaccel.com?subject=Contact Form Submission from ${contactData.name}&body=Name: ${contactData.name}%0D%0AEmail: ${contactData.email}%0D%0ACompany: ${contactData.company}%0D%0APhone: ${contactData.phone}%0D%0AMessage: ${contactData.message}`;
+      
+      window.open(mailtoLink);
+      
+      // Close modal and show success message
+      setShowContactModal(false);
+      alert('Thank you for your message! We will get back to you soon.');
+      
+      // Reset form
+      e.currentTarget.reset();
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      alert('Failed to send message. Please try again or contact us directly.');
+    }
+  };
+
   const checkQuestionLimit = () => {
     if (userSubscription.plan === 'free' && questionsAsked >= userSubscription.questionsLimit) {
       setShowPricingModal(true);
@@ -403,7 +458,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
   const [userName, setUserName] = useState('Guest User');
   const [userInitials, setUserInitials] = useState('GU');
   const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry'>('metrics');
@@ -1017,44 +1072,20 @@ const Dashboard: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
-      <div className="lg:hidden flex justify-between items-center p-3 sm:p-4 bg-white border-b">
-        <img src="/GetDeepLogo.png" alt="GetDeep.AI" className="h-8 sm:h-10 md:h-12" />
-        <button className="p-2">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+        <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
+          <img src="/new_logo.PNG" alt="GetDeep.AI" className="w-28 h-28 sm:w-32 sm:h-32" />
       </div>
 
       {/* Sidebar */}
-      <div className={`${isSidebarVisible ? 'lg:block' : 'lg:hidden'} hidden w-64 xl:w-72 bg-white border-r transition-all duration-300`}>
+      <div className="hidden lg:block w-64 xl:w-72 bg-white border-r">
         <div className="px-4 xl:px-6 h-full">
-          <div className="space-y-4 mt-[9.5rem]">
-            {/* Hamburger Menu Icon with onClick */}
-            <button 
-              onClick={() => setIsSidebarVisible(false)}
-              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded mb-4"
-            >
-              <svg 
-                className="w-6 h-6 text-gray-600" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
+          <div className="space-y-4 mt-[6rem]">
 
           <div className="space-y-2">
-            <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
+            {/* <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
               <span className="text-xl">+</span>
                 <span>Upload Context Files (Optional)</span>
-            </button>
+            </button> */}
             {/* <div className="pl-8 space-y-2 text-sm text-gray-600">
               <div>Add data sources</div>
               <div>Change model</div>
@@ -1062,29 +1093,88 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
+            <button 
+              onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
+              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+            >
               <span>💡</span>
-                <span>Develop Insights for you</span>
+              <span>Our Capabilities, Solutions, & Accelerators</span>
+              <svg 
+                className={`w-4 h-4 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
+            
+            {/* Dropdown Menu */}
+            {showCapabilitiesDropdown && (
             <div className="pl-8 space-y-2 text-sm text-gray-600">
-              <div>Business/industry report</div>
-              <div>Holistic business strategy</div>
+                <button 
+                  onClick={() => setShowInsightsModal(true)}
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer"
+                >
+                  Insights Generators (domain-specific)
+                </button>
+                <button 
+                  onClick={() => setShowAIOTModal(true)}
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer"
+                >
+                  AIOT Platform & Solutions
+                </button>
+                <button 
+                  onClick={() => setShowOperationsModal(true)}
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer"
+                >
+                  Operations Virtualization & Optimization
+                </button>
             </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
-              <span>🛠️</span>
-                <span>Build tools for your use case</span>
+            <button 
+              onClick={() => setShowApproachModal(true)}
+              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+            >
+              <span>⚡</span>
+                <span>Our Approach To Accelerate Value Creation</span>
             </button>
-            <div className="pl-8 space-y-2 text-sm text-gray-600">
-              <div>Data/IT/OT foundations</div>
-              <div>Decision making AI tools</div>
-              <div>AI Agents & solutions</div>
             </div>
+
+          <div className="space-y-2">
+            <button 
+              onClick={() => setShowValueServicesModal(true)}
+              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+            >
+              <span>🎯</span>
+                <span>Our Value Identification To Realization Services</span>
+            </button>
           </div>
 
           <div className="space-y-2">
+            <button 
+              onClick={() => setShowWhyUsModal(true)}
+              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+            >
+              <span>🏆</span>
+                <span>Why Us</span>
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <button 
+              onClick={() => setShowContactModal(true)}
+              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+            >
+              <span>📞</span>
+                <span>Contact Us</span>
+            </button>
+          </div>
+
+          {/* <div className="space-y-2">
             <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
               <span>📄</span>
                 <span>Recent charts and reports</span>
@@ -1094,50 +1184,30 @@ const Dashboard: React.FC = () => {
               <div>Machinery industry report</div>
               <div>AI Agents in Industrials</div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
       </div>
 
-      {/* Floating hamburger when sidebar is hidden */}
-      {!isSidebarVisible && (
-        <button 
-          onClick={() => setIsSidebarVisible(true)}
-          className="fixed top-[6rem] left-4 p-2 bg-white rounded-lg shadow-md hover:bg-gray-100 z-50"
-        >
-          <svg 
-            className="w-6 h-6 text-gray-600" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M4 6h16M4 12h16M4 18h16"
-            />
-          </svg>
-        </button>
-      )}
+
 
       {/* Main Content */}
-      <div className={`flex-1 ${isSidebarVisible ? 'lg:ml-0' : 'lg:ml-0'}`}>
+      <div className="flex-1">
         {/* Top section with both logos - full width */}
-        <div className="border-b bg-white absolute left-0 right-0 h-36">
+        <div className="border-b bg-white absolute left-0 right-0 h-24">
           <div className="flex items-center h-full relative">
             {/* Logo container - hide on mobile */}
-            <div className="hidden lg:block w-64 xl:w-72 overflow-visible absolute -top-12">
+            <div className="hidden lg:block w-64 xl:w-72 overflow-visible absolute bottom-0">
               <img 
-                src="/GetDeepLogo.png" 
+                src="/new_logo.PNG" 
                 alt="GetDeep.AI" 
-                className="h-56 xl:h-60"
+                className="w-32 h-14 xl:w-40 xl:h-18"
               />
             </div>
             
             {/* GetDeeper icon container with user profile */}
             <div className="flex-1 flex justify-end items-center gap-6">
-              <div className="lg:mr-[33%] absolute top-8">  
+              <div className="lg:mr-[33%] absolute top-2">  
                 <button
                   onClick={() => setShowPricingModal(true)}
                   className="hover:opacity-80 transition-opacity cursor-pointer"
@@ -1222,7 +1292,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Main Grid */}
-        <div className="p-3 sm:p-4 lg:p-6 xl:p-8 mt-[95px]">
+        <div className="p-3 sm:p-4 lg:p-6 xl:p-8 mt-[60px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6">
             {/* Chart Section - full width on mobile */}
             <div className="lg:col-span-6">
@@ -2325,14 +2395,14 @@ const Dashboard: React.FC = () => {
                 />
               </div>
               {/* Footer - adjust spacing on mobile */}
-              <div className="mt-2 sm:mt-2 xl:mt-2 px-3 sm:px-4 lg:px-6 xl:px-8">
+              {/* <div className="mt-2 sm:mt-2 xl:mt-2 px-3 sm:px-4 lg:px-6 xl:px-8">
                 <div className="flex flex-wrap gap-3 sm:gap-4 xl:gap-6 text-xs sm:text-sm xl:text-base text-gray-600">
                   <a href="#" className="hover:text-gray-800">Customer Stories</a>
                   <a href="#" className="hover:text-gray-800">About Us</a>
                   <a href="#" className="hover:text-gray-800">Careers</a>
                   <a href="#" className="hover:text-gray-800">Contact Us</a>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Insights Generation - full width on mobile */}
@@ -2454,6 +2524,26 @@ const Dashboard: React.FC = () => {
                           }`} 
                         />
                       </button>
+                      
+                      {/* File Upload Button */}
+                      <button 
+                        type="button" 
+                        className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100"
+                        title="Upload files"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <span className="text-2xl font-bold text-[#1B5A7D]">+</span>
+                      </button>
+                      
+                      {/* Hidden File Input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
+                      />
                       <button 
                         type="submit" 
                         className="p-2 xl:p-3 bg-[#1B5A7D] text-white rounded hover:bg-[#164964] disabled:bg-gray-300 disabled:cursor-not-allowed"
@@ -2462,6 +2552,38 @@ const Dashboard: React.FC = () => {
                         <span className="text-lg">{isChatLoading ? '⏳' : '➤'}</span>
                       </button>
                     </form>
+                    
+                    {/* Uploaded Files Display */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Uploaded Files:</span>
+                          <button
+                            onClick={() => setUploadedFiles([])}
+                            className="text-xs text-red-600 hover:text-red-800"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {uploadedFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-blue-600">📎</span>
+                                <span className="text-sm text-gray-700 truncate max-w-48">{file.name}</span>
+                                <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                              </div>
+                              <button
+                                onClick={() => removeFile(index)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2560,6 +2682,526 @@ const Dashboard: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Modal */}
+      {showContactModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Contact Us</h2>
+                <button
+                  onClick={() => setShowContactModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Contact Information */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Get in Touch</h3>
+                <div className="space-y-2 text-gray-700">
+                  <div className="flex items-center">
+                    <span className="mr-2">📧</span>
+                    <a href="mailto:info@valueaccel.com" className="text-blue-600 hover:underline">
+                      info@valueaccel.com
+                    </a>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-2">📞</span>
+                    <a href="tel:6305967395" className="text-blue-600 hover:underline">
+                      630 596 7395
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Form */}
+              <form onSubmit={handleContactSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      placeholder="Enter your email address"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      id="company"
+                      name="company"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      placeholder="Enter your company name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      placeholder="Enter your phone number"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                    Message *
+                  </label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    required
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                    placeholder="Tell us how we can help you..."
+                  ></textarea>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowContactModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors"
+                  >
+                    Send Message
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Insights Generator Modal */}
+      {showInsightsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setShowInsightsModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <InsightsGenerators />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approach Modal */}
+      {showApproachModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8">
+                <h1 className="text-2xl lg:text-3xl font-bold text-[#1B5A7D] text-center flex-1">
+                  OUR APPROACH TO OPTIMAL DECISION-MAKING AND ACCELERATED VALUE CREATION
+                </h1>
+                <button
+                  onClick={() => setShowApproachModal(false)}
+                  className="text-gray-400 hover:text-gray-600 ml-4"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column - Pillars */}
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl">👁️</div>
+                      <h2 className="text-xl font-bold text-[#1B5A7D]">Data Visualization & Insights Generation</h2>
+                    </div>
+                    <p className="text-gray-700">
+                      Create <strong>data transparency</strong> by integrating OT, IT, ET data for data driven decision making
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl">⚙️</div>
+                      <h2 className="text-xl font-bold text-[#1B5A7D]">Process optimization</h2>
+                    </div>
+                    <p className="text-gray-700">
+                      Enable <strong>system-level decision making</strong> across functions, operation sites & value-chain
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl">🧠</div>
+                      <h2 className="text-xl font-bold text-[#1B5A7D]">Superior Decisions / Agentization</h2>
+                    </div>
+                    <p className="text-gray-700">
+                      Automate decision making and actions or develop co-pilots to enhance decisioning
+                    </p>
+                  </div>
+                </div>
+
+                {/* Middle Column - Transformations */}
+                <div className="space-y-6">
+                  <div className="bg-blue-50 rounded-lg p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 bg-white rounded-lg p-4 border">
+                          <h3 className="font-bold text-[#1B5A7D] mb-2">From</h3>
+                          <p className="text-sm text-gray-700">Single source of truth across OT, IT, and ET</p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 12h34m0 0l-6-6m6 6l-6 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 bg-white rounded-lg p-4 border">
+                          <h3 className="font-bold text-[#1B5A7D] mb-2">To</h3>
+                          <p className="text-sm text-gray-700">Digital Twins (e.g., 3D plant model) with GenAI to query data and get instant insights</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 bg-white rounded-lg p-4 border">
+                          <p className="text-sm text-gray-700">Optimized decisions across two or more functions</p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 12h34m0 0l-6-6m6 6l-6 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 bg-white rounded-lg p-4 border">
+                          <p className="text-sm text-gray-700">Dynamic enterprise (business / ops decisions optimized across enterprise)</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 bg-white rounded-lg p-4 border">
+                          <p className="text-sm text-gray-700">One/two optimal actions taken by AI agents</p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 12h34m0 0l-6-6m6 6l-6 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 bg-white rounded-lg p-4 border">
+                          <p className="text-sm text-gray-700">Most actions are taken by AI agents with necessary human interventions</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Benefits */}
+                <div className="bg-green-50 rounded-lg p-6">
+                  <p className="text-gray-700 leading-relaxed">
+                    These efforts (for select use cases or at an enterprise-level) will enable you to make optimal, value-driven decisions and actions across the value chain and at all levels and drive significant business value (e.g., ROIC*)
+                  </p>
+                </div>
+              </div>
+
+              {/* Contact Button */}
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => {
+                    setShowApproachModal(false);
+                    setShowContactModal(true);
+                  }}
+                  className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
+                >
+                  Contact Us
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Why Us Modal */}
+      {showWhyUsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8">
+                <div className="flex-1 text-center">
+                  <h1 className="text-3xl font-bold text-[#1B5A7D] mb-2">WHY PARTNER WITH US?</h1>
+                  <p className="text-lg text-gray-600">Our unique op-model enabled us to deliver services at high impact & low cost</p>
+                </div>
+                <button
+                  onClick={() => setShowWhyUsModal(false)}
+                  className="text-gray-400 hover:text-gray-600 ml-4"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Feature 1 */}
+                <div className="text-center">
+                  <div className="relative mb-6">
+                    <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-4xl font-bold text-white">1</span>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">Pre-built Digital/AI Accelerators & Platforms</h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    Our (and our delivery partners') platforms and pre-built tools accelerate the value delivery by <strong className="text-[#1B5A7D]">up to 50%</strong>, for select use cases and transformation efforts.
+                  </p>
+                </div>
+
+                {/* Feature 2 */}
+                <div className="text-center">
+                  <div className="relative mb-6">
+                    <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-4xl font-bold text-white">2</span>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">Our low-cost Service / Operating Model</h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    Very minimal overhead cost compared to large consulting companies. <strong className="text-[#1B5A7D]">Up to 50% lower overall cost</strong> due to our optimal staffing model.
+                  </p>
+                </div>
+
+                {/* Feature 3 */}
+                <div className="text-center">
+                  <div className="relative mb-6">
+                    <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-4xl font-bold text-white">3</span>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">One team of Strategists, Experts & Developers</h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    Our team comprised of <strong className="text-[#1B5A7D]">strategists, Digital/AI developers, domain experts,</strong> and <strong className="text-[#1B5A7D]">partners/alliances</strong> with specialized platforms and accelerators.
+                  </p>
+                </div>
+              </div>
+
+              {/* Contact Button */}
+              <div className="flex justify-center mt-12">
+                <button
+                  onClick={() => {
+                    setShowWhyUsModal(false);
+                    setShowContactModal(true);
+                  }}
+                  className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
+                >
+                  Contact Us
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Value Services Modal */}
+      {showValueServicesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-[#1B5A7D] flex-1 text-center">Our Value Identification To Realization Services</h1>
+                <button
+                  onClick={() => setShowValueServicesModal(false)}
+                  className="text-gray-400 hover:text-gray-600 ml-4"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm font-medium text-gray-600">FROM: Value Identification ...</span>
+                  <span className="text-sm font-medium text-gray-600">TO: Value Realization</span>
+                </div>
+                <div className="relative">
+                  <div className="w-full h-3 bg-gray-200 rounded-full">
+                    <div className="h-full bg-gradient-to-r from-[#1B5A7D] to-[#164964] rounded-full relative">
+                      <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 border-l-8 border-l-[#164964] border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Column 1 - Value Identification */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+                  <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
+                    Value Identification <br/>& Current State Assessment
+                  </h2>
+                  <ul className="space-y-3 text-gray-700">
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      On-demand insights, strategy development & domain expertise
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Value chain mapping and use case identification (including Digital/AI)
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Current state assessment / readiness (data, IT/ OT/ET)
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Use case ROIC, prioritization, and digital transformation roadmap
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Column 2 - Data Platforms */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
+                  <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
+                    Data Platforms & <br/>AIoT/IT/ET Infrastructure Implementation
+                  </h2>
+                  <ul className="space-y-3 text-gray-700">
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Data integration across sources and systems
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Data curation & building centralized data products and platforms
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Accelerated AIoT/IT/ET implementation by leveraging technology including accelerators and pre-built solutions
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Column 3 - Value Realization */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6 border border-purple-200">
+                  <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
+                    Select Use Case <br/>Implementation & Value Realization
+                  </h2>
+                  <ul className="space-y-3 text-gray-700">
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Select use/value case and digital/AI solution end-to-end implementation
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Accelerated efforts by leverage AI agents and domain experts
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1B5A7D] mr-2">•</span>
+                      Institutionalization and new ways of working by addressing people, process changes
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Contact Button */}
+              <div className="flex justify-center mt-12">
+                <button
+                  onClick={() => {
+                    setShowValueServicesModal(false);
+                    setShowContactModal(true);
+                  }}
+                  className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium flex items-center gap-2"
+                >
+                  <span>Contact Us</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AIOT Platform & Solutions Modal */}
+      {showAIOTModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setShowAIOTModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <AIOTPlatformSolutions />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Operations Virtualization & Optimization Modal */}
+      {showOperationsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setShowOperationsModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <OperationsVirtualization />
             </div>
           </div>
         </div>

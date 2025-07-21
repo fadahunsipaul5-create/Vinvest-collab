@@ -104,7 +104,7 @@ const Register = () => {
         <div>
           <img 
             className="mx-auto h-16 w-auto" 
-            src="/GetDeepLogo.png"
+            src="/new_logo.PNG"
             alt="GetDeep.AI"
           />
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
