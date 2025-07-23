@@ -17,6 +17,8 @@ from dateutil import parser
 from sec_app.api_client import fetch_filing_details
 import io
 from asgiref.sync import sync_to_async
+from django.core.mail import send_mail, BadHeaderError
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -309,3 +311,33 @@ def fetch_and_store_xbrl_data(company, filing_data, period):
         logger.error(f"Error fetching or processing XBRL data for {company.ticker}: {str(e)}")
 
     return metrics_created
+
+def contact_mail(fullname, email, company, phone, message):
+    subject = f"New Contact Form Submission from {fullname}"
+    plain_message = f"""
+    Name: {fullname}
+    Email: {email}
+    Company: {company}
+    Phone: {phone}
+    Message: {message}
+    """
+    html_message = f"""
+        <p><strong>Name:</strong> {fullname}</p>
+        <p><strong>Email:</strong> {email}</p>
+        <p><strong>Company:</strong> {company}</p>
+        <p><strong>Phone:</strong> {phone}</p>
+        <p><strong>Message:</strong><br>{message}</p>
+    """
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=['info@valueaccel.com'],
+            html_message=html_message,
+        )
+        return {'success': 'Message sent'}
+    except BadHeaderError:
+        return {'error': 'Invalid header found.'}
+    except Exception as e:
+        return {'error': str(e)}

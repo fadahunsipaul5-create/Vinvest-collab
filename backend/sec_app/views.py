@@ -36,7 +36,41 @@ from django.http import JsonResponse
 from django.core.management import call_command
 from django.views.decorators.csrf import csrf_exempt
 from .utility.bot import fetch_google_news
+from .models.chat_session import ChatSession
+from .models.chat_history import ChatHistory
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 
+class ChatSessionListView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        sessions = ChatSession.objects.filter(user=request.user).order_by('-created_at')
+        serializer = ChatSessionSerializer(sessions, many=True)
+        return Response(serializer.data)
+
+class ChatSessionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, session_id):
+        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        messages = session.messages.all().order_by("timestamp")
+        serializer = ChatHistorySerializer(messages, many=True)
+        return Response(serializer.data)
+
+class ContactView(APIView):
+    def post(self, request):
+        fullname = request.data.get('fullname')
+        email = request.data.get('email')
+        company = request.data.get('company')
+        phone = request.data.get('phone')
+        message = request.data.get('message')
+        if not all([fullname, email, message, company, phone]):
+            return Response({'error': 'All fields required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = contact_mail(fullname, email, company, phone, message)
+        if result.get('success'):
+            return Response({"message": "Contact form submitted successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": result.get('error')}, status=status.HTTP_400_BAD_REQUEST)
 
 @csrf_exempt
 @api_view(["GET"])
@@ -54,96 +88,56 @@ def load_data(request):
         return Response({"error": str(e)}, status=500)
 
 class ExternalChatbotProxyView(APIView):
+    permission_classes = [IsAuthenticated]
     def post(self, request):
+        user = request.user
+        question = request.data.get("question", "").strip()
+        if not question:
+            return Response({"error": "Question cannot be empty"}, status=400)
+        # Optional contextual filtering
+        company_id = request.data.get("company", "").strip()
+        metric_list = request.data.get("metrics", [])
+        payload = request.data.get("payload", {})
+        selected_peers = payload.get("companies", [])
+        sector, industry = "", ""
         try:
-            logger.info(f"Incoming data: {request.data}")
+            company = Company.objects.get(ticker__iexact=company_id)
+        except Company.DoesNotExist:
+            company = Company.objects.filter(name__iexact=company_id).first()
+        if company:
+            sector = company.sector or ""
+            industry = company.industry or ""
+        filtered_context = request.data.get("filtered_context", {
+            "company": company_id,
+            "metric": metric_list[0] if metric_list else "",
+            "sector": sector,
+            "industry": industry,
+            "selected_peers": selected_peers,
+        })
+        # Create or retrieve session
+        session_id = request.data.get("session_id")
+        chat_session = (
+            get_object_or_404(ChatSession, id=session_id, user=user)
+            if session_id
+            else ChatSession.objects.create(user=user, title=question[:50] or "New Chat"))
+        chatbot_payload = {
+            "question": question,
+            "chat_history": request.data.get("chat_history", []),
+            "filtered_context": filtered_context,}
+        try:
+            response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60)
+            data = response.json()
+        except Exception as e:
+            return Response({"error": "Chatbot failed", "details": str(e)}, status=502)
+        # Save chat
+        ChatHistory.objects.create(
+            session=chat_session,
+            user=user,
+            question=question,
+            answer=data.get("answer", "[No answer]")
+        )
+        return Response({**data, "session_id": chat_session.id}, status=200)
 
-            raw_question = request.data.get("question")
-            question = raw_question.strip() if isinstance(raw_question, str) else ""
-            if not question:
-                return Response(
-                    {"error": "Question cannot be empty", "success": False},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            chat_history = request.data.get("chat_history", [])
-
-            if "filtered_context" in request.data:
-                filtered_context = request.data["filtered_context"]
-            else:
-                payload = request.data.get("payload", {})
-                company_identifier = request.data.get("company", "").strip()
-                metric_list = request.data.get("metrics", [])
-                selected_peers = payload.get("companies", [])
-
-                sector = ""
-                industry = ""
-                if company_identifier:
-                    try:
-                        company = Company.objects.get(ticker__iexact=company_identifier)
-                    except Company.DoesNotExist:
-                        try:
-                            company = Company.objects.get(name__iexact=company_identifier)
-                        except Company.DoesNotExist:
-                            company = None
-                            logger.warning(f"Company '{company_identifier}' not found in DB.")
-
-                    if company:
-                        sector = company.sector or ""
-                        industry = company.industry or ""
-
-                filtered_context = {
-                    "company": company_identifier,
-                    "metric": metric_list[0] if metric_list else "",
-                    "sector": sector,
-                    "industry": industry,
-                    "selected_peers": selected_peers,
-                }
-
-            chatbot_payload = {
-                "question": question,
-                "chat_history": chat_history,
-                "filtered_context": filtered_context,
-            }
-
-            logger.info(f"Forwarding to chatbot: {chatbot_payload}")
-
-            response = requests.post(
-                "https://api.arvatech.info/api/qa_bot",
-                json=chatbot_payload,
-                timeout=60,
-            )
-
-            try:
-                data = response.json()
-            except ValueError:
-                logger.error(f"Non-JSON response from chatbot: {response.text}")
-                return Response(
-                    {
-                        "error": "Invalid response from chatbot service",
-                        "raw_response": response.text,
-                    },
-                    status=status.HTTP_502_BAD_GATEWAY,
-                )
-
-            logger.info(f"Chatbot returned {response.status_code}: {data}")
-            return Response(data, status=response.status_code)
-
-        except requests.exceptions.RequestException as e:
-            logger.error("Chatbot request failed: %s", str(e))
-            traceback.print_exc()
-            return Response(
-                {"error": "Chatbot service unavailable", "details": str(e)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        except Exception as ex:
-            logger.exception("Unexpected error")
-            traceback.print_exc()
-            return Response(
-                {"error": "Internal error occurred", "details": str(ex)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
 
 @api_view(["GET"])
 async def extract_financials(request):
@@ -579,33 +573,24 @@ class AggregatedDataAPIView(APIView):
         tickers = request.GET.get("tickers", "").split(",")
         metric = request.GET.get(
             "metric", "Revenue"
-        )  # Default to "Revenue" with capital R
+        )  
         period = request.GET.get("period", "1Y").strip('"')
-
         if not tickers or not tickers[0]:
             return Response({"error": "Tickers are required."}, status=400)
-
         print(
             f"Fetching data for tickers: {tickers}, metric: {metric}, period: {period}"
         )
-
         # Capitalize first letter of metric to match database
         metric = metric[0].upper() + metric[1:] if metric else ""
-
         # Check if companies exist
         companies = Company.objects.filter(ticker__in=tickers)
-        print(
-            f"Found companies in DB: {list(companies.values_list('ticker', flat=True))}"
-        )
-
+        print(f"Found companies in DB: {list(companies.values_list('ticker', flat=True))}")
         # Get metrics based on period type
         metrics = FinancialMetric.objects.filter(
             company__ticker__in=tickers, metric_name=metric
         ).select_related("period")
-
         print(f"Found {metrics.count()} total metrics")
         print(f"SQL Query: {metrics.query}")
-
         # Filter metrics based on period type
         if period == "1Y":
             metrics = metrics.filter(period__period__regex=r"^\d{4}$")

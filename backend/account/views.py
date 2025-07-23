@@ -47,8 +47,13 @@ class GoogleAuthView(APIView):
             return Response({"error": "Server configuration error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
-            # Verify Google token
-            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
+            # Verify Google token with clock skew tolerance
+            idinfo = id_token.verify_oauth2_token(
+                token, 
+                google_requests.Request(), 
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10  # Allow 10 seconds of clock skew
+            )
 
             email = idinfo["email"]
             full_name = idinfo.get("name", "")
@@ -79,6 +84,12 @@ class GoogleAuthView(APIView):
 
         except ValueError as e:
             print(f"Google token verification error: {str(e)}")
+            # Check if it's a clock skew issue
+            if "too early" in str(e).lower() or "clock" in str(e).lower():
+                return Response({
+                    "error": "Clock synchronization issue. Please check your system time.",
+                    "details": str(e)
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"Google authentication error: {str(e)}")

@@ -1,6 +1,10 @@
 import React from 'react';
 
-const AIOTPlatformSolutions: React.FC = () => {
+interface AIOTPlatformSolutionsProps {
+  onContactClick?: () => void;
+}
+
+const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContactClick }) => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -173,7 +177,10 @@ const AIOTPlatformSolutions: React.FC = () => {
 
           {/* Contact Button */}
           <div className="flex justify-center pt-6">
-            <button className="px-8 py-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors text-gray-700 font-medium">
+            <button 
+              onClick={onContactClick}
+              className="px-8 py-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors text-gray-700 font-medium"
+            >
               Contact Us
             </button>
           </div>

@@ -1,17 +1,58 @@
 import React, { useState } from 'react';
+import baseUrl from './api';
 
 const ContactUs: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     company: '',
+    phone: '',
     message: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const mailtoLink = `mailto:info@valueaccel.com?subject=Contact from ${formData.name}&body=Name: ${formData.name}%0D%0AEmail: ${formData.email}%0D%0ACompany: ${formData.company}%0D%0A%0D%0AMessage:%0D%0A${formData.message}`;
-    window.open(mailtoLink);
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const response = await fetch(`${baseUrl}/api/contact/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullname: formData.name,
+          email: formData.email,
+          company: formData.company,
+          phone: formData.phone,
+          message: formData.message
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(true);
+        setFormData({
+          name: '',
+          email: '',
+          company: '',
+          phone: '',
+          message: ''
+        });
+      } else {
+        setError(data.error || 'Failed to send message. Please try again.');
+      }
+    } catch (err) {
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -29,6 +70,18 @@ const ContactUs: React.FC = () => {
             <h1 className="text-4xl font-bold text-[#1B5A7D] mb-4">Contact Us</h1>
             <p className="text-xl text-gray-600">Get in touch with us for any inquiries or collaboration opportunities</p>
           </div>
+
+          {success && (
+            <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+              Thank you for your message! We will get back to you soon.
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Contact Form */}
@@ -69,7 +122,7 @@ const ContactUs: React.FC = () => {
 
                 <div>
                   <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                    Company
+                    Company *
                   </label>
                   <input
                     type="text"
@@ -77,8 +130,25 @@ const ContactUs: React.FC = () => {
                     name="company"
                     value={formData.company}
                     onChange={handleChange}
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
                     placeholder="Enter your company name"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                    placeholder="Enter your phone number"
                   />
                 </div>
 
@@ -100,9 +170,14 @@ const ContactUs: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
+                  disabled={loading}
+                  className={`w-full px-8 py-3 text-white rounded-lg font-medium transition-colors ${
+                    loading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-[#1B5A7D] hover:bg-[#164964]'
+                  }`}
                 >
-                  Send Message
+                  {loading ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             </div>

@@ -128,6 +128,9 @@ const Dashboard: React.FC = () => {
   const [showCapabilitiesDropdown, setShowCapabilitiesDropdown] = useState(false);
   const [showAIOTModal, setShowAIOTModal] = useState(false);
   const [showOperationsModal, setShowOperationsModal] = useState(false);
+  const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
+  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [currentChatSession, setCurrentChatSession] = useState<any>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -383,6 +386,115 @@ const Dashboard: React.FC = () => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const clearUploadedFiles = () => {
+    setUploadedFiles([]);
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const fetchChatHistory = async () => {
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      const response = await fetch(`${baseUrl}/api/chat/sessions/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.slice(0, 5)); // Get latest 5 chat sessions
+      }
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+    }
+  };
+
+  const loadChatSession = async (sessionId: number) => {
+    try {
+      const token = localStorage.getItem('access');
+      console.log('Loading chat session:', sessionId);
+      console.log('Token available:', !!token);
+      
+      if (!token) {
+        console.error('No access token found');
+        return;
+      }
+
+      const response = await fetch(`${baseUrl}/api/chat/sessions/${sessionId}/messages/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (response.status === 401) {
+        console.error('Authentication failed - token may be expired');
+        // Clear tokens and redirect to login
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        localStorage.removeItem('user_info');
+        window.location.href = '/login';
+        return;
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Chat session data:', data);
+        
+        // Convert backend messages to frontend format
+        const formattedMessages = data.map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.role === 'user' ? msg.question : msg.answer
+        }));
+        
+        console.log('Formatted messages:', formattedMessages);
+        
+        // Use the setMessages from useChat hook to properly update the chat
+        setMessages(formattedMessages);
+        setCurrentChatSession(sessionId);
+        setShowChatHistoryDropdown(false);
+        
+        // Clear any uploaded files when loading a session
+        setUploadedFiles([]);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        console.error('Failed to load chat session:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+      }
+    } catch (error) {
+      console.error('Error loading chat session:', error);
+    }
+  };
+
+  const startNewChat = () => {
+    // Reset to initial state
+    setMessages([
+      {
+        role: 'assistant',
+        content: 'I can help you analyze this data. What would you like to know?'
+      }
+    ]);
+    setCurrentChatSession(null);
+    setShowChatHistoryDropdown(false);
+    
+    // Clear any uploaded files
+    setUploadedFiles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -533,7 +645,18 @@ const Dashboard: React.FC = () => {
                  activeChart === 'industry' ? selectedIndustryMetrics : 
                  selectedSearchMetrics,
     activeChart,
-    selectedCompanies
+    selectedCompanies,
+    currentChatSession,
+    onSessionUpdate: fetchChatHistory,
+    uploadedFiles,
+    onClearFiles: clearUploadedFiles,
+    onAuthError: () => {
+      // Clear tokens and redirect to login
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('user_info');
+      window.location.href = '/login';
+    }
   });
 
   // Get user info from localStorage
@@ -589,6 +712,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchCompanies();
+    fetchChatHistory();
   }, [baseUrl]);
 
 
@@ -1073,13 +1197,13 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
         <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
-          <img src="/new_logo.PNG" alt="GetDeep.AI" className="w-28 h-28 sm:w-32 sm:h-32" />
+          <img src="/new_logo.PNG" alt="GetDeep.AI" className="w-10 h-20 sm:w-10 sm:h-20 md:w-16 md:h-20 lg:w-10 lg:h-20" />
       </div>
 
       {/* Sidebar */}
       <div className="hidden lg:block w-64 xl:w-72 bg-white border-r">
         <div className="px-4 xl:px-6 h-full">
-          <div className="space-y-4 mt-[6rem]">
+          <div className="space-y-2 mt-[6rem]">
 
           <div className="space-y-2">
             {/* <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
@@ -1095,12 +1219,12 @@ const Dashboard: React.FC = () => {
           <div className="space-y-2">
             <button 
               onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
-              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
             >
-              <span>💡</span>
-              <span>Our Capabilities, Solutions, & Accelerators</span>
+              <span className="text-sm">💡</span>
+              <span className="text-sm">Our Capabilities, Solutions, & Accelerators</span>
               <svg 
-                className={`w-4 h-4 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`} 
+                className={`w-3 h-3 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`} 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -1111,22 +1235,22 @@ const Dashboard: React.FC = () => {
             
             {/* Dropdown Menu */}
             {showCapabilitiesDropdown && (
-            <div className="pl-8 space-y-2 text-sm text-gray-600">
+            <div className="pl-8 space-y-1 text-sm text-gray-600">
                 <button 
                   onClick={() => setShowInsightsModal(true)}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer"
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm"
                 >
                   Insights Generators (domain-specific)
                 </button>
                 <button 
                   onClick={() => setShowAIOTModal(true)}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer"
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm"
                 >
                   AIOT Platform & Solutions
                 </button>
                 <button 
                   onClick={() => setShowOperationsModal(true)}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer"
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm"
                 >
                   Operations Virtualization & Optimization
                 </button>
@@ -1137,40 +1261,86 @@ const Dashboard: React.FC = () => {
           <div className="space-y-2">
             <button 
               onClick={() => setShowApproachModal(true)}
-              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
             >
-              <span>⚡</span>
-                <span>Our Approach To Accelerate Value Creation</span>
+              <span className="text-sm">⚡</span>
+                <span className="text-sm">Our Approach To Accelerate Value Creation</span>
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <button 
+              onClick={() => setShowValueServicesModal(true)}
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
+            >
+              <span className="text-sm">🎯</span>
+                <span className="text-sm">Our Value Identification To Realization Services</span>
             </button>
             </div>
 
           <div className="space-y-2">
             <button 
-              onClick={() => setShowValueServicesModal(true)}
-              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
-            >
-              <span>🎯</span>
-                <span>Our Value Identification To Realization Services</span>
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <button 
               onClick={() => setShowWhyUsModal(true)}
-              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
             >
-              <span>🏆</span>
-                <span>Why Us</span>
+              <span className="text-sm">🏆</span>
+                <span className="text-sm">Why Us</span>
             </button>
           </div>
 
           <div className="space-y-2">
             <button 
-              onClick={() => setShowContactModal(true)}
-              className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded"
+              onClick={() => setShowChatHistoryDropdown(!showChatHistoryDropdown)}
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
             >
-              <span>📞</span>
-                <span>Contact Us</span>
+              <span className="text-sm">📚</span>
+              <span className="text-sm">Chat History</span>
+              <svg 
+                className={`w-3 h-3 ml-auto transition-transform ${showChatHistoryDropdown ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {/* Chat History Dropdown */}
+            {showChatHistoryDropdown && (
+              <div className="pl-8 space-y-1 text-sm text-gray-600">
+                {/* New Chat Button */}
+                <button
+                  onClick={startNewChat}
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm font-medium text-blue-600 border-b border-gray-200 pb-1 mb-1"
+                >
+                  ✨ New Chat
+                </button>
+                
+                {chatHistory.length > 0 ? (
+                  chatHistory.map((session, index) => (
+                    <button
+                      key={session.id || index}
+                      onClick={() => loadChatSession(session.id)}
+                      className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate"
+                      title={session.title || `Chat ${index + 1}`}
+                    >
+                      {session.title || `Chat ${index + 1}`}
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-gray-500 italic">No chat history</div>
+                )}
+            </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+                        <button 
+              onClick={() => setShowContactModal(true)}
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
+            >
+              <span className="text-sm">📞</span>
+              <span className="text-sm">Contact Us</span>
             </button>
           </div>
 
@@ -2564,7 +2734,7 @@ const Dashboard: React.FC = () => {
                           >
                             Clear All
                           </button>
-                        </div>
+                  </div>
                         <div className="space-y-2">
                           {uploadedFiles.map((file, index) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
@@ -2572,14 +2742,14 @@ const Dashboard: React.FC = () => {
                                 <span className="text-blue-600">📎</span>
                                 <span className="text-sm text-gray-700 truncate max-w-48">{file.name}</span>
                                 <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
-                              </div>
+                </div>
                               <button
                                 onClick={() => removeFile(index)}
                                 className="text-red-500 hover:text-red-700 text-sm"
                               >
                                 ×
                               </button>
-                            </div>
+              </div>
                           ))}
                         </div>
                       </div>
@@ -2710,8 +2880,8 @@ const Dashboard: React.FC = () => {
                 <div className="space-y-2 text-gray-700">
                   <div className="flex items-center">
                     <span className="mr-2">📧</span>
-                    <a href="mailto:info@valueaccel.com" className="text-blue-600 hover:underline">
-                      info@valueaccel.com
+                    <a href="mailto:paul@nanikworkforce.com" className="text-blue-600 hover:underline">
+                      paul@nanikworkforce.com
                     </a>
                   </div>
                   <div className="flex items-center">
@@ -2831,7 +3001,10 @@ const Dashboard: React.FC = () => {
                   </svg>
                 </button>
               </div>
-              <InsightsGenerators />
+              <InsightsGenerators onContactClick={() => {
+                setShowInsightsModal(false);
+                setShowContactModal(true);
+              }} />
             </div>
           </div>
         </div>
@@ -3180,7 +3353,10 @@ const Dashboard: React.FC = () => {
                   </svg>
                 </button>
               </div>
-              <AIOTPlatformSolutions />
+              <AIOTPlatformSolutions onContactClick={() => {
+                setShowAIOTModal(false);
+                setShowContactModal(true);
+              }} />
             </div>
           </div>
         </div>
@@ -3201,7 +3377,10 @@ const Dashboard: React.FC = () => {
                   </svg>
                 </button>
               </div>
-              <OperationsVirtualization />
+              <OperationsVirtualization onContactClick={() => {
+                setShowOperationsModal(false);
+                setShowContactModal(true);
+              }} />
             </div>
           </div>
         </div>

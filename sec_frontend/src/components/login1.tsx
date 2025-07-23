@@ -57,7 +57,7 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <img 
-            className="mx-auto h-55 w-55" 
+            className="mx-auto h-12 w-auto sm:h-14 md:h-16" 
             src="/new_logo.PNG"
             alt="GetDeep.AI"
           />

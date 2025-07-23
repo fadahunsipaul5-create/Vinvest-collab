@@ -1,6 +1,10 @@
 import React from 'react';
 
-const OperationsVirtualization: React.FC = () => {
+interface OperationsVirtualizationProps {
+  onContactClick?: () => void;
+}
+
+const OperationsVirtualization: React.FC<OperationsVirtualizationProps> = ({ onContactClick }) => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -68,7 +72,10 @@ const OperationsVirtualization: React.FC = () => {
 
           {/* Contact Button */}
           <div className="flex justify-center pt-6">
-            <button className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium">
+            <button 
+              onClick={onContactClick}
+              className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
+            >
               Contact Us
             </button>
           </div>
