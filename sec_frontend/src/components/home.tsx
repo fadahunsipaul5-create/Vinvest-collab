@@ -508,17 +508,32 @@ const Dashboard: React.FC = () => {
     };
 
     try {
-      // Send email using mailto link as fallback
-      const mailtoLink = `mailto:info@valueaccel.com?subject=Contact Form Submission from ${contactData.name}&body=Name: ${contactData.name}%0D%0AEmail: ${contactData.email}%0D%0ACompany: ${contactData.company}%0D%0APhone: ${contactData.phone}%0D%0AMessage: ${contactData.message}`;
-      
-      window.open(mailtoLink);
-      
-      // Close modal and show success message
-      setShowContactModal(false);
-      alert('Thank you for your message! We will get back to you soon.');
-      
-      // Reset form
-      e.currentTarget.reset();
+      const response = await fetch(`${baseUrl}/api/contact/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullname: contactData.name,
+          email: contactData.email,
+          company: contactData.company,
+          phone: contactData.phone,
+          message: contactData.message
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Close modal and show success message
+        setShowContactModal(false);
+        alert('Thank you for your message! We will get back to you soon.');
+        
+        // Reset form
+        e.currentTarget.reset();
+      } else {
+        alert(data.error || 'Failed to send message. Please try again.');
+      }
     } catch (error) {
       console.error('Error submitting contact form:', error);
       alert('Failed to send message. Please try again or contact us directly.');
@@ -2880,8 +2895,8 @@ const Dashboard: React.FC = () => {
                 <div className="space-y-2 text-gray-700">
                   <div className="flex items-center">
                     <span className="mr-2">📧</span>
-                    <a href="mailto:paul@nanikworkforce.com" className="text-blue-600 hover:underline">
-                      paul@nanikworkforce.com
+                    <a href="mailto:info@valueaccel.com" className="text-blue-600 hover:underline">
+                    info@valueaccel.com
                     </a>
                   </div>
                   <div className="flex items-center">
