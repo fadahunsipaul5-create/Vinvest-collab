@@ -133,6 +133,7 @@ const Dashboard: React.FC = () => {
   const [currentChatSession, setCurrentChatSession] = useState<any>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contactFormRef = useRef<HTMLFormElement>(null);
 
   const saveConversation = async () => {
     setIsSavingConversation(true);
@@ -529,8 +530,10 @@ const Dashboard: React.FC = () => {
         setShowContactModal(false);
         alert('Thank you for your message! We will get back to you soon.');
         
-        // Reset form
-        e.currentTarget.reset();
+        // Reset form using ref
+        if (contactFormRef.current) {
+          contactFormRef.current.reset();
+        }
       } else {
         alert(data.error || 'Failed to send message. Please try again.');
       }
@@ -2909,7 +2912,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Contact Form */}
-              <form onSubmit={handleContactSubmit} className="space-y-4">
+              <form onSubmit={handleContactSubmit} className="space-y-4" ref={contactFormRef}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
