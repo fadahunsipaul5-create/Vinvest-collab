@@ -1,4 +1,4 @@
-logsBucket: gs://sec-insights-build-logs
+logsBucket: gs://getdeepaiapp_cloudbuild'
 
 steps:
   # 1. Build backend image
