@@ -16,7 +16,7 @@ steps:
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID']
     waitFor: ['Build']
 
-  # Step 3: Run database migrations securely
+  # Step 3: TEMPORARILY MODIFIED to print environment variables
   - name: 'gcr.io/google-appengine/exec-wrapper'
     id: Migrate
     args:
@@ -32,13 +32,12 @@ steps:
       - '-e'
       - 'INSTANCE_CONNECTION_NAME=getdeepaiapp:us-central1:sec-db'
       - '--'
-      - 'python'
-      - 'manage.py'
-      - 'migrate'
+      # The command is changed from 'migrate' to 'printenv' to debug
+      - 'printenv'
     secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME']
     waitFor: ['Push']
 
-  # Step 4: Deploy to Cloud Run
+  # Step 4: Deploy to Cloud Run (this step will run after debugging)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: Deploy
     args:
@@ -51,7 +50,6 @@ steps:
       - '--add-cloudsql-instances=getdeepaiapp:us-central1:sec-db'
       - '--service-account=sec-insights-runner@getdeepaiapp.iam.gserviceaccount.com'
       - '--memory=2Gi'
-      # This line is now corrected to include INSTANCE_CONNECTION_NAME
       - '--set-secrets=INSTANCE_CONNECTION_NAME=sec-insights-instance-connection-name:latest,DB_NAME=sec-insights-db-name:latest,DB_USER=sec-insights-db-user:latest,DB_PASSWORD=sec-insights-db-password:latest,SECRET_KEY=sec-insights-django-secret-key:latest'
     waitFor: ['Migrate']
 
