@@ -1,5 +1,5 @@
 from django.db import models
-from account.models import User
+from users.models import User
 
 class ChatSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_sessions")
