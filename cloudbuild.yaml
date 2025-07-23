@@ -1,4 +1,4 @@
-logsBucket: 'gs://getdeepaiapp_cloudbuild'  
+logsBucket: 'gs://getdeepaiapp_cloudbuild'
 
 steps:
   # Step 1: Build the container image
@@ -17,7 +17,6 @@ steps:
     waitFor: ['Build']
 
   # Step 3: Run database migrations securely
-  # This now works because the Dockerfile uses CMD, which can be overridden
   - name: 'gcr.io/google-appengine/exec-wrapper'
     id: Migrate
     args:
@@ -25,28 +24,23 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
       - '-s'
       - 'getdeepaiapp:us-central1:sec-db'
-      # Inject secrets as environment variables
+      # Set other necessary, non-secret environment variables
       - '-e'
-      - 'DB_PASSWORD=${_DB_PASSWORD}'
-      - '-e'
-      - 'DB_USER=${_DB_USER}'
-      - '-e'
-      - 'DB_NAME=${_DB_NAME}'
-      # Set other necessary environment variables
-      - '-e'
-      - 'IS_CLOUD_ENV=True' 
+      - 'IS_CLOUD_ENV=True'
       - '-e'
       - 'SECRET_KEY=dummy-key'
       - '--'
-      # The command to run, which now overrides the CMD
+      # The command to run
       - 'python'
       - 'manage.py'
       - 'migrate'
+    # Secrets are injected via this list, which maps to availableSecrets below
     secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME']
     waitFor: ['Push']
 
   # Step 4: Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: Deploy
     args:
       - 'run'
       - 'deploy'
