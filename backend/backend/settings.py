@@ -48,7 +48,6 @@ if IS_PROD_ENV:
             'NAME': os.environ.get('DB_NAME'),
             'USER': os.environ.get('DB_USER'),
             'PASSWORD': os.environ.get('DB_PASSWORD'),
-            # The HOST must be the socket path for the Cloud SQL Proxy
             'HOST': f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}",
             'PORT': '5432',
         }
@@ -56,7 +55,6 @@ if IS_PROD_ENV:
 
 else:
     # Local development database configuration
-    print("INFO: Using local SQLite database.")
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
