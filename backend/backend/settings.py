@@ -53,7 +53,7 @@ if IS_PROD_ENV:
             'PORT': '5432',
         }
     }
-print(f"DEBUG: DB_PASSWORD is {os.environ.get('DB_PASSWORD')}")
+
 else:
     # Local development database configuration
     print("INFO: Using local SQLite database.")
