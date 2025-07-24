@@ -23,28 +23,29 @@ steps:
     args:
       - '-c'
       - |
-        gcloud secrets versions access latest --secret=sec-insights-db-password --format='get(payload.data)' | base64 -d > /workspace/db_password.txt
-        gcloud secrets versions access latest --secret=sec-insights-db-user --format='get(payload.data)' | base64 -d > /workspace/db_user.txt
-        gcloud secrets versions access latest --secret=sec-insights-db-name --format='get(payload.data)' | base64 -d > /workspace/db_name.txt
+        gcloud secrets versions access latest --secret=sec-insights-db-password --format='get(payload.data)' | base64 --decode > /workspace/db_password.txt
+        gcloud secrets versions access latest --secret=sec-insights-db-user --format='get(payload.data)' | base64 --decode > /workspace/db_user.txt
+        gcloud secrets versions access latest --secret=sec-insights-db-name --format='get(payload.data)' | base64 --decode > /workspace/db_name.txt
     waitFor: ['Push']
 
-  # Step 4: Run database migrations, reading secrets from the files
-  - name: 'gcr.io/google-appengine/exec-wrapper'
+  # Step 4: Run database migrations inside the container with secrets loaded
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     id: Migrate
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        /usr/bin/exec-wrapper \
-          -i us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID \
-          -s getdeepaiapp:us-central1:sec-db \
+        docker run --rm \
+          --network=cloudbuild \
+          -v /workspace:/workspace \
           -e IS_CLOUD_ENV=True \
           -e SECRET_KEY=dummy-key \
           -e INSTANCE_CONNECTION_NAME=getdeepaiapp:us-central1:sec-db \
-          -e DB_PASSWORD=$(cat /workspace/db_password.txt) \
-          -e DB_USER=$(cat /workspace/db_user.txt) \
-          -e DB_NAME=$(cat /workspace/db_name.txt) \
-          -- python manage.py migrate
+          -e DB_PASSWORD="$(cat /workspace/db_password.txt)" \
+          -e DB_USER="$(cat /workspace/db_user.txt)" \
+          -e DB_NAME="$(cat /workspace/db_name.txt)" \
+          us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID \
+          python manage.py migrate
     waitFor: ['Fetch-Secrets']
 
   # Step 5: Deploy to Cloud Run
