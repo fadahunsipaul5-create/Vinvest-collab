@@ -7,13 +7,13 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
       - 'backend/'
 
   # Step 2: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     id: Push
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID']
     waitFor: ['Build']
 
   # Step 3: Run database migrations using substitution variables
@@ -21,7 +21,7 @@ steps:
     id: Migrate
     args:
       - '-i'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
       - '-s'
       - 'getdeepaiapp:us-central1:sec-db'
       - '-e'
@@ -49,7 +49,7 @@ steps:
       - 'run'
       - 'deploy'
       - 'sec-insights-backend'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-backend:$BUILD_ID'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
       - '--region=us-central1'
       - '--allow-unauthenticated'
       - '--add-cloudsql-instances=getdeepaiapp:us-central1:sec-db'
