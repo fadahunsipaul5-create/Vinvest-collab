@@ -26,15 +26,19 @@ DEBUG = not IS_PROD_ENV
 ALLOWED_HOSTS = []
 if IS_PROD_ENV:
     # This automatically gets the Cloud Run URL
+    ALLOWED_HOSTS = ['sec-insights-backend-791634680391.us-central1.run.app']
     cloud_run_url = os.environ.get('K_SERVICE_URL')
     if cloud_run_url:
         ALLOWED_HOSTS.append(cloud_run_url.split("://")[1])
+        ALLOWED_HOSTS.append('sec-insights-backend-791634680391.us-central1.run.app')
+        ALLOWED_HOSTS.append('sec-frontend-791634680391.us-central1.run.app')
+        ALLOWED_HOSTS.append('sec-insights-app-d9wp.vercel.app')
     else:
         # Fallback for the migrate step where K_SERVICE_URL might not be set
         ALLOWED_HOSTS.append('sec-insights-backend-791634680391.us-central1.run.app')
 else:
     # For local development
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1','sec-insights-backend-791634680391.us-central1.run.app']
 
 
 # --- Database Configuration ---
