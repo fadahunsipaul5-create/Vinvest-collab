@@ -1,7 +1,6 @@
 # This cloudbuild.yaml demonstrates building a Django app,
 # running migrations, and deploying to Cloud Run with Cloud SQL.
 
-# Define direct substitution variables.
 substitutions:
   _INSTANCE_CONNECTION_NAME: 'getdeepaiapp:us-central1:sec-db'
   _REGION: 'us-central1'
@@ -10,7 +9,7 @@ substitutions:
   _DB_NAME_SECRET_ID: 'sec-insights-db-name'
   _DJANGO_SECRET_KEY_SECRET_ID: 'sec-insights-django-secret-key'
 
-logsBucket: 'gs://getdeepaiapp_cloudbuild' # Your Cloud Build logs bucket
+logsBucket: 'gs://getdeepaiapp_cloudbuild'
 
 steps:
 # -----------------------------------------------------------------------------
@@ -22,10 +21,10 @@ steps:
     - 'build'
     - '-t'
     - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
-    - 'backend/' # Build context: assumes Dockerfile is in backend/
+    - 'backend/'  # Build context is the backend directory
 
 # -----------------------------------------------------------------------------
-# Step 2: Push the built Docker image to Artifact Registry
+# Step 2: Push the Docker image to Artifact Registry
 # -----------------------------------------------------------------------------
 - id: 'Push Django App Image'
   name: 'gcr.io/cloud-builders/docker'
@@ -35,57 +34,66 @@ steps:
   waitFor: ['Build Django App Image']
 
 # -----------------------------------------------------------------------------
-# Step 3: Run Django Database Migrations (CORRECTED)
-# Using exec-wrapper is the official, simpler, and more reliable way.
-# It automatically handles the Cloud SQL Proxy connection.
+# Step 3: Run Django Migrations using Cloud SQL connection
 # -----------------------------------------------------------------------------
 - id: 'Run Django Migrations'
   name: 'gcr.io/google-appengine/exec-wrapper'
   args:
-  - '-i' # The container image to run the command in
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
-  - '-s' # The Cloud SQL Instance to connect to
-  - '${_INSTANCE_CONNECTION_NAME}'
-  # Pass environment variables from secrets to the container
-  - '-e'
-  - 'IS_CLOUD_ENV=True'
-  - '-e'
-  - 'DB_NAME=$$DB_NAME'
-  - '-e'
-  - 'DB_USER=$$DB_USER'
-  - '-e'
-  - 'DB_PASSWORD=$$DB_PASSWORD'
-  - '-e'
-  - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
-  - '--' # Separator for the command to run
-  - 'python'
-  - 'manage.py'
-  - 'migrate'
-  # Declare the secrets needed for this step
+    - '-i'
+    - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
+    - '-s'
+    - '${_INSTANCE_CONNECTION_NAME}'
+    - '-e'
+    - 'IS_CLOUD_ENV=True'
+    - '-e'
+    - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
+    - '-e'
+    - 'DB_NAME=$$DB_NAME'
+    - '-e'
+    - 'DB_USER=$$DB_USER'
+    - '-e'
+    - 'DB_PASSWORD=$$DB_PASSWORD'
+    - '-e'
+    - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
+    - '--'
+    - 'python'
+    - 'backend/manage.py'
+    - 'migrate'
   secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
   waitFor: ['Push Django App Image']
 
 # -----------------------------------------------------------------------------
-# Step 4: (Optional) Collect Static Files
+# Step 4: Collect Static Files
 # -----------------------------------------------------------------------------
 - id: 'Collect Static Files'
-  name: 'gcr.io/cloud-builders/docker'
+  name: 'gcr.io/google-appengine/exec-wrapper'
   args:
-    - 'run'
-    - '--rm'
+    - '-i'
     - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
+    - '-s'
+    - '${_INSTANCE_CONNECTION_NAME}'
+    - '-e'
+    - 'IS_CLOUD_ENV=True'
+    - '-e'
+    - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
+    - '-e'
+    - 'DB_NAME=$$DB_NAME'
+    - '-e'
+    - 'DB_USER=$$DB_USER'
+    - '-e'
+    - 'DB_PASSWORD=$$DB_PASSWORD'
+    - '-e'
+    - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
+    - '--'
     - 'python'
-    - 'manage.py'
+    - 'backend/manage.py'
     - 'collectstatic'
     - '--noinput'
-  env:
-    - 'IS_CLOUD_ENV=True'
-    - 'SECRET_KEY="$$DJANGO_SECRET_KEY"'
-  secretEnv: ['DJANGO_SECRET_KEY']
+  secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
   waitFor: ['Run Django Migrations']
 
 # -----------------------------------------------------------------------------
-# Step 5: Deploy the Django application to Cloud Run
+# Step 5: Deploy to Cloud Run
 # -----------------------------------------------------------------------------
 - id: 'Deploy to Cloud Run'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -106,13 +114,13 @@ steps:
   waitFor: ['Collect Static Files']
 
 # -----------------------------------------------------------------------------
-# Output images
+# Output Images
 # -----------------------------------------------------------------------------
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
 
 # -----------------------------------------------------------------------------
-# This `availableSecrets` block allows Cloud Build to access Secret Manager.
+# Secret Manager Integration
 # -----------------------------------------------------------------------------
 availableSecrets:
   secretManager:
