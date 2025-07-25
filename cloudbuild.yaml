@@ -1,6 +1,7 @@
-# This cloudbuild.yaml is for DEBUGGING ONLY.
-# It prints the environment variables to find the secret value issue.
+# This cloudbuild.yaml demonstrates building a Django app,
+# running migrations, and deploying to Cloud Run with Cloud SQL.
 
+# Define direct substitution variables.
 substitutions:
   _INSTANCE_CONNECTION_NAME: 'getdeepaiapp:us-central1:sec-db'
   _REGION: 'us-central1'
@@ -28,43 +29,48 @@ steps:
   waitFor: ['Build Django App Image']
 
 # -----------------------------------------------------------------------------
-# Step 3: DEBUG the Environment Variables
+# Step 3: Run Django Database Migrations (Manual, Robust Method)
 # -----------------------------------------------------------------------------
-- id: 'Debug Environment Variables'
-  name: 'gcr.io/google-appengine/exec-wrapper'
+- id: 'Run Django Migrations'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'sh'
   args:
-  - '-i'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
-  - '-s'
-  - '${_INSTANCE_CONNECTION_NAME}'
-  - '-e'
-  - 'IS_CLOUD_ENV=True'
-  - '-e'
-  - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
-  - '-e'
-  - 'DB_NAME=$$DB_NAME'
-  - '-e'
-  - 'DB_USER=$$DB_USER'
-  - '-e'
-  - 'DB_PASSWORD=$$DB_PASSWORD'
-  - '-e'
-  - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
-  - '--'
-  # The command is 'printenv' to show all variables
-  - 'printenv'
+  - '-c'
+  - |
+    # Start proxy and wait for it to be ready
+    echo "Starting Cloud SQL Proxy..."
+    cloud-sql-proxy "${_INSTANCE_CONNECTION_NAME}" --dir=/cloudsql &
+    sleep 5 
+
+    # Run migrations using docker, passing in secrets as env vars
+    echo "Running migrations..."
+    docker run --rm \
+      -v /cloudsql:/cloudsql \
+      --network="cloudbuild" \
+      --env IS_CLOUD_ENV="True" \
+      --env INSTANCE_CONNECTION_NAME="${_INSTANCE_CONNECTION_NAME}" \
+      --env DB_NAME="$$DB_NAME" \
+      --env DB_USER="$$DB_USER" \
+      --env DB_PASSWORD="$$DB_PASSWORD" \
+      --env SECRET_KEY="$$DJANGO_SECRET_KEY" \
+      us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID \
+      python manage.py migrate
   secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
   waitFor: ['Push Django App Image']
 
 # -----------------------------------------------------------------------------
-# The rest of the build may be skipped, which is OK for this debug run.
+# Step 4: Collect Static Files
 # -----------------------------------------------------------------------------
 - id: 'Collect Static Files'
   name: 'gcr.io/cloud-builders/docker'
   args: ['run', '--rm', 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID', 'python', 'manage.py', 'collectstatic', '--noinput']
   env: ['IS_CLOUD_ENV=True', 'SECRET_KEY="$$DJANGO_SECRET_KEY"']
   secretEnv: ['DJANGO_SECRET_KEY']
-  waitFor: ['Debug Environment Variables']
+  waitFor: ['Run Django Migrations']
 
+# -----------------------------------------------------------------------------
+# Step 5: Deploy the Django application to Cloud Run
+# -----------------------------------------------------------------------------
 - id: 'Deploy to Cloud Run'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: 'gcloud'
@@ -85,10 +91,6 @@ steps:
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
 
-# -----------------------------------------------------------------------------
-# This block defines all secrets available to the build steps.
-# The entry for DB_NAME must be present.
-# -----------------------------------------------------------------------------
 availableSecrets:
   secretManager:
     - versionName: projects/$PROJECT_NUMBER/secrets/${_DB_PASSWORD_SECRET_ID}/versions/latest
