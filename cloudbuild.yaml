@@ -60,10 +60,15 @@ steps:
   args:
   - '-c'
   - |
+    # Create the directory for the Cloud SQL socket
+    mkdir /cloudsql
+
+    # Start proxy with the correct --unix-socket flag and wait
     echo "Starting Cloud SQL Proxy..."
     cloud-sql-proxy --unix-socket /cloudsql "${_INSTANCE_CONNECTION_NAME}" &
     sleep 5 
 
+    # Run migrations using docker
     echo "Running migrations..."
     docker run --rm \
       -v /cloudsql:/cloudsql \
