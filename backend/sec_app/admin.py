@@ -8,22 +8,12 @@ from .models.analysis import SentimentAnalysis
 from .models.query import Query
 from .models.mapping import MetricMapping
 from .models.chatlog import ChatLog
-from .models.chat_session import ChatSession
-from .models.chat_history import ChatHistory
 from .models.contact import Contact
 # Register your models here.
 
-@admin.register(ChatSession)
-class ChatSessionAdmin(admin.ModelAdmin):
-    list_display = ('title', 'user')
-    search_fields = ('title', 'user__email')
-    list_filter = ('user__email',)
 
-@admin.register(ChatHistory)
-class ChatHistoryAdmin(admin.ModelAdmin):
-    list_display = ('session', 'user', 'question', 'answer', 'timestamp')
-    search_fields = ('session__title', 'user__email', 'question', 'answer')
-    list_filter = ('session__title', 'user__email', 'timestamp')
+
+
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):

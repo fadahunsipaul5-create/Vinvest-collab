@@ -36,25 +36,9 @@ from django.http import JsonResponse
 from django.core.management import call_command
 from django.views.decorators.csrf import csrf_exempt
 from .utility.bot import fetch_google_news
-from .models.chat_session import ChatSession
-from .models.chat_history import ChatHistory
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
-class ChatSessionListView(APIView):
-    permission_classes = [IsAuthenticated]
-    def get(self, request):
-        sessions = ChatSession.objects.filter(user=request.user).order_by('-created_at')
-        serializer = ChatSessionSerializer(sessions, many=True)
-        return Response(serializer.data)
-
-class ChatSessionDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-    def get(self, request, session_id):
-        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
-        messages = session.messages.all().order_by("timestamp")
-        serializer = ChatHistorySerializer(messages, many=True)
-        return Response(serializer.data)
 
 class ContactView(APIView):
     def post(self, request):
@@ -114,12 +98,6 @@ class ExternalChatbotProxyView(APIView):
             "industry": industry,
             "selected_peers": selected_peers,
         })
-        # Create or retrieve session
-        session_id = request.data.get("session_id")
-        chat_session = (
-            get_object_or_404(ChatSession, id=session_id, user=user)
-            if session_id
-            else ChatSession.objects.create(user=user, title=question[:50] or "New Chat"))
         chatbot_payload = {
             "question": question,
             "chat_history": request.data.get("chat_history", []),
@@ -130,13 +108,7 @@ class ExternalChatbotProxyView(APIView):
         except Exception as e:
             return Response({"error": "Chatbot failed", "details": str(e)}, status=502)
         # Save chat
-        ChatHistory.objects.create(
-            session=chat_session,
-            user=user,
-            question=question,
-            answer=data.get("answer", "[No answer]")
-        )
-        return Response({**data, "session_id": chat_session.id}, status=200)
+        return Response(data, status=200)
 
 
 @api_view(["GET"])

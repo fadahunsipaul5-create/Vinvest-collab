@@ -5,8 +5,6 @@ from .models.period import FinancialPeriod
 from .models.filling import FilingDocument
 from .models.metric import FinancialMetric
 from .models.query import Query
-from .models.chat_session import ChatSession
-from .models.chat_history import ChatHistory
 from .models.contact import Contact
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -50,15 +48,7 @@ class QuerySerializer(serializers.ModelSerializer):
         model = Query
         fields = '__all__'
 
-class ChatHistorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ChatHistory
-        fields = ['id', 'question', 'answer', 'timestamp']
 
-class ChatSessionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ChatSession
-        fields = ['id', 'title', 'created_at']
         
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:

@@ -80,7 +80,7 @@ export const useChat = ({
       const token = localStorage.getItem('access');
       if (!token) return;
 
-      const response = await fetch(`${baseUrl}/api/chat/sessions/${currentChatSession}/messages/`, {
+      const response = await fetch(`${baseUrl}/api/chat/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
