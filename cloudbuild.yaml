@@ -1,7 +1,7 @@
 # This cloudbuild.yaml demonstrates building a Django app,
 # running migrations, and deploying to Cloud Run with Cloud SQL.
 
-#1 Define direct substitution variables.
+# Define direct substitution variables.
 substitutions:
   _INSTANCE_CONNECTION_NAME: 'getdeepaiapp:us-central1:sec-db'
   _REGION: 'us-central1'
@@ -22,7 +22,7 @@ steps:
     - 'build'
     - '-t'
     - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
-    - 'backend/' # Build context is the backend/ directory
+    - 'backend/'
 
 # -----------------------------------------------------------------------------
 # Step 2: Push the built Docker image to Artifact Registry
@@ -35,7 +35,7 @@ steps:
   waitFor: ['Build Django App Image']
 
 # -----------------------------------------------------------------------------
-# Step 3: Run Django Database Migrations
+# Step 3: Run Django Database Migrations (with DEBUGGING)
 # -----------------------------------------------------------------------------
 - id: 'Run Django Migrations'
   name: 'gcr.io/google-appengine/exec-wrapper'
@@ -47,7 +47,7 @@ steps:
   - '-e'
   - 'IS_CLOUD_ENV=True'
   - '-e'
-  - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}' # ✅ FIXED: No quotes allows substitution
+  - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
   - '-e'
   - 'DB_NAME=$$DB_NAME'
   - '-e'
@@ -57,9 +57,14 @@ steps:
   - '-e'
   - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
   - '--'
-  - 'python'
-  - 'manage.py'
-  - 'migrate'
+  # The command is now a shell script to allow for debugging
+  - 'sh'
+  - '-c'
+  - |
+    echo "--- DEBUGGING ---"
+    echo "Value for DB_USER is: '$DB_USER'"
+    echo "--- RUNNING MIGRATIONS ---"
+    python manage.py migrate
   secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
   waitFor: ['Push Django App Image']
 
