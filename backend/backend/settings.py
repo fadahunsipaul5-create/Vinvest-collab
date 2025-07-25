@@ -49,7 +49,7 @@ if IS_PROD_ENV:
             'NAME': os.environ.get('DB_NAME'),
             'USER': os.environ.get('DB_USER'),
             'PASSWORD': os.environ.get('DB_PASSWORD'),
-            'HOST': f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
+            'HOST': f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}",
             'PORT': '5432',
         }
     }
