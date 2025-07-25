@@ -57,7 +57,7 @@ steps:
     - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
     - '--'
     - 'python'
-    - 'backend/manage.py'
+    - 'manage.py'
     - 'migrate'
   secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
   waitFor: ['Push Django App Image']
@@ -86,7 +86,7 @@ steps:
     - 'SECRET_KEY=$$DJANGO_SECRET_KEY'
     - '--'
     - 'python'
-    - 'backend/manage.py'
+    - 'manage.py'
     - 'collectstatic'
     - '--noinput'
   secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
