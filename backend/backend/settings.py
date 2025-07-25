@@ -1,9 +1,15 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 from datetime import timedelta
 #comment
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+
 
 # --- Environment Detection ---
 # This is the single source of truth. It's True in Cloud Build and Cloud Run.
@@ -219,4 +225,8 @@ LOGGING = {
 }
 
 
-
+if DEBUG:
+    SITE_URL = "http://127.0.0.1:8000"
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    SITE_URL = "https://sec-insights-backend-791634680391.us-central1.run.app"

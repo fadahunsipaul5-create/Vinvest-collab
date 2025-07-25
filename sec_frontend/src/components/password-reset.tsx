@@ -35,7 +35,7 @@ const PasswordReset = () => {
 
     try {
       const token = searchParams.get('token');
-      const response = await fetch(`${baseUrl}/account/password-reset/`, {
+      const response = await fetch(`${baseUrl}/users/password-reset/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

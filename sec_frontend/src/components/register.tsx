@@ -43,7 +43,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post(`${baseUrl}/account/register/`, formData);
+      const response = await axios.post(`${baseUrl}/users/register/`, formData);
       
       if (response.status === 201) {
         // Store user information for display
@@ -66,7 +66,7 @@ const Register = () => {
     try {
       const token = credentialResponse.credential;
 
-      const response = await axios.post(`${baseUrl}/account/google-auth/`, {
+      const response = await axios.post(`${baseUrl}/users/google-auth/`, {
         token: token,
       });
 

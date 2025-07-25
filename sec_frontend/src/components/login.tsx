@@ -18,7 +18,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${baseUrl}/account/login/`, {
+      const response = await fetch(`${baseUrl}/users/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -51,7 +51,7 @@ const Login = () => {
     try {
       const { credential } = credentialResponse;
 
-      const res = await fetch(`${baseUrl}/account/google-auth/`, {
+      const res = await fetch(`${baseUrl}/users/google-auth/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credential })

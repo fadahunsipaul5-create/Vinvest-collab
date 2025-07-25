@@ -56,7 +56,7 @@ const Register = () => {
 
       console.log('Request body:', requestBody);
 
-      const response = await fetch(`${baseUrl}/account/register/`, {
+      const response = await fetch(`${baseUrl}/users/register/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
