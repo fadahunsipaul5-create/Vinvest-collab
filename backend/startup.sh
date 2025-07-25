@@ -4,11 +4,7 @@
 set -e
 
 # Start the Cloud SQL Auth Proxy in the background
-echo "INFO: Starting Cloud SQL Proxy..."
-cloud-sql-proxy --private-ip getdeepaiapp:us-central1:sec-db &
 
-# Wait a few seconds for the proxy to initialize
-sleep 5
 
 # Start Gunicorn
 echo "INFO: Starting Gunicorn..."
