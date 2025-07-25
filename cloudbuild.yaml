@@ -42,7 +42,7 @@ steps:
 # Django migrations inside the application's Docker image.
 # -----------------------------------------------------------------------------
 - id: 'Run Django Migrations'
-  name: ''gcr.io/cloud-builders/gcloud'' # This builder has the Cloud SQL Proxy binary
+  name: 'gcr.io/cloud-builders/gcloud' # This builder has the Cloud SQL Proxy binary
   entrypoint: 'sh'
   args:
     - '-c'
