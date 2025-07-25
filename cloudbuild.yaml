@@ -1,5 +1,58 @@
+# This is the final, correct cloudbuild.yaml.
+# It uses a CUSTOM BUILDER to guarantee migrations run successfully.
+
+substitutions:
+  _INSTANCE_CONNECTION_NAME: 'getdeepaiapp:us-central1:sec-db'
+  _REGION: 'us-central1'
+  _DB_PASSWORD_SECRET_ID: 'sec-insights-db-password'
+  _DB_USER_SECRET_ID: 'sec-insights-db-user'
+  _DB_NAME_SECRET_ID: 'sec-insights-db-name'
+  _DJANGO_SECRET_KEY_SECRET_ID: 'sec-insights-django-secret-key'
+
+logsBucket: 'gs://getdeepaiapp_cloudbuild'
+
+steps:
 # -----------------------------------------------------------------------------
-# Step 3: Run Django Database Migrations using the CUSTOM builder
+# Step 0: Build the custom builder image that has all our tools
+# -----------------------------------------------------------------------------
+- id: 'Build Custom Builder'
+  name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'build'
+    - '-t'
+    - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/custom-builder:latest'
+    - 'cloudbuild/' # Assumes your custom builder Dockerfile is in this folder
+
+# -----------------------------------------------------------------------------
+# Step 1: Build the Django application image
+# -----------------------------------------------------------------------------
+- id: 'Build Django App Image'
+  name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'build'
+    - '-t'
+    - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
+    - 'backend/'
+
+# -----------------------------------------------------------------------------
+# Step 2: Push both the custom builder and the app image to the registry
+# -----------------------------------------------------------------------------
+- id: 'Push Images'
+  name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'push'
+    - '--all-tags' # Push the 'latest' tag for the builder
+    - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/custom-builder'
+  waitFor: ['Build Custom Builder']
+- id: 'Push App Image'
+  name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'push'
+    - 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
+  waitFor: ['Build Django App Image']
+
+# -----------------------------------------------------------------------------
+# Step 3: Run Django Database Migrations using our CUSTOM builder
 # -----------------------------------------------------------------------------
 - id: 'Run Django Migrations'
   name: 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/custom-builder:latest'
@@ -7,12 +60,10 @@
   args:
   - '-c'
   - |
-    # Start proxy with the correct --unix-socket flag and wait
     echo "Starting Cloud SQL Proxy..."
-    cloud-sql-proxy --unix-socket /cloudsql "${_INSTANCE_CONNECTION_NAME}" & # ✅ FIXED FLAG
+    cloud-sql-proxy --unix-socket /cloudsql "${_INSTANCE_CONNECTION_NAME}" &
     sleep 5 
 
-    # Run migrations using docker
     echo "Running migrations..."
     docker run --rm \
       -v /cloudsql:/cloudsql \
@@ -27,3 +78,44 @@
       python manage.py migrate
   secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'DJANGO_SECRET_KEY']
   waitFor: ['Push Images', 'Push App Image']
+
+# -----------------------------------------------------------------------------
+# Step 4: Collect Static Files
+# -----------------------------------------------------------------------------
+- id: 'Collect Static Files'
+  name: 'gcr.io/cloud-builders/docker'
+  args: ['run', '--rm', 'us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID', 'python', 'manage.py', 'collectstatic', '--noinput']
+  env: ['IS_CLOUD_ENV=True', 'SECRET_KEY="$$DJANGO_SECRET_KEY"']
+  secretEnv: ['DJANGO_SECRET_KEY']
+  waitFor: ['Run Django Migrations']
+
+# -----------------------------------------------------------------------------
+# Step 5: Deploy the Django application to Cloud Run
+# -----------------------------------------------------------------------------
+- id: 'Deploy to Cloud Run'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: 'gcloud'
+  args:
+    - 'run'
+    - 'deploy'
+    - 'sec-insights-backend'
+    - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/sec-insights-repo/sec-insights-backend:$BUILD_ID'
+    - '--region=${_REGION}'
+    - '--platform=managed'
+    - '--allow-unauthenticated'
+    - '--service-account=sec-insights-runner@getdeepaiapp.iam.gserviceaccount.com'
+    - '--add-cloudsql-instances=${_INSTANCE_CONNECTION_NAME}'
+    - '--set-env-vars=IS_CLOUD_ENV=True,INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
+    - '--set-secrets=DB_NAME=${_DB_NAME_SECRET_ID}:latest,DB_USER=${_DB_USER_SECRET_ID}:latest,DB_PASSWORD=${_DB_PASSWORD_SECRET_ID}:latest,SECRET_KEY=${_DJANGO_SECRET_KEY_SECRET_ID}:latest'
+  waitFor: ['Collect Static Files']
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_NUMBER/secrets/${_DB_PASSWORD_SECRET_ID}/versions/latest
+      env: 'DB_PASSWORD'
+    - versionName: projects/$PROJECT_NUMBER/secrets/${_DB_USER_SECRET_ID}/versions/latest
+      env: 'DB_USER'
+    - versionName: projects/$PROJECT_NUMBER/secrets/${_DB_NAME_SECRET_ID}/versions/latest
+      env: 'DB_NAME'
+    - versionName: projects/$PROJECT_NUMBER/secrets/${_DJANGO_SECRET_KEY_SECRET_ID}/versions/latest
+      env: 'DJANGO_SECRET_KEY'
