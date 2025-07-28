@@ -5,7 +5,7 @@ from .views import (
     ChartDataAPIView, InsightsAPIView, CustomQueryAPIView, IndustryComparisonAPIView,
      extract_financials, IndustryAPIView,BoxPlotDataAPIView,AggregatedDataAPIView,
     get_available_metrics, check_company,load_data,ExternalChatbotProxyView,
-    ContactView
+    ContactView, FileUploadView
 )
 
 # Create a router and register only ViewSets.
@@ -29,5 +29,6 @@ urlpatterns = [
     path('companies/<str:ticker>/', check_company, name='check-company'),
     path('chat/', ExternalChatbotProxyView.as_view(), name='chat'),
     path('contact/', ContactView.as_view(), name='contact'),
+    path('file-upload/', FileUploadView.as_view(), name='file_upload'),
     path('', include(router.urls)),
 ]

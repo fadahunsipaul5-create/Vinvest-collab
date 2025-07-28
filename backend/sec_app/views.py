@@ -40,6 +40,67 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
 
+class FileUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        try:
+            if 'files' not in request.FILES:
+                return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)
+            files = request.FILES.getlist('files')
+            if not files:
+                return Response({'error': 'No files selected'}, status=status.HTTP_400_BAD_REQUEST)
+            # Validate and prepare files
+            files_data = []
+            allowed_extensions = ['.pdf', '.txt', '.csv']
+            for file in files:
+                file_extension = os.path.splitext(file.name)[1].lower()
+                if file_extension not in allowed_extensions:
+                    return Response({
+                        'error': f'File type {file_extension} not supported. Allowed: {", ".join(allowed_extensions)}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                files_data.append(('files', (file.name, file.read(), file.content_type)))
+            # Required session ID for the external API
+            session_id = request.data.get('session_id')
+            if not session_id:
+                return Response({'error': 'session_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            # Add session_id as a regular form field
+            files_data.append(('session_id', (None, session_id, 'text/plain')))
+            # POST to external API
+            external_url = "http://34.68.84.147:8080/api/user_data_upload"
+            logger.info(f"Uploading {len(files)} files to external service with session_id {session_id}")
+            response = requests.post(
+                external_url,
+                files=files_data,
+                timeout=120
+            )
+            if response.status_code == 200:
+                return Response({
+                    'message': 'Files uploaded and processed successfully',
+                    'details': response.json(),
+                    'files_processed': len(files)
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'External file processing service returned an error',
+                    'details': response.json() if response.headers.get('Content-Type') == 'application/json' else response.text,
+                    'files_received': len(files)
+                }, status=status.HTTP_502_BAD_GATEWAY)
+        except requests.exceptions.Timeout:
+            return Response({
+                'error': 'File processing timeout. Please try again later.',
+                'files_received': len(files)
+            }, status=status.HTTP_504_GATEWAY_TIMEOUT)
+        except requests.exceptions.ConnectionError:
+            return Response({
+                'error': 'Unable to connect to file processing service.',
+                'files_received': len(files)
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception as e:
+            logger.error(f"Unexpected file upload error: {str(e)}")
+            return Response({
+                'error': 'Internal server error during file upload.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class ContactView(APIView):
     def post(self, request):
         fullname = request.data.get('fullname')
@@ -73,17 +134,43 @@ def load_data(request):
 
 class ExternalChatbotProxyView(APIView):
     permission_classes = [IsAuthenticated]
+    
+    def get_user_file_context(self, user_id):
+        """
+        Fetch context from user's uploaded files via external endpoint
+        """
+        try:
+            external_url = "http://34.68.84.147:8080/api/user_data_context"
+            response = requests.get(
+                external_url,
+                params={'user_id': user_id},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('context', '')
+            else:
+                logger.warning(f"Failed to fetch user file context: {response.status_code}")
+                return ''
+                
+        except Exception as e:
+            logger.error(f"Error fetching user file context: {str(e)}")
+            return ''
+    
     def post(self, request):
         user = request.user
         question = request.data.get("question", "").strip()
         if not question:
             return Response({"error": "Question cannot be empty"}, status=400)
+        
         # Optional contextual filtering
         company_id = request.data.get("company", "").strip()
         metric_list = request.data.get("metrics", [])
         payload = request.data.get("payload", {})
         selected_peers = payload.get("companies", [])
         sector, industry = "", ""
+        
         try:
             company = Company.objects.get(ticker__iexact=company_id)
         except Company.DoesNotExist:
@@ -91,22 +178,32 @@ class ExternalChatbotProxyView(APIView):
         if company:
             sector = company.sector or ""
             industry = company.industry or ""
+        
+        # Get user's uploaded file context
+        user_file_context = self.get_user_file_context(user.id)
+        
         filtered_context = request.data.get("filtered_context", {
             "company": company_id,
             "metric": metric_list[0] if metric_list else "",
             "sector": sector,
             "industry": industry,
             "selected_peers": selected_peers,
+            "user_uploaded_files_context": user_file_context,  # Add file context
         })
+        
         chatbot_payload = {
             "question": question,
             "chat_history": request.data.get("chat_history", []),
-            "filtered_context": filtered_context,}
+            "filtered_context": filtered_context,
+            "user_id": user.id,  # Include user ID for context retrieval
+        }
+        
         try:
             response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60)
             data = response.json()
         except Exception as e:
             return Response({"error": "Chatbot failed", "details": str(e)}, status=502)
+        
         # Save chat
         return Response(data, status=200)
 
