@@ -5,6 +5,28 @@ import { GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import baseUrl from './api';
 
+// Type definitions for API responses
+interface RegisterResponse {
+  user?: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+  message?: string;
+}
+
+interface GoogleAuthResponse {
+  access: string;
+  refresh: string;
+  user?: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ 
@@ -43,7 +65,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post(`${baseUrl}/account/register/`, formData);
+      const response = await axios.post<RegisterResponse>(`${baseUrl}/account/register/`, formData);
       
       if (response.status === 201) {
         // Store user information for display
@@ -66,7 +88,7 @@ const Register = () => {
     try {
       const token = credentialResponse.credential;
 
-      const response = await axios.post(`${baseUrl}/account/google-auth/`, {
+      const response = await axios.post<GoogleAuthResponse>(`${baseUrl}/account/google-auth/`, {
         token: token,
       });
 
