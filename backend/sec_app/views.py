@@ -197,15 +197,103 @@ class ExternalChatbotProxyView(APIView):
             "filtered_context": filtered_context,
             "user_id": user.id,  # Include user ID for context retrieval
         }
-        
         try:
             response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60)
             data = response.json()
         except Exception as e:
             return Response({"error": "Chatbot failed", "details": str(e)}, status=502)
         
-        # Save chat
+        ai_response = data.get("data", {}).get("final_text_answer") or data.get("answer") or "[No answer]"
+        
+        # Return the response without saving to database
         return Response(data, status=200)
+
+
+class ChatSessionListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all chat sessions for the current user"""
+        try:
+            from .models.chat_session import ChatSession
+            
+            sessions = ChatSession.objects.filter(user=request.user, is_active=True)
+            session_data = []
+            for session in sessions:
+                session_data.append({
+                    'id': session.id,
+                    'title': session.title,
+                    'created_at': session.created_at.isoformat(),
+                    'updated_at': session.updated_at.isoformat(),
+                    'message_count': session.message_count
+                })
+            return Response(session_data, status=200)
+        except ImportError:
+            return Response([], status=200)
+        except Exception as e:
+            logger.error(f"Error fetching chat sessions: {str(e)}")
+            return Response({'error': 'Failed to fetch chat sessions'}, status=500)
+
+
+class ChatSessionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, session_id):
+        """Get all messages for a specific chat session"""
+        try:
+            from .models import ChatSession, ChatHistory
+            
+            session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+            messages = ChatHistory.objects.filter(session=session)
+            
+            formatted_messages = []
+            for msg in messages:
+                # Add user message
+                if msg.question:
+                    formatted_messages.append({
+                        'id': f"{msg.id}_user",
+                        'role': 'user',
+                        'content': msg.question,
+                        'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                    })
+                
+                # Add assistant message
+                if msg.answer:
+                    formatted_messages.append({
+                        'id': f"{msg.id}_assistant",
+                        'role': 'assistant',
+                        'content': msg.answer,
+                        'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                    })
+            
+            return Response({
+                'session_id': session.id,
+                'title': session.title,
+                'messages': formatted_messages
+            }, status=200)
+            
+        except ImportError:
+            return Response({'error': 'Chat models not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error fetching chat session {session_id}: {str(e)}")
+            return Response({'error': 'Failed to fetch chat session'}, status=500)
+
+    def delete(self, request, session_id):
+        """Delete a chat session"""
+        try:
+            from .models import ChatSession
+            
+            session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+            session.is_active = False
+            session.save()
+            
+            return Response({'message': 'Chat session deleted successfully'}, status=200)
+            
+        except ImportError:
+            return Response({'error': 'Chat models not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error deleting chat session {session_id}: {str(e)}")
+            return Response({'error': 'Failed to delete chat session'}, status=500)
 
 
 @api_view(["GET"])
@@ -769,3 +857,109 @@ def check_company(request, ticker):
         )
     except Company.DoesNotExist:
         return Response({"error": f"Company {ticker} not found"}, status=404)
+
+
+class ChatBatchListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all chat batches for the current user"""
+        try:
+            from .models import ChatBatch
+            
+            batches = ChatBatch.objects.filter(user=request.user)[:10]  # Get latest 10
+            
+            batch_data = []
+            for batch in batches:
+                batch_data.append({
+                    'id': batch.id,
+                    'title': batch.title,
+                    'message_count': batch.message_count,
+                    'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                    'updated_at': batch.updated_at.isoformat() if batch.updated_at else None
+                })
+            
+            return Response(batch_data, status=200)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error fetching chat batches: {str(e)}")
+            return Response({'error': 'Failed to fetch chat batches'}, status=500)
+
+    def post(self, request):
+        """Save a new chat batch"""
+        try:
+            from .models import ChatBatch
+            
+            messages = request.data.get('messages', [])
+            title = request.data.get('title', 'New Chat')
+            
+            if not messages:
+                return Response({'error': 'Messages cannot be empty'}, status=400)
+            
+            # Create new chat batch
+            batch = ChatBatch.objects.create(
+                user=request.user,
+                title=title,
+                messages=messages
+            )
+            
+            # Update title from first message if title is default
+            if title == 'New Chat':
+                batch.update_title_from_first_message()
+            
+            return Response({
+                'id': batch.id,
+                'title': batch.title,
+                'message_count': batch.message_count,
+                'created_at': batch.created_at.isoformat(),
+                'updated_at': batch.updated_at.isoformat()
+            }, status=201)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error saving chat batch: {str(e)}")
+            return Response({'error': 'Failed to save chat batch'}, status=500)
+
+
+class ChatBatchDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, batch_id):
+        """Get messages for a specific chat batch"""
+        try:
+            from .models import ChatBatch
+            
+            batch = get_object_or_404(ChatBatch, id=batch_id, user=request.user)
+            
+            return Response({
+                'batch_id': batch.id,
+                'title': batch.title,
+                'messages': batch.messages,
+                'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                'updated_at': batch.updated_at.isoformat() if batch.updated_at else None
+            }, status=200)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error fetching chat batch {batch_id}: {str(e)}")
+            return Response({'error': 'Failed to fetch chat batch'}, status=500)
+
+    def delete(self, request, batch_id):
+        """Delete a chat batch"""
+        try:
+            from .models import ChatBatch
+            
+            batch = get_object_or_404(ChatBatch, id=batch_id, user=request.user)
+            batch.delete()
+            
+            return Response({'message': 'Chat batch deleted successfully'}, status=200)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error deleting chat batch {batch_id}: {str(e)}")
+            return Response({'error': 'Failed to delete chat batch'}, status=500)

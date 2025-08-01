@@ -98,8 +98,12 @@ interface TimePoint {
 
 const Dashboard: React.FC = () => {
   // Add logout function
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const logout = () => {
+  const logout = async () => {
+    // Save current chat before logging out
+    if (messages.length > 1) { // More than just the initial message
+      await saveChatBatch(messages);
+    }
+    
     localStorage.removeItem('access');
     localStorage.removeItem('refresh');
     localStorage.removeItem('user_info');
@@ -130,10 +134,60 @@ const Dashboard: React.FC = () => {
   const [showOperationsModal, setShowOperationsModal] = useState(false);
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(false);
   const [currentChatSession, setCurrentChatSession] = useState<any>(null);
+  const [hasNewChatContent, setHasNewChatContent] = useState(false); // Track if chat has new content
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contactFormRef = useRef<HTMLFormElement>(null);
+
+  // Function to save current chat as a batch
+  const saveChatBatch = async (messages: any[], title?: string, forceSave = false) => {
+    try {
+      const token = localStorage.getItem('access');
+      if (!token || messages.length === 0) return;
+
+      // Only save if there's new content or if forced
+      if (!hasNewChatContent && !forceSave) {
+        console.log('No new content to save, skipping batch save');
+        return;
+      }
+
+      // Filter out empty or system messages, and add timestamps
+      const validMessages = messages.filter(msg => 
+        msg.content && msg.content.trim() !== '' && 
+        msg.content !== 'I can help you analyze this data. What would you like to know?'
+      ).map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date().toISOString()
+      }));
+
+      if (validMessages.length === 0) return;
+
+      const response = await fetch(`${baseUrl}/api/chat/batches/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: validMessages,
+          title: title || 'New Chat'
+        }),
+      });
+
+      if (response.ok) {
+        console.log('Chat batch saved successfully');
+        setHasNewChatContent(false); // Reset flag after successful save
+        fetchChatHistory(); // Refresh chat history
+      } else {
+        console.error('Failed to save chat batch:', response.status);
+      }
+    } catch (error) {
+      console.error('Error saving chat batch:', error);
+    }
+  };
 
   const saveConversation = async () => {
     setIsSavingConversation(true);
@@ -397,10 +451,11 @@ const Dashboard: React.FC = () => {
 
   const fetchChatHistory = async () => {
     try {
+      setIsLoadingChatHistory(true);
       const token = localStorage.getItem('access');
       if (!token) return;
 
-      const response = await fetch(`${baseUrl}/api/chat/sessions/`, {
+      const response = await fetch(`${baseUrl}/api/chat/batches/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -409,17 +464,22 @@ const Dashboard: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setChatHistory(data.slice(0, 5)); // Get latest 5 chat sessions
+        setChatHistory(data.slice(0, 10)); // Get latest 10 chat batches
+        console.log('Fetched chat history:', data);
+      } else {
+        console.error('Failed to fetch chat history:', response.status);
       }
     } catch (error) {
       console.error('Error fetching chat history:', error);
+    } finally {
+      setIsLoadingChatHistory(false);
     }
   };
 
-  const loadChatSession = async (sessionId: number) => {
+  const loadChatBatch = async (batchId: number) => {
     try {
       const token = localStorage.getItem('access');
-      console.log('Loading chat session:', sessionId);
+      console.log('Loading chat batch:', batchId);
       console.log('Token available:', !!token);
       
       if (!token) {
@@ -427,7 +487,7 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${baseUrl}/api/chat/sessions/${sessionId}/messages/`, {
+      const response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -448,20 +508,21 @@ const Dashboard: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Chat session data:', data);
+        console.log('Chat batch data:', data);
         
-        // Convert backend messages to frontend format
-        const formattedMessages = data.map((msg: any) => ({
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.role === 'user' ? msg.question : msg.answer
+        // Messages are already in the correct format from the batch
+        const formattedMessages = data.messages.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content
         }));
         
         console.log('Formatted messages:', formattedMessages);
         
         // Use the setMessages from useChat hook to properly update the chat
         setMessages(formattedMessages);
-        setCurrentChatSession(sessionId);
+        setCurrentChatSession(batchId);
         setShowChatHistoryDropdown(false);
+        setHasNewChatContent(false); // Reset flag since we're loading existing content
         
         // Clear any uploaded files when loading a session
         setUploadedFiles([]);
@@ -469,16 +530,21 @@ const Dashboard: React.FC = () => {
           fileInputRef.current.value = '';
         }
       } else {
-        console.error('Failed to load chat session:', response.status, response.statusText);
+        console.error('Failed to load chat batch:', response.status, response.statusText);
         const errorText = await response.text();
         console.error('Error response:', errorText);
       }
     } catch (error) {
-      console.error('Error loading chat session:', error);
+      console.error('Error loading chat batch:', error);
     }
   };
 
-  const startNewChat = () => {
+  const startNewChat = async () => {
+    // Save current chat before starting new one (if it has meaningful content)
+    if (messages.length > 1) { // More than just the initial message
+      await saveChatBatch(messages);
+    }
+    
     // Reset to initial state
     setMessages([
       {
@@ -488,11 +554,46 @@ const Dashboard: React.FC = () => {
     ]);
     setCurrentChatSession(null);
     setShowChatHistoryDropdown(false);
+    setHasNewChatContent(false); // Reset flag for new chat
     
     // Clear any uploaded files
     setUploadedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSessionUpdate = () => {
+    // Refresh chat history when a new message is sent
+    fetchChatHistory();
+  };
+
+  const deleteChatBatch = async (batchId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent loading the batch when clicking delete
+    
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      const response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setChatHistory(prev => prev.filter(batch => batch.id !== batchId));
+        
+        // If this was the current batch, start a new chat
+        if (currentChatSession === batchId) {
+          startNewChat();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting chat batch:', error);
     }
   };
 
@@ -665,7 +766,7 @@ const Dashboard: React.FC = () => {
     activeChart,
     selectedCompanies,
     currentChatSession,
-    onSessionUpdate: fetchChatHistory,
+    onSessionUpdate: handleSessionUpdate,
     uploadedFiles,
     onClearFiles: clearUploadedFiles,
     onAuthError: () => {
@@ -674,6 +775,9 @@ const Dashboard: React.FC = () => {
       localStorage.removeItem('refresh');
       localStorage.removeItem('user_info');
       window.location.href = '/login';
+    },
+    onNewContent: () => {
+      setHasNewChatContent(true);
     }
   });
 
@@ -1334,16 +1438,40 @@ const Dashboard: React.FC = () => {
                   ✨ New Chat
                 </button>
                 
-                {chatHistory.length > 0 ? (
+                {isLoadingChatHistory ? (
+                  <div className="text-gray-500 italic">Loading...</div>
+                ) : chatHistory.length > 0 ? (
                   chatHistory.map((session, index) => (
-                    <button
+                    <div
                       key={session.id || index}
-                      onClick={() => loadChatSession(session.id)}
-                      className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate"
-                      title={session.title || `Chat ${index + 1}`}
+                      className={`group flex items-center justify-between hover:bg-gray-50 rounded p-1 ${
+                        currentChatSession === session.id ? 'bg-blue-50' : ''
+                      }`}
                     >
-                      {session.title || `Chat ${index + 1}`}
-                    </button>
+                      <button
+                        onClick={() => loadChatBatch(session.id)}
+                        className={`flex-1 text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate ${
+                          currentChatSession === session.id ? 'text-blue-600' : ''
+                        }`}
+                        title={session.title || `Chat ${index + 1}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="truncate">{session.title || `Chat ${index + 1}`}</span>
+                          {session.message_count > 0 && (
+                            <span className="text-xs text-gray-400 ml-2">
+                              {session.message_count} msg
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => deleteChatBatch(session.id, e)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1"
+                        title="Delete chat"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   ))
                 ) : (
                   <div className="text-gray-500 italic">No chat history</div>
@@ -2639,10 +2767,23 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   
+                  {/* Chat Header with New Chat Button */}
+                  <div className="flex items-center justify-between p-4 xl:p-6 border-b">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      {currentChatSession ? 'Chat Session' : 'New Chat'}
+                    </h3>
+                    <button
+                      onClick={startNewChat}
+                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      ✨ New Chat
+                    </button>
+                  </div>
+                  
                   {/* Chat Messages */}
                   <div 
                     ref={chatMessagesRef}
-                    className="h-[300px] sm:h-[350px] xl:h-[550px] overflow-y-auto p-4 xl:p-6 space-y-4"
+                    className="h-[250px] sm:h-[300px] xl:h-[500px] overflow-y-auto p-4 xl:p-6 space-y-4"
                   >
                     {messages.map((message, index) => 
                       message.role === 'assistant' ? (

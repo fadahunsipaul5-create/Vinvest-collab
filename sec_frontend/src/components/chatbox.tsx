@@ -13,6 +13,7 @@ interface ChatboxProps {
   uploadedFiles?: File[];
   onClearFiles?: () => void;
   onAuthError?: () => void;
+  onNewContent?: () => void; // Callback when new content is added
 }
 
 interface Message {
@@ -32,6 +33,7 @@ export const useChat = ({
   uploadedFiles,
   onClearFiles,
   onAuthError,
+  onNewContent,
 }: ChatboxProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -116,6 +118,11 @@ export const useChat = ({
     setIsChatLoading(true);
     const userMessage: Message = { role: 'user', content: message };
     setMessages(prev => [...prev, userMessage]);
+    
+    // Mark that new content has been added
+    if (onNewContent) {
+      onNewContent();
+    }
 
     // Add thinking message
     setMessages(prev => [...prev, { role: 'assistant', content: 'Thinking...' }]);
@@ -221,7 +228,9 @@ export const useChat = ({
           period: selectedPeriod || 'ALL',
           metrics: selectedMetrics || [],
           chartType: activeChart || 'line',
-          chartData: formattedChartData
+          chartData: formattedChartData,
+          // Include session ID for chat history
+          session_id: currentChatSession || null
       });
 
       const headers = {
@@ -269,6 +278,11 @@ export const useChat = ({
 
             setMessages(prev => [...prev, aiMessage]);
             
+            // Update current session ID if provided in response
+            if (data.session_id && onSessionUpdate) {
+              onSessionUpdate();
+            }
+            
             // Save the conversation to the current session
             await saveMessageToSession(message, aiMessageContent);
             
@@ -314,6 +328,16 @@ export const useChat = ({
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Mark that new content has been added (AI response)
+      if (onNewContent) {
+        onNewContent();
+      }
+      
+      // Update current session ID if provided in response
+      if (data.session_id && onSessionUpdate) {
+        onSessionUpdate();
+      }
       
       // Save the conversation to the current session
       await saveMessageToSession(message, aiMessageContent);

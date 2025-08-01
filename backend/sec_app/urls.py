@@ -5,7 +5,8 @@ from .views import (
     ChartDataAPIView, InsightsAPIView, CustomQueryAPIView, IndustryComparisonAPIView,
      extract_financials, IndustryAPIView,BoxPlotDataAPIView,AggregatedDataAPIView,
     get_available_metrics, check_company,load_data,ExternalChatbotProxyView,
-    ContactView, FileUploadView
+    ContactView, FileUploadView, ChatSessionListView, ChatSessionDetailView,
+    ChatBatchListView, ChatBatchDetailView
 )
 
 # Create a router and register only ViewSets.
@@ -28,6 +29,10 @@ urlpatterns = [
     path('aggregated-data/',AggregatedDataAPIView.as_view(),name='aggregate'),
     path('companies/<str:ticker>/', check_company, name='check-company'),
     path('chat/', ExternalChatbotProxyView.as_view(), name='chat'),
+    path('chat/sessions/', ChatSessionListView.as_view(), name='chat-sessions'),
+    path('chat/sessions/<int:session_id>/messages/', ChatSessionDetailView.as_view(), name='chat-session-detail'),
+    path('chat/batches/', ChatBatchListView.as_view(), name='chat-batches'),
+    path('chat/batches/<int:batch_id>/', ChatBatchDetailView.as_view(), name='chat-batch-detail'),
     path('contact/', ContactView.as_view(), name='contact'),
     path('file-upload/', FileUploadView.as_view(), name='file_upload'),
     path('', include(router.urls)),
