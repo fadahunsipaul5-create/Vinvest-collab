@@ -33,10 +33,20 @@ DATABASES = {
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST','127.0.0.1'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
+
+# Check if running in the Google Cloud environment.
+# This uses the 'IS_CLOUD_ENV=True' flag from your cloudbuild.yaml
+if os.environ.get('IS_CLOUD_ENV'):
+    DATABASES['default'].update({
+        'HOST': '/cloudsql/getdeepaiapp:us-central1:sec-db'
+    })
+else:
+    DATABASES['default'].update({
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+    })
 
 
 INSTALLED_APPS = [
