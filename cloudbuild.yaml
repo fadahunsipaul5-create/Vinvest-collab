@@ -1,4 +1,4 @@
-logsBucket: 'gs://getdeepaiapp_cloudbuild'  
+logsBucket: 'gs://getdeepaiapp_cloudbuild'
 
 steps:
   # Step 1: Build the container image
@@ -31,6 +31,8 @@ steps:
       - '-e'
       - 'DB_NAME=${_DB_NAME}'
       - '-e'
+      - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
+      - '-e'
       - 'IS_CLOUD_ENV=True'
       - '-e'
       - 'SECRET_KEY=dummy-key'
@@ -38,7 +40,7 @@ steps:
       - 'python'
       - 'manage.py'
       - 'makemigrations'
-    secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME']
+    secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'INSTANCE_CONNECTION_NAME']
     waitFor: ['Push']
 
   # Step 4: Run database migrations
@@ -56,6 +58,8 @@ steps:
       - '-e'
       - 'DB_NAME=${_DB_NAME}'
       - '-e'
+      - 'INSTANCE_CONNECTION_NAME=${_INSTANCE_CONNECTION_NAME}'
+      - '-e'
       - 'IS_CLOUD_ENV=True'
       - '-e'
       - 'SECRET_KEY=dummy-key'
@@ -63,7 +67,7 @@ steps:
       - 'python'
       - 'manage.py'
       - 'migrate'
-    secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME']
+    secretEnv: ['DB_PASSWORD', 'DB_USER', 'DB_NAME', 'INSTANCE_CONNECTION_NAME']
     waitFor: ['MakeMigrations']
 
   # Step 5: Deploy to Cloud Run
