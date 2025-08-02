@@ -48,7 +48,7 @@ steps:
     - '--platform=managed'
     - '--allow-unauthenticated'
     - '--set-secrets=SECRET_KEY=django-secret-key:latest'
-    - '--set-env-vars=INSTANCE_CONNECTION_NAME=getdeepaiapp:us-central1:sec-db,DB_NAME=sec_db,DB_USER=sec_user,DB_PASSWORD=B#Y(mEd:*v/:0OJy'
+    - '--set-env-vars=INSTANCE_CONNECTION_NAME=getdeepaiapp:us-central1:sec-db,DB_NAME=sec-db,DB_USER=sec_user,DB_PASSWORD=B#Y(mEd:*v/:0OJy'
 
 images:
 - 'gcr.io/$PROJECT_ID/sec-insights-backend:$BUILD_ID'
