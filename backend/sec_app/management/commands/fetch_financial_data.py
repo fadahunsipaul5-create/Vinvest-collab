@@ -64,27 +64,32 @@ class Command(BaseCommand):
         total_metrics_created = 0
         for i in range(0, len(csv_files), batch_size):
             batch_files = csv_files[i:i + batch_size]
-            batch_metrics = self.process_batch(batch_files, directory_path, i, len(csv_files), companies_cache, companies_id_cache, max_workers, db_batch_size, turbo_mode, turbo_visible)
+            batch_metrics = self.process_batch(batch_files, directory_path, i, len(csv_files), companies_cache, companies_id_cache, max_workers, db_batch_size, turbo_mode, turbo_visible, skip_existing)
             total_metrics_created += batch_metrics
             if not turbo_mode or turbo_visible or (i // batch_size + 1) % 5 == 0:  # Log every batch in turbo_visible, every 5th in turbo
                 self.stdout.write(f"Batch {i//batch_size + 1}/{(len(csv_files) + batch_size - 1) // batch_size}: Created {batch_metrics} metrics (Total: {total_metrics_created:,})")
         
         self.stdout.write(f"✅ Completed! Total metrics created: {total_metrics_created:,}")
 
-    def process_batch(self, batch_files, directory_path, batch_start, total_files, companies_cache, companies_id_cache, max_workers, db_batch_size, turbo_mode, turbo_visible):
+    def process_batch(self, batch_files, directory_path, batch_start, total_files, companies_cache, companies_id_cache, max_workers, db_batch_size, turbo_mode, turbo_visible, skip_existing):
         current_batch_tickers = {filename.split('_')[0] for filename in batch_files}
         companies_in_current_batch = [companies_cache[ticker] for ticker in current_batch_tickers if ticker in companies_cache]
         company_ids_in_batch = [company.id for company in companies_in_current_batch]
 
-        # Get existing metrics for this batch more efficiently
-        if not turbo_mode or turbo_visible:
-            self.stdout.write(f"🔍 Checking existing metrics for batch...")
-        existing_metrics_for_batch = set(
-            FinancialMetric.objects.filter(company_id__in=company_ids_in_batch)
-            .values_list('period__period', 'metric_name', 'company_id')
-        )
-        if not turbo_mode or turbo_visible:
-            self.stdout.write(f"Found {len(existing_metrics_for_batch)} existing metrics to skip")
+        # Get existing metrics for this batch more efficiently (only if skip_existing is True)
+        if skip_existing:
+            if not turbo_mode or turbo_visible:
+                self.stdout.write(f"🔍 Checking existing metrics for batch...")
+            existing_metrics_for_batch = set(
+                FinancialMetric.objects.filter(company_id__in=company_ids_in_batch)
+                .values_list('period__period', 'metric_name', 'company_id')
+            )
+            if not turbo_mode or turbo_visible:
+                self.stdout.write(f"Found {len(existing_metrics_for_batch)} existing metrics to skip")
+        else:
+            existing_metrics_for_batch = set()  # Empty set when not skipping existing
+            if not turbo_mode or turbo_visible:
+                self.stdout.write(f"🔄 Replacing all existing data (not skipping any metrics)")
 
         # Process CSV files in parallel
         file_data = {}
@@ -115,7 +120,7 @@ class Command(BaseCommand):
         # Process all data and return metrics count
         if not turbo_mode or turbo_visible:
             self.stdout.write(f"💾 Processing data for database insertion...")
-        return self._process_batch_data(file_data, companies_cache, companies_id_cache, existing_metrics_for_batch, db_batch_size, turbo_mode, turbo_visible)
+        return self._process_batch_data(file_data, companies_cache, companies_id_cache, existing_metrics_for_batch, db_batch_size, turbo_mode, turbo_visible, skip_existing)
 
     def read_csv_fast(self, filepath):
         """Fast CSV reader using native csv module instead of pandas"""
@@ -140,7 +145,7 @@ class Command(BaseCommand):
             raise Exception(f"Error reading CSV file {filepath}: {str(e)}")
         return data
 
-    def _process_batch_data(self, file_data, companies_cache, companies_id_cache, existing_metrics, db_batch_size, turbo_mode, turbo_visible):
+    def _process_batch_data(self, file_data, companies_cache, companies_id_cache, existing_metrics, db_batch_size, turbo_mode, turbo_visible, skip_existing):
         """Process all batch data with chunked database operations"""
         periods_to_create = {}
         metrics_data = []  # Store metric data without period objects initially
@@ -157,7 +162,7 @@ class Command(BaseCommand):
                 continue
 
             # Collect periods and metric data separately
-            self.collect_periods_and_metric_data(csv_data, company, periods_to_create, metrics_data, existing_metrics)
+            self.collect_periods_and_metric_data(csv_data, company, periods_to_create, metrics_data, existing_metrics, skip_existing)
 
         if not turbo_mode or turbo_visible:
             self.stdout.write(f"🔄 Collected {len(periods_to_create)} unique periods, {len(metrics_data)} metrics")
@@ -230,13 +235,21 @@ class Command(BaseCommand):
         
         return total_created
 
-    def collect_periods_and_metric_data(self, csv_data, company, periods_to_create, metrics_data, existing_metrics):
+    def collect_periods_and_metric_data(self, csv_data, company, periods_to_create, metrics_data, existing_metrics, skip_existing):
         """Collect periods and metric data in single pass through data"""
         
         # Process annual data
         for year in range(2005, 2025):
             year_str = str(year)
-            if year_str not in csv_data.get('Revenue', {}):
+            
+            # Check if ANY metric has data for this year (not just Revenue)
+            has_data_for_year = any(
+                year_str in values and values[year_str] is not None 
+                for metric_name, values in csv_data.items() 
+                if metric_name != 'statementType'
+            )
+            
+            if not has_data_for_year:
                 continue
                 
             # Create period if needed
@@ -253,7 +266,7 @@ class Command(BaseCommand):
             for metric_name, values in csv_data.items():
                 if metric_name == 'statementType':
                     continue
-                if year_str in values and (year_str, metric_name, company.id) not in existing_metrics:
+                if year_str in values and (not skip_existing or (year_str, metric_name, company.id) not in existing_metrics):
                     metrics_data.append({
                         'company': company,
                         'company_id': company.id,
@@ -261,7 +274,8 @@ class Command(BaseCommand):
                         'metric_name': metric_name,
                         'value': values[year_str]
                     })
-                    existing_metrics.add((year_str, metric_name, company.id))
+                    if skip_existing:
+                        existing_metrics.add((year_str, metric_name, company.id))
 
         # Process period data (2Y, 3Y, etc.)
         for period_type in ['2Y', '3Y', '4Y', '5Y', '10Y', '15Y', '20Y']:
@@ -288,7 +302,7 @@ class Command(BaseCommand):
                         )
                     
                     # Collect metric data
-                    if (years, metric_name, company.id) not in existing_metrics:
+                    if not skip_existing or (years, metric_name, company.id) not in existing_metrics:
                         metrics_data.append({
                             'company': company,
                             'company_id': company.id,
@@ -296,4 +310,5 @@ class Command(BaseCommand):
                             'metric_name': metric_name,
                             'value': value
                         })
-                        existing_metrics.add((years, metric_name, company.id))
+                        if skip_existing:
+                            existing_metrics.add((years, metric_name, company.id))

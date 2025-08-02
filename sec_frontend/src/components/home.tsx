@@ -121,7 +121,7 @@ const Dashboard: React.FC = () => {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [userSubscription, setUserSubscription] = useState(() => {
     const saved = localStorage.getItem('user_subscription');
-    return saved ? JSON.parse(saved) : { plan: 'free', questionsUsed: 0, questionsLimit: 5 };
+    return saved ? JSON.parse(saved) : { plan: 'free', questionsUsed: 0, questionsLimit: 10 };
   });
   const [questionsAsked, setQuestionsAsked] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -366,13 +366,13 @@ const Dashboard: React.FC = () => {
   const subscriptionPlans = [
     {
       id: 'free',
-      name: 'Free',
+      name: 'Basic/Free',
       price: '$0',
       period: 'forever',
-      questionsLimit: 5,
+      questionsLimit: 10,
       features: [
-        '5 questions per month',
-        'Basic chart analysis',
+        'Only Across Metrics charts',
+        '10 questions per day',
         'Standard support'
       ],
       popular: false
@@ -382,29 +382,27 @@ const Dashboard: React.FC = () => {
       name: 'Pro',
       price: '$29',
       period: 'per month',
-      questionsLimit: 100,
+      questionsLimit: 50,
       features: [
-        '100 questions per month',
-        'Advanced analytics',
-        'Priority support',
-        'Export to PDF',
-        'Custom reports'
+        'All charts',
+        '50 questions per day',
+        'Export charts and reports',
+        'Priority support'
       ],
       popular: true
     },
     {
-      id: 'enterprise',
-      name: 'Enterprise',
-      price: '$99',
+      id: 'pro-plus',
+      name: 'Pro Plus',
+      price: '$59',
       period: 'per month',
-      questionsLimit: 1000,
+      questionsLimit: 9999,
       features: [
-        '1000 questions per month',
-        'Unlimited analytics',
-        'Dedicated support',
-        'API access',
-        'Custom integrations',
-        'Team collaboration'
+        'All charts',
+        'Unlimited questions',
+        'Upload pdf files to add more context to chat',
+        'Export charts and reports',
+        'Priority support'
       ],
       popular: false
     }
@@ -1226,22 +1224,37 @@ const Dashboard: React.FC = () => {
 
   // Find the position of the last tick (2024) after chart renders
   useLayoutEffect(() => {
-    if (!fixed2024Data) return;
-    const chartDiv = chartContainerRef.current;
-    if (!chartDiv) return;
-    // Find the tick element whose label is 2024
-    const tick2024 = document.querySelector(`.xAxis .recharts-cartesian-axis-tick:last-child`) as HTMLElement | null;
-    if (!tick2024) return;
-    const tickRect = tick2024.getBoundingClientRect();
-    const chartRect = chartDiv.getBoundingClientRect();
-    setFixedTooltipPos({
-      left: tickRect.left - chartRect.left + tickRect.width / 2,
-      top: 40 // adjust as needed
-    });
-    console.log('Set fixedTooltipPos:', {
-      left: tickRect.left - chartRect.left + tickRect.width / 2,
-      top: 40
-    });
+    const calculateTooltipPosition = () => {
+      if (!fixed2024Data) return;
+      const chartDiv = chartContainerRef.current;
+      if (!chartDiv) return;
+      // Find the tick element whose label is 2024
+      const tick2024 = document.querySelector(`.xAxis .recharts-cartesian-axis-tick:last-child`) as HTMLElement | null;
+      if (!tick2024) return;
+      const tickRect = tick2024.getBoundingClientRect();
+      const chartRect = chartDiv.getBoundingClientRect();
+      setFixedTooltipPos({
+        left: tickRect.left - chartRect.left + tickRect.width / 2,
+        top: 40 // adjust as needed
+      });
+      console.log('Set fixedTooltipPos:', {
+        left: tickRect.left - chartRect.left + tickRect.width / 2,
+        top: 40
+      });
+    };
+
+    calculateTooltipPosition();
+
+    // Add resize listener to recalculate position when screen size changes
+    const handleResize = () => {
+      setTimeout(calculateTooltipPosition, 100); // Small delay to allow chart to rerender
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, [fixed2024Data, chartData, activeChart]);
 
   // Remove this function if not used
@@ -1319,7 +1332,7 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
         <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
-          <img src="/new_logo.PNG" alt="GetDeep.AI" className="w-10 h-20 sm:w-10 sm:h-20 md:w-16 md:h-20 lg:w-10 lg:h-20" />
+          <img src="/deep.PNG" alt="GetDeep.AI" className="w-16 h-20 sm:w-16 sm:h-20 md:w-20 md:h-20 lg:w-22 lg:h-20" />
       </div>
 
       {/* Sidebar */}
@@ -1336,6 +1349,16 @@ const Dashboard: React.FC = () => {
               <div>Add data sources</div>
               <div>Change model</div>
             </div> */}
+          </div>
+
+          <div className="space-y-2">
+            <button 
+              onClick={() => setShowContactModal(true)}
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
+            >
+              <span className="text-sm">📞</span>
+              <span className="text-sm">Contact Us</span>
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -1480,15 +1503,7 @@ const Dashboard: React.FC = () => {
             )}
           </div>
 
-          <div className="space-y-2">
-                        <button 
-              onClick={() => setShowContactModal(true)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">📞</span>
-              <span className="text-sm">Contact Us</span>
-            </button>
-          </div>
+
 
           {/* <div className="space-y-2">
             <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
@@ -1515,9 +1530,9 @@ const Dashboard: React.FC = () => {
             {/* Logo container - hide on mobile */}
             <div className="hidden lg:block w-64 xl:w-72 overflow-visible absolute bottom-0">
               <img 
-                src="/new_logo.PNG" 
+                src="/deep.PNG" 
                 alt="GetDeep.AI" 
-                className="w-24 h-14 xl:w-28 xl:h-18"
+                className="w-32 h-14 xl:w-42 xl:h-18"
               />
             </div>
             
@@ -2702,14 +2717,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-              {/* Search Input */}
-              <div className="mt-3 xl:mt-4">
-                <input 
-                  type="text" 
-                  placeholder="Search saved charts or reports"
-                  className="w-full px-3 xl:px-4 py-2 xl:py-3 text-sm xl:text-base border rounded-lg"
-                />
-              </div>
+
               {/* Footer - adjust spacing on mobile */}
               {/* <div className="mt-2 sm:mt-2 xl:mt-2 px-3 sm:px-4 lg:px-6 xl:px-8">
                 <div className="flex flex-wrap gap-3 sm:gap-4 xl:gap-6 text-xs sm:text-sm xl:text-base text-gray-600">
