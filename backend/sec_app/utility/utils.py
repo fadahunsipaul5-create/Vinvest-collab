@@ -332,9 +332,10 @@ def contact_mail(fullname, email, company, phone, message):
         send_mail(
             subject=subject,
             message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=email,  
             recipient_list=['info@valueaccel.com'],
             html_message=html_message,
+            reply_to=[email],  
         )
         return {'success': 'Message sent'}
     except BadHeaderError:

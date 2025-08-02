@@ -40,7 +40,7 @@ DATABASES = {
 # This uses the 'IS_CLOUD_ENV=True' flag from your cloudbuild.yaml
 if os.environ.get('IS_CLOUD_ENV'):
     DATABASES['default'].update({
-        'HOST': '/cloudsql/getdeepaiapp:us-central1:sec-db'
+        'HOST': '/cloudsql/getdeepaiapp:us-central1:sec_db'
     })
 else:
     DATABASES['default'].update({
