@@ -54,7 +54,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   </div>
                   
                   {/* Platform Title */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-16 text-center">
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-20 text-center">
                     <p className="text-sm font-semibold text-[#1B5A7D]">AIOT Platform: an end-to-end integrated</p>
                     <p className="text-sm font-semibold text-[#1B5A7D]">platform for global AIOT ecosystem</p>
                   </div>
@@ -63,7 +63,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">☀️</span>
                   </div>
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-8 text-center">
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-12 text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">Compute Nodes</p>
                   </div>
 
@@ -71,7 +71,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute top-1/4 right-0 transform translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">🔧</span>
                   </div>
-                  <div className="absolute top-1/4 right-0 transform translate-x-1/2 -translate-y-1/2 mt-8 text-center">
+                  <div className="absolute top-1/4 right-0 transform translate-x-1/2 -translate-y-1/2 mt-10 text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">AI & ML Integrations</p>
                   </div>
 
@@ -79,7 +79,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute bottom-1/4 right-0 transform translate-x-1/2 translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">🏭</span>
                   </div>
-                  <div className="absolute bottom-1/4 right-0 transform translate-x-1/2 translate-y-1/2 mt-8 text-center">
+                  <div className="absolute bottom-1/4 right-0 transform translate-x-1/2 translate-y-[270%] text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">Edge Computing</p>
                   </div>
 
@@ -87,7 +87,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">🖥️</span>
                   </div>
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 mt-8 text-center">
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[270%] text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">Data Management</p>
                   </div>
 
@@ -95,7 +95,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute bottom-1/4 left-0 transform -translate-x-1/2 translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">🌐</span>
                   </div>
-                  <div className="absolute bottom-1/4 left-0 transform -translate-x-1/2 translate-y-1/2 mt-8 text-center">
+                  <div className="absolute bottom-1/4 left-0 transform -translate-x-1/2 translate-y-[270%] text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">IoT Integration</p>
                   </div>
 
@@ -103,7 +103,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute top-1/4 left-0 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">🔗</span>
                   </div>
-                  <div className="absolute top-1/4 left-0 transform -translate-x-1/2 -translate-y-1/2 mt-8 text-center">
+                  <div className="absolute top-1/4 left-0 transform -translate-x-1/2 -translate-y-1/2 mt-10 text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">Network & Connectivity</p>
                   </div>
 
@@ -111,7 +111,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">🛡️</span>
                   </div>
-                  <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 mt-8 text-center">
+                  <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 mt-10 text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">Security & Governance</p>
                   </div>
 
@@ -119,7 +119,7 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
                   <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
                     <span className="text-[#1B5A7D] text-lg">☁️</span>
                   </div>
-                  <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 mt-8 text-center">
+                  <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 mt-10 text-center">
                     <p className="text-xs font-medium text-[#1B5A7D]">Cloud Integration</p>
                   </div>
                 </div>

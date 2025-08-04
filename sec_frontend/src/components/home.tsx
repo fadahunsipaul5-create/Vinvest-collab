@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import InsightsGenerators from './InsightsGenerators';
 import AIOTPlatformSolutions from './AIOTPlatformSolutions';
 import OperationsVirtualization from './OperationsVirtualization';
@@ -97,6 +98,8 @@ interface TimePoint {
 
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+
   // Add logout function
   const logout = async () => {
     // Save current chat before logging out
@@ -1596,7 +1599,7 @@ const Dashboard: React.FC = () => {
                         <div className="py-1">
                           <button
                             onClick={() => {
-                              // TODO: Navigate to profile page
+                              navigate('/profile');
                               setProfileDropdownOpen(false);
                             }}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
