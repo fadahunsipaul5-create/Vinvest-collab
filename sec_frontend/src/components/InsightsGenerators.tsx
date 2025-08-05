@@ -14,17 +14,25 @@ const InsightsGenerators: React.FC<InsightsGeneratorsProps> = ({ onContactClick 
           </div>
 
           {/* OPPORTUNITY Section */}
-          <div className="mb-12">
-            <h3 className="text-2xl font-bold text-[#1B5A7D] mb-6">OPPORTUNITY</h3>
+          <div className="mb-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="space-y-4 text-gray-700">
-                <p className="text-lg">
-                  Decision makers waste up to <span className="font-bold text-[#1B5A7D]">80% of their time</span> for finding right data and information or generating right insights
-                </p>
+              <div className="mt-16">
+                <h3 className="text-2xl font-bold text-[#1B5A7D] mb-6">OPPORTUNITY</h3>
+                <div className="space-y-4 text-gray-700">
+                  <p className="text-lg">
+                    Insufficient or inaccurate or untimely data skews management decision making, leading to costly mistakes
+                  </p>
+                  <p className="text-lg">
+                    Even if the data is available, it's hard to identify root cause or reasoning behind the data/trends
+                  </p>
+                  <p className="text-lg">
+                    Decision makers waste up to <span className="font-bold text-[#1B5A7D]">80% of their time</span> for finding right data and information or generating right insights
+                  </p>
+                </div>
               </div>
               <div className="bg-gray-100 rounded-lg p-6 flex items-center justify-center">
                 <img 
-                  src="/wom.jpg" 
+                  src="/wom.PNG" 
                   alt="Professional woman working at desk with laptop and documents" 
                   className="w-full h-80 object-cover rounded-lg shadow-md"
                 />
@@ -68,15 +76,17 @@ const InsightsGenerators: React.FC<InsightsGeneratorsProps> = ({ onContactClick 
 
           {/* Impact Section */}
           <div className="mb-12">
-            <h3 className="text-2xl font-bold text-[#1B5A7D] mb-6">IMPACT</h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div className="space-y-4 text-gray-700">
-                <p className="text-lg">
-                  Significant value is created in any enterprise by optimal decision making and data/insights driven actions across the value chain and across all levels
-                </p>
-                <div className="space-y-2">
-                  <p className="text-lg">• <span className="font-semibold text-[#1B5A7D]">Instant data analysis and insights/reasoning</span></p>
-                  <p className="text-lg">• <span className="font-semibold text-[#1B5A7D]">4X speed improvement</span> in risk identification and compliances</p>
+              <div className="mt-16">
+                <h3 className="text-2xl font-bold text-[#1B5A7D] mb-6">IMPACT</h3>
+                <div className="space-y-4 text-gray-700">
+                  <p className="text-lg">
+                    Significant value is created in any enterprise by optimal decision making and data/insights driven actions across the value chain and across all levels
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-lg">• <span className="font-semibold text-[#1B5A7D]">Instant data analysis and insights/reasoning</span></p>
+                    <p className="text-lg">• <span className="font-semibold text-[#1B5A7D]">4X speed improvement</span> in risk identification and compliances</p>
+                  </div>
                 </div>
               </div>
               <div className="bg-gray-100 rounded-lg p-6 flex items-center justify-center">

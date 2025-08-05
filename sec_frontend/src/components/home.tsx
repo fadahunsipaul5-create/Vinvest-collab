@@ -1335,8 +1335,10 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
         <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
-          <img src="/deep.PNG" alt="GetDeep.AI" className="w-12 h-16 sm:w-12 sm:h-16 md:w-16 md:h-18 lg:w-18 lg:h-18" />
-      </div>
+          <div className="ml-6">
+            <img src="/deep.PNG" alt="GetDeep.AI" className="w-12 h-16 sm:w-12 sm:h-16 md:w-16 md:h-18 lg:w-18 lg:h-18" />
+          </div>
+        </div>
 
       {/* Sidebar */}
       <div className="hidden lg:block w-64 xl:w-72 bg-white border-r">
@@ -1531,7 +1533,7 @@ const Dashboard: React.FC = () => {
         <div className="border-b bg-white absolute left-0 right-0 h-24">
           <div className="flex items-center h-full relative">
             {/* Logo container - hide on mobile */}
-            <div className="hidden lg:block w-64 xl:w-72 overflow-visible absolute bottom-0">
+            <div className="hidden lg:block w-62 xl:w-70 overflow-visible absolute bottom-0 pl-7">
               <img 
                 src="/deep.PNG" 
                 alt="GetDeep.AI" 
