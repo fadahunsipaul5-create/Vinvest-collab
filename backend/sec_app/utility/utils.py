@@ -17,7 +17,7 @@ from dateutil import parser
 from sec_app.api_client import fetch_filing_details
 import io
 from asgiref.sync import sync_to_async
-from django.core.mail import send_mail, BadHeaderError
+from django.core.mail import send_mail, BadHeaderError, EmailMultiAlternatives
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -329,14 +329,17 @@ def contact_mail(fullname, email, company, phone, message):
         <p><strong>Message:</strong><br>{message}</p>
     """
     try:
-        send_mail(
+        email_message = EmailMultiAlternatives(
             subject=subject,
-            message=plain_message,
-            from_email=email,  
-            recipient_list=['info@valueaccel.com'],
-            html_message=html_message,
+            body=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,  
+            to=['info@valueaccel.com'],
             reply_to=[email],  
         )
+        if html_message:
+            email_message.attach_alternative(html_message, "text/html")
+        
+        email_message.send()
         return {'success': 'Message sent'}
     except BadHeaderError:
         return {'error': 'Invalid header found.'}

@@ -1335,7 +1335,7 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
         <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
-          <img src="/deep.PNG" alt="GetDeep.AI" className="w-16 h-20 sm:w-16 sm:h-20 md:w-20 md:h-20 lg:w-22 lg:h-20" />
+          <img src="/deep.PNG" alt="GetDeep.AI" className="w-12 h-16 sm:w-12 sm:h-16 md:w-16 md:h-18 lg:w-18 lg:h-18" />
       </div>
 
       {/* Sidebar */}
@@ -1535,7 +1535,7 @@ const Dashboard: React.FC = () => {
               <img 
                 src="/deep.PNG" 
                 alt="GetDeep.AI" 
-                className="w-32 h-14 xl:w-42 xl:h-18"
+                className="w-24 h-12 xl:w-34 xl:h-16"
               />
             </div>
             
