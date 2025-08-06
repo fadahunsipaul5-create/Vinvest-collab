@@ -19,7 +19,7 @@ const Approach: React.FC<ApproachProps> = ({ onClose }) => {
           
           {/* Main Title */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-[#1B5A7D] mb-4">
+            <h1 className="text-5xl font-bold text-[#1B5A7D] mb-4">
               OUR APPROACH TO OPTIMAL DECISION-MAKING AND ACCELERATED VALUE CREATION
             </h1>
           </div>
@@ -162,11 +162,11 @@ const Approach: React.FC<ApproachProps> = ({ onClose }) => {
             </div>
 
             {/* Right Section - Benefits */}
-            <div className="space-y-8 border-l-2 border-[#1B5A7D] pl-8">
+            <div className="space-y-8 border-l-2 border-[#1B5A7D] pl-8 mt-16">
               <h2 className="text-2xl font-bold text-[#1B5A7D] mb-6">Benefits</h2>
               
               <div className="bg-gray-50 p-6 rounded-lg">
-                <p className="text-gray-700 text-sm leading-relaxed">
+                <p className="text-gray-700 text-base leading-relaxed">
                   These efforts (for select use cases or at an enterprise-level) will enable you to make optimal, value-driven decisions and actions across the value chain and at all levels and drive significant business value (e.g., ROIC*)
                 </p>
               </div>
