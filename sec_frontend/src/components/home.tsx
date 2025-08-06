@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import InsightsGenerators from './InsightsGenerators';
 import AIOTPlatformSolutions from './AIOTPlatformSolutions';
 import OperationsVirtualization from './OperationsVirtualization';
+import Approach from './approach';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import BoxPlot from './BoxPlot';
 import { useChat } from './chatbox';
@@ -3186,127 +3187,7 @@ const Dashboard: React.FC = () => {
       {showApproachModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl lg:text-3xl font-bold text-[#1B5A7D] text-center flex-1">
-                  OUR APPROACH TO OPTIMAL DECISION-MAKING AND ACCELERATED VALUE CREATION
-                </h1>
-                <button
-                  onClick={() => setShowApproachModal(false)}
-                  className="text-gray-400 hover:text-gray-600 ml-4"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column - Pillars */}
-                <div className="space-y-6">
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="text-3xl">👁️</div>
-                      <h2 className="text-xl font-bold text-[#1B5A7D]">Data Visualization & Insights Generation</h2>
-                    </div>
-                    <p className="text-gray-700">
-                      Create <strong>data transparency</strong> by integrating OT, IT, ET data for data driven decision making
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="text-3xl">⚙️</div>
-                      <h2 className="text-xl font-bold text-[#1B5A7D]">Process optimization</h2>
-                    </div>
-                    <p className="text-gray-700">
-                      Enable <strong>system-level decision making</strong> across functions, operation sites & value-chain
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="text-3xl">🧠</div>
-                      <h2 className="text-xl font-bold text-[#1B5A7D]">Superior Decisions / Agentization</h2>
-                    </div>
-                    <p className="text-gray-700">
-                      Automate decision making and actions or develop co-pilots to enhance decisioning
-                    </p>
-                  </div>
-                </div>
-
-                {/* Middle Column - Transformations */}
-                <div className="space-y-6">
-                  <div className="bg-blue-50 rounded-lg p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 bg-white rounded-lg p-4 border">
-                          <h3 className="font-bold text-[#1B5A7D] mb-2">From</h3>
-                          <p className="text-sm text-gray-700">Single source of truth across OT, IT, and ET</p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 12h34m0 0l-6-6m6 6l-6 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 bg-white rounded-lg p-4 border">
-                          <h3 className="font-bold text-[#1B5A7D] mb-2">To</h3>
-                          <p className="text-sm text-gray-700">Digital Twins (e.g., 3D plant model) with GenAI to query data and get instant insights</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 bg-white rounded-lg p-4 border">
-                          <p className="text-sm text-gray-700">Optimized decisions across two or more functions</p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 12h34m0 0l-6-6m6 6l-6 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 bg-white rounded-lg p-4 border">
-                          <p className="text-sm text-gray-700">Dynamic enterprise (business / ops decisions optimized across enterprise)</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 bg-white rounded-lg p-4 border">
-                          <p className="text-sm text-gray-700">One/two optimal actions taken by AI agents</p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 12h34m0 0l-6-6m6 6l-6 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 bg-white rounded-lg p-4 border">
-                          <p className="text-sm text-gray-700">Most actions are taken by AI agents with necessary human interventions</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column - Benefits */}
-                <div className="bg-green-50 rounded-lg p-6">
-                  <p className="text-gray-700 leading-relaxed">
-                    These efforts (for select use cases or at an enterprise-level) will enable you to make optimal, value-driven decisions and actions across the value chain and at all levels and drive significant business value (e.g., ROIC*)
-                  </p>
-                </div>
-              </div>
-
-              {/* Contact Button */}
-              <div className="flex justify-center mt-8">
-                <button
-                  onClick={() => {
-                    setShowApproachModal(false);
-                    setShowContactModal(true);
-                  }}
-                  className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
-                >
-                  Contact Us
-                </button>
-              </div>
-            </div>
+            <Approach onClose={() => setShowApproachModal(false)} />
           </div>
         </div>
       )}
