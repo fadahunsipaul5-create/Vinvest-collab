@@ -6,7 +6,7 @@ from .views import (
      extract_financials, IndustryAPIView,BoxPlotDataAPIView,AggregatedDataAPIView,
     get_available_metrics, check_company,load_data,ExternalChatbotProxyView,
     ContactView, FileUploadView, ChatSessionListView, ChatSessionDetailView,
-    ChatBatchListView, ChatBatchDetailView
+    ChatBatchListView, ChatBatchDetailView,create_checkout_session,stripe_webhook
 )
 
 # Create a router and register only ViewSets.
@@ -35,5 +35,7 @@ urlpatterns = [
     path('chat/batches/<int:batch_id>/', ChatBatchDetailView.as_view(), name='chat-batch-detail'),
     path('contact/', ContactView.as_view(), name='contact'),
     path('file-upload/', FileUploadView.as_view(), name='file_upload'),
+    path('create-checkout-session/', create_checkout_session, name='create_checkout_session'),
+    path('stripe-webhook/', stripe_webhook, name='stripe_webhook'),
     path('', include(router.urls)),
 ]

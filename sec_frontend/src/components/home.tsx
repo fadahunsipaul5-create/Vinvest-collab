@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
 import InsightsGenerators from './InsightsGenerators';
 import AIOTPlatformSolutions from './AIOTPlatformSolutions';
 import OperationsVirtualization from './OperationsVirtualization';
@@ -100,6 +101,9 @@ interface TimePoint {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  
+  // Initialize Stripe
+  const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51Rtnsm3OKz7lNN5EIAyB8tRqrJQ2KBPMvLiNh5mjZiKLOqnhezmIzhCSNRk1E0QVVlN1G4RPgbZlTbXOHmmAahvN00ChkAsNey');
 
   // Add logout function
   const logout = async () => {
@@ -412,22 +416,61 @@ const Dashboard: React.FC = () => {
     }
   ];
 
-  const handleUpgrade = (planId: string) => {
-    // In a real app, this would redirect to payment processing
-    const selectedPlan = subscriptionPlans.find(plan => plan.id === planId);
-    if (selectedPlan) {
-      setUserSubscription({
-        plan: planId,
-        questionsUsed: 0,
-        questionsLimit: selectedPlan.questionsLimit
+  const handleUpgrade = async (planId: string) => {
+    if (planId === 'free') {
+      // Free plan - just update locally
+      const selectedPlan = subscriptionPlans.find(plan => plan.id === planId);
+      if (selectedPlan) {
+        setUserSubscription({
+          plan: planId,
+          questionsUsed: 0,
+          questionsLimit: selectedPlan.questionsLimit
+        });
+        localStorage.setItem('user_subscription', JSON.stringify({
+          plan: planId,
+          questionsUsed: 0,
+          questionsLimit: selectedPlan.questionsLimit
+        }));
+        setShowPricingModal(false);
+        alert(`Switched to ${selectedPlan.name} plan!`);
+      }
+      return;
+    }
+
+    // Paid plans - redirect to Stripe checkout
+    try {
+      const response = await fetch(`${baseUrl}/api/create-checkout-session/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          // Map frontend id to backend-expected tier without changing UI ids
+          tier: planId === 'pro-plus' ? 'pro_plus' : planId
+        })
       });
-      localStorage.setItem('user_subscription', JSON.stringify({
-        plan: planId,
-        questionsUsed: 0,
-        questionsLimit: selectedPlan.questionsLimit
-      }));
-      setShowPricingModal(false);
-      alert(`Upgraded to ${selectedPlan.name} plan!`);
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { sessionId } = await response.json();
+      
+      // Redirect to Stripe Checkout
+      const stripe = await stripePromise;
+      if (stripe) {
+        const { error } = await stripe.redirectToCheckout({
+          sessionId
+        });
+        
+        if (error) {
+          console.error('Stripe redirect error:', error);
+          alert('Error redirecting to checkout. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert('Error processing upgrade. Please try again.');
     }
   };
 
@@ -1525,8 +1568,6 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       </div>
-
-
 
       {/* Main Content */}
       <div className="flex-1">

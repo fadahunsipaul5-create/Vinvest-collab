@@ -8,6 +8,8 @@ import EmailVerification from './components/email-verification';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Overview from './components/overview';
 import Profile from './components/profile';
+import PaymentSuccess from './components/payment-success';
+import PaymentCancel from './components/payment-cancel';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import './App.css';
 
@@ -40,6 +42,8 @@ function App() {
             path="/overview"
             element={isAuthenticated ? <Overview selectedTicker="AAPL" /> : <Navigate to="/register" />}
           />
+          <Route path="/success" element={<PaymentSuccess />} />
+          <Route path="/cancel" element={<PaymentCancel />} />
         </Routes>
       </Router>
     </GoogleOAuthProvider>

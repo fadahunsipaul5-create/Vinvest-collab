@@ -17,7 +17,11 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+DOMAIN = os.getenv('DOMAIN')
+STRIPE_PRICE_PRO_PLUS = os.getenv('STRIPE_PRICE_PRO_PLUS')
+STRIPE_PRICE_PRO = os.getenv('STRIPE_PRICE_PRO')
 # Allowed Hosts
 ALLOWED_HOSTS = [
     'localhost',

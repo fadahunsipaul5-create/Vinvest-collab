@@ -15,6 +15,8 @@ from django.db.models import Avg, Sum
 from .models.query import Query
 from .serializer import * 
 from rest_framework.decorators import api_view,permission_classes
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.permissions import IsAuthenticated
 from .api_client import fetch_financial_data
 from .utility.utils import *
 from django.http import JsonResponse
@@ -32,13 +34,92 @@ import json
 logger = logging.getLogger(__name__)
 from .utility.bot import *
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 from django.core.management import call_command
 from django.views.decorators.csrf import csrf_exempt
 from .utility.bot import fetch_google_news
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+import stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError as e:
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError as e:
+        return HttpResponse(status=400)
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        print("✅ Checkout session completed:", session)
+
+        customer_id = session.get('customer')
+        subscription_id = session.get('subscription')
+        print(f"New subscription: {subscription_id} for customer {customer_id}")
+
+    elif event['type'] == 'invoice.payment_failed':
+        print("❌ Payment failed:", event['data']['object'])
+    return HttpResponse(status=200)
+
+@csrf_exempt
+def create_checkout_session(request):
+    if request.method == 'GET':
+        return JsonResponse({"message": "Stripe checkout endpoint is working"}, status=200)
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    print(f"DEBUG: Received request to create_checkout_session")
+    print(f"DEBUG: Request method: {request.method}")
+    print(f"DEBUG: Request headers: {dict(request.headers)}")
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        print(f"DEBUG: Request data: {data}")
+        
+        tier = data.get('tier')  # "pro" or "pro_plus"
+        if tier not in ['pro', 'pro_plus']:
+            return JsonResponse({"error": "Invalid tier"}, status=400)
+
+        price_id = settings.STRIPE_PRICE_PRO if tier == 'pro' else settings.STRIPE_PRICE_PRO_PLUS
+        print(f"DEBUG: Using price_id: {price_id}")
+        print(f"DEBUG: Stripe API Key: {settings.STRIPE_SECRET_KEY[:10] if settings.STRIPE_SECRET_KEY else 'NOT SET'}...")
+        
+        # Validate price IDs
+        if not price_id:
+            return JsonResponse({"error": f"Stripe price ID not configured for {tier} plan"}, status=500)
+        
+        if not settings.STRIPE_SECRET_KEY:
+            return JsonResponse({"error": "Stripe secret key not configured"}, status=500)
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            mode='subscription',  
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            success_url='https://sec-frontend-791634680391.us-central1.run.app/success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url='https://sec-frontend-791634680391.us-central1.run.app/cancel',
+        )
+        
+        print(f"DEBUG: Created session: {session.id}")
+
+        return JsonResponse({'sessionId': session.id})
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        print(f"DEBUG: Error: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
 
 class FileUploadView(APIView):
     permission_classes = [IsAuthenticated]
