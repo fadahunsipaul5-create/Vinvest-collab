@@ -42,7 +42,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 import stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
-
+#stripe webhook
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
