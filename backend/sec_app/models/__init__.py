@@ -11,6 +11,7 @@ from .filing import Filing
 from .chat_session import ChatSession
 from .chat_history import ChatHistory
 from .chat_batch import ChatBatch
+from .stripe_event import StripeEvent
 
 __all__ = [
     'Company',
@@ -26,4 +27,5 @@ __all__ = [
     'ChatSession',
     'ChatHistory',
     'ChatBatch'
+    , 'StripeEvent'
 ] 

@@ -36,6 +36,6 @@ urlpatterns = [
     path('contact/', ContactView.as_view(), name='contact'),
     path('file-upload/', FileUploadView.as_view(), name='file_upload'),
     path('create-checkout-session/', create_checkout_session, name='create_checkout_session'),
-    path('stripe-webhook/', stripe_webhook, name='stripe_webhook'),
+    path('stripe/webhook/', stripe_webhook, name='stripe_webhook'),
     path('', include(router.urls)),
 ]

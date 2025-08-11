@@ -40,36 +40,13 @@ from django.views.decorators.csrf import csrf_exempt
 from .utility.bot import fetch_google_news
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from datetime import datetime
+from django.utils import timezone
 import stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
+from account.models import User
+from .models.stripe_event import StripeEvent
 #stripe webhook
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
-    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
-        )
-    except ValueError as e:
-        return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError as e:
-        return HttpResponse(status=400)
-
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        print("✅ Checkout session completed:", session)
-
-        customer_id = session.get('customer')
-        subscription_id = session.get('subscription')
-        print(f"New subscription: {subscription_id} for customer {customer_id}")
-
-    elif event['type'] == 'invoice.payment_failed':
-        print("❌ Payment failed:", event['data']['object'])
-    return HttpResponse(status=200)
-
 @csrf_exempt
 def create_checkout_session(request):
     if request.method == 'GET':
@@ -77,49 +54,244 @@ def create_checkout_session(request):
     if request.method != 'POST':
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
-    print(f"DEBUG: Received request to create_checkout_session")
-    print(f"DEBUG: Request method: {request.method}")
-    print(f"DEBUG: Request headers: {dict(request.headers)}")
-    
     try:
-        import json
         data = json.loads(request.body)
-        print(f"DEBUG: Request data: {data}")
-        
         tier = data.get('tier')  # "pro" or "pro_plus"
-        if tier not in ['pro', 'pro_plus']:
+
+        if tier not in settings.SUBSCRIPTION_PLAN_QUOTAS:
             return JsonResponse({"error": "Invalid tier"}, status=400)
 
         price_id = settings.STRIPE_PRICE_PRO if tier == 'pro' else settings.STRIPE_PRICE_PRO_PLUS
-        print(f"DEBUG: Using price_id: {price_id}")
-        print(f"DEBUG: Stripe API Key: {settings.STRIPE_SECRET_KEY[:10] if settings.STRIPE_SECRET_KEY else 'NOT SET'}...")
-        
-        # Validate price IDs
+
         if not price_id:
             return JsonResponse({"error": f"Stripe price ID not configured for {tier} plan"}, status=500)
-        
-        if not settings.STRIPE_SECRET_KEY:
-            return JsonResponse({"error": "Stripe secret key not configured"}, status=500)
 
-        session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            mode='subscription',  
-            line_items=[{
+        client_reference_id = None
+        customer = None
+        customer_email = None
+
+        if getattr(request.user, 'is_authenticated', False):
+            client_reference_id = str(request.user.id)
+            stripe_customer_id = getattr(request.user, 'stripe_customer_id', None)
+            if stripe_customer_id:
+                customer = stripe_customer_id
+            if not customer:
+                customer_email = getattr(request.user, 'email', None)
+        else:
+            customer_email = data.get('email')
+
+        session_params = {
+            'payment_method_types': ['card'],
+            'mode': 'subscription',
+            'line_items': [{
                 'price': price_id,
                 'quantity': 1,
             }],
-            success_url='https://sec-frontend-791634680391.us-central1.run.app/success?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url='https://sec-frontend-791634680391.us-central1.run.app/cancel',
-        )
-        
-        print(f"DEBUG: Created session: {session.id}")
+            'success_url': 'https://sec-frontend-791634680391.us-central1.run.app/success?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url': 'https://sec-frontend-791634680391.us-central1.run.app/cancel',
+            'metadata': {
+                'tier': tier,
+                'user_id': client_reference_id or '',
+                'email': customer_email or '',
+            }
+        }
 
+        if customer:
+            session_params['customer'] = customer
+        elif customer_email:
+            session_params['customer_email'] = customer_email
+
+        if client_reference_id:
+            session_params['client_reference_id'] = client_reference_id
+
+        session = stripe.checkout.Session.create(**session_params)
+        
         return JsonResponse({'sessionId': session.id})
+
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as e:
-        print(f"DEBUG: Error: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    if not webhook_secret:
+        # Misconfiguration safeguard
+        return HttpResponse(status=500)
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return HttpResponse(status=400)
+
+    # Idempotency: prevent duplicate handling
+    event_id = event.get('id')
+    if event_id and StripeEvent.objects.filter(event_id=event_id).exists():
+        return HttpResponse(status=200)
+
+    # Persist event for auditing and idempotency
+    StripeEvent.objects.create(
+        event_id=event_id or '',
+        type=event.get('type', ''),
+        payload=event
+    )
+
+    event_type = event.get('type')
+
+    if event_type == 'checkout.session.completed':
+        session = event['data']['object']
+        user_id = session.get("metadata", {}).get("user_id")
+        tier = session.get("metadata", {}).get("tier")
+
+        if user_id and tier:
+            try:
+                user = User.objects.get(id=user_id)
+                quota = settings.SUBSCRIPTION_PLAN_QUOTAS.get(tier)
+                user.stripe_customer_id = session.get('customer')
+                user.stripe_subscription_id = session.get('subscription')
+                user.subscription_status = 'active'
+                user.set_plan(tier, quota)
+            except User.DoesNotExist:
+                pass
+
+    elif event_type == 'invoice.paid':
+        invoice = event['data']['object']
+        customer_id = invoice.get('customer')
+        subscription_id = invoice.get('subscription')
+        billing_reason = invoice.get('billing_reason')  # e.g., subscription_cycle
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if not user and subscription_id:
+            user = User.objects.filter(stripe_subscription_id=subscription_id).first()
+        if user:
+            user.subscription_status = 'active'
+            # Derive period end from invoice lines if available
+            try:
+                lines = invoice.get('lines', {}).get('data', [])
+                if lines:
+                    period_end_ts = lines[0].get('period', {}).get('end')
+                    if period_end_ts:
+                        user.subscription_period_end = timezone.make_aware(
+                            datetime.utcfromtimestamp(int(period_end_ts))
+                        )
+            except Exception:
+                pass
+            # Determine plan from price id on the invoice to keep in sync
+            plan_tier = None
+            try:
+                lines = invoice.get('lines', {}).get('data', [])
+                if lines:
+                    price_id = lines[0].get('price', {}).get('id')
+                    if price_id == settings.STRIPE_PRICE_PRO:
+                        plan_tier = 'pro'
+                    elif price_id == settings.STRIPE_PRICE_PRO_PLUS:
+                        plan_tier = 'pro_plus'
+            except Exception:
+                pass
+            if subscription_id:
+                user.stripe_subscription_id = subscription_id
+            if customer_id and not user.stripe_customer_id:
+                user.stripe_customer_id = customer_id
+            # Reset monthly quota on billing cycle invoices
+            try:
+                if billing_reason in ('subscription_cycle', 'subscription_create'):
+                    if plan_tier:
+                        user.set_plan(plan_tier)
+                    else:
+                        # Fall back to current plan reset
+                        user.set_plan(user.subscription_plan)
+            except Exception:
+                pass
+            user.save(update_fields=[
+                'subscription_status', 'subscription_period_end',
+                'stripe_subscription_id', 'stripe_customer_id'
+            ])
+
+    elif event_type == 'customer.subscription.updated':
+        sub = event['data']['object']
+        customer_id = sub.get('customer')
+        subscription_id = sub.get('id')
+        status = sub.get('status')
+        period_end_ts = sub.get('current_period_end')
+        # Determine plan from price id
+        plan_tier = None
+        try:
+            items = sub.get('items', {}).get('data', [])
+            if items:
+                price_id = items[0].get('price', {}).get('id')
+                if price_id == settings.STRIPE_PRICE_PRO:
+                    plan_tier = 'pro'
+                elif price_id == settings.STRIPE_PRICE_PRO_PLUS:
+                    plan_tier = 'pro_plus'
+        except Exception:
+            pass
+
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if not user and subscription_id:
+            user = User.objects.filter(stripe_subscription_id=subscription_id).first()
+        if user:
+            if status:
+                user.subscription_status = status
+            if period_end_ts:
+                try:
+                    user.subscription_period_end = timezone.make_aware(
+                        datetime.utcfromtimestamp(int(period_end_ts))
+                    )
+                except Exception:
+                    pass
+            if plan_tier:
+                user.set_plan(plan_tier)
+            if subscription_id:
+                user.stripe_subscription_id = subscription_id
+            if customer_id and not user.stripe_customer_id:
+                user.stripe_customer_id = customer_id
+            user.save(update_fields=[
+                'subscription_status', 'subscription_period_end',
+                'stripe_subscription_id', 'stripe_customer_id'
+            ])
+
+    elif event_type == 'customer.subscription.deleted':
+        sub = event['data']['object']
+        customer_id = sub.get('customer')
+        subscription_id = sub.get('id')
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if not user and subscription_id:
+            user = User.objects.filter(stripe_subscription_id=subscription_id).first()
+        if user:
+            user.subscription_status = 'canceled'
+            # Optionally downgrade to free plan
+            try:
+                user.set_plan('free')
+            except Exception:
+                pass
+            user.save(update_fields=['subscription_status'])
+
+    elif event_type == 'invoice.payment_failed':
+        # Optional: mark user as past_due
+        invoice = event['data']['object']
+        customer_id = invoice.get('customer')
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if user:
+            user.subscription_status = 'past_due'
+            user.save(update_fields=['subscription_status'])
+
+    return HttpResponse(status=200)
+
 
 class FileUploadView(APIView):
     permission_classes = [IsAuthenticated]
@@ -245,6 +417,16 @@ class ExternalChatbotProxyView(APIView):
         if not question:
             return Response({"error": "Question cannot be empty"}, status=400)
         
+        # Enforce quotas: allow unlimited for pro_plus, otherwise require remaining > 0
+        user_plan = getattr(user, 'subscription_plan', 'free') or 'free'
+        is_unlimited = user_plan == 'pro_plus'
+        if not is_unlimited and getattr(user, 'questions_remaining', 0) <= 0:
+            return Response({
+                "error": "Question quota exceeded",
+                "detail": "You have reached your question limit. Please upgrade your plan or wait for your quota to refresh.",
+                "plan": user_plan
+            }, status=402)
+        
         # Optional contextual filtering
         company_id = request.data.get("company", "").strip()
         metric_list = request.data.get("metrics", [])
@@ -286,7 +468,13 @@ class ExternalChatbotProxyView(APIView):
         
         ai_response = data.get("data", {}).get("final_text_answer") or data.get("answer") or "[No answer]"
         
-        # Return the response without saving to database
+        # Decrement quota only on successful chatbot response for non-unlimited plans
+        if not is_unlimited:
+            try:
+                user.consume_question()
+            except Exception:
+                pass
+        
         return Response(data, status=200)
 
 

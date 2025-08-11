@@ -19,9 +19,16 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 DOMAIN = os.getenv('DOMAIN')
 STRIPE_PRICE_PRO_PLUS = os.getenv('STRIPE_PRICE_PRO_PLUS')
 STRIPE_PRICE_PRO = os.getenv('STRIPE_PRICE_PRO')
+# Centralized plan to quota mapping
+SUBSCRIPTION_PLAN_QUOTAS = {
+    "free": 10,
+    "pro": 50,
+    "pro_plus": 9999,
+}
 # Allowed Hosts
 ALLOWED_HOSTS = [
     'localhost',
@@ -302,3 +309,8 @@ if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     SITE_URL = "https://sec-insights-backend-791634680391.us-central1.run.app"
+
+PLAN_QUOTAS = {
+    "pro": 100,
+    "pro_plus": 200,
+}

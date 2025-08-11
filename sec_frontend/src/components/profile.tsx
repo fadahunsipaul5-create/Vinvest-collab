@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import baseUrl from './api';
 
 interface UserInfo {
   first_name?: string;
@@ -36,6 +37,50 @@ const Profile: React.FC = () => {
     const savedSubscription = localStorage.getItem('userSubscription');
     if (savedSubscription) {
       setSubscription(JSON.parse(savedSubscription));
+    }
+
+    // Fetch fresh subscription/profile details from backend
+    const token = localStorage.getItem('access');
+    if (token) {
+      fetch(`${baseUrl}/account/me/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`Failed: ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          // Normalize plan for UI (backend uses 'pro_plus')
+          const planRaw: string = data.subscription_plan || 'free';
+          const planUI = planRaw === 'pro_plus' ? 'pro-plus' : planRaw;
+
+          const limit: number = typeof data.questions_limit === 'number'
+            ? data.questions_limit
+            : planUI === 'pro-plus' ? 9999 : planUI === 'pro' ? 50 : 10;
+
+          const remaining: number = typeof data.questions_remaining === 'number' ? data.questions_remaining : 0;
+          const usedFromApi: number | undefined = data.questions_used;
+          const used = Math.max(typeof usedFromApi === 'number' ? usedFromApi : (limit - remaining), 0);
+
+          setSubscription({ plan: planUI, questionsUsed: used, questionsLimit: limit });
+          localStorage.setItem('userSubscription', JSON.stringify({ plan: planUI, questionsUsed: used, questionsLimit: limit }));
+
+          // Optionally refresh basic user info
+          const mergedUser = {
+            ...userInfo,
+            email: data.email ?? userInfo.email,
+            first_name: data.first_name ?? userInfo.first_name,
+            last_name: data.last_name ?? userInfo.last_name,
+          };
+          setUserInfo(mergedUser);
+          setEditForm(mergedUser);
+          localStorage.setItem('user_info', JSON.stringify(mergedUser));
+        })
+        .catch((err) => {
+          console.error('Failed to refresh profile from backend:', err);
+        });
     }
   }, []);
 
@@ -235,12 +280,9 @@ const Profile: React.FC = () => {
               <div className="mt-6">
                 <button
                   onClick={() => {
+                    // Signal Home to open pricing modal immediately
+                    localStorage.setItem('show_pricing_modal', '1');
                     navigate('/home');
-                    // The home page will need to be updated to trigger the subscription modal
-                    setTimeout(() => {
-                      const event = new CustomEvent('showUpgradeModal');
-                      window.dispatchEvent(event);
-                    }, 500);
                   }}
                   className="w-full md:w-auto px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
                 >

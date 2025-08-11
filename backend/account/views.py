@@ -34,6 +34,36 @@ from django.http import HttpResponse
 
 User = get_user_model()
 
+from rest_framework.decorators import api_view, permission_classes
+from django.conf import settings
+from rest_framework.permissions import IsAuthenticated
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    user = request.user
+    plan = getattr(user, "subscription_plan", "free") or "free"
+    remaining = getattr(user, "questions_remaining", 0) or 0
+    status_val = getattr(user, "subscription_status", None)
+
+    # Compute plan limits and used count
+    plan_limits = getattr(settings, "SUBSCRIPTION_PLAN_QUOTAS", {})
+    limit = int(plan_limits.get(plan, 0))
+    used = 0 if limit == 0 else max(limit - int(remaining), 0)
+
+    return Response({
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "subscription_plan": plan,
+        "subscription_status": status_val,
+        "questions_remaining": remaining,
+        "questions_limit": limit,
+        "questions_used": used,
+        "stripe_customer_id": getattr(user, "stripe_customer_id", None),
+        "stripe_subscription_id": getattr(user, "stripe_subscription_id", None),
+    })
+
 @method_decorator(csrf_exempt, name="dispatch")
 class GoogleAuthView(APIView):
     def post(self, request):

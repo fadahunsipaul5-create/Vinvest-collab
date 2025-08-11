@@ -1,5 +1,6 @@
 from django.urls import path, include
 from .views import *
+from .views import me
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -16,6 +17,7 @@ urlpatterns = [
     #google auth
     path('google-auth/', GoogleAuthView.as_view(), name='google-auth'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('me/', me, name='account_me'),
 ]
 
 urlpatterns += router.urls
