@@ -420,12 +420,26 @@ class ExternalChatbotProxyView(APIView):
         # Enforce quotas: allow unlimited for pro_plus, otherwise require remaining > 0
         user_plan = getattr(user, 'subscription_plan', 'free') or 'free'
         is_unlimited = user_plan == 'pro_plus'
-        if not is_unlimited and getattr(user, 'questions_remaining', 0) <= 0:
+        questions_remaining = getattr(user, 'questions_remaining', 0)
+        
+        if not is_unlimited and questions_remaining <= 0:
+            # Return a user-friendly message for the chatbot to display
+            quota_message = (
+                "🚀 Free Plan Limit Reached\n\n"
+                "You've used all 10 questions from your free plan! To continue asking questions, "
+                "please upgrade to one of our premium plans:\n\n"
+                "• Pro Plan: 50 questions/month\n"
+                "• Pro Plus Plan: Unlimited questions\n\n"
+                "Click the upgrade button or GoPro in your profile to continue!"
+            )
             return Response({
-                "error": "Question quota exceeded",
-                "detail": "You have reached your question limit. Please upgrade your plan or wait for your quota to refresh.",
-                "plan": user_plan
-            }, status=402)
+                "data": {
+                    "final_text_answer": quota_message
+                },
+                "quota_exceeded": True,
+                "plan": user_plan,
+                "questions_remaining": 0
+            }, status=200)  # Return 200 so the frontend handles it as a normal chat response
         
         # Optional contextual filtering
         company_id = request.data.get("company", "").strip()

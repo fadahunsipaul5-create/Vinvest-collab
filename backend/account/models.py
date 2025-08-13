@@ -35,7 +35,7 @@ class User(AbstractUser):
     ]
     subscription_plan = models.CharField(max_length=50, choices=PLAN_CHOICES, default=PLAN_FREE)
     subscription_status = models.CharField(max_length=50, blank=True, null=True)  # e.g., active, past_due
-    questions_remaining = models.IntegerField(default=0)
+    questions_remaining = models.IntegerField(default=10) 
     subscription_period_end = models.DateTimeField(blank=True, null=True)
 
     groups = models.ManyToManyField(

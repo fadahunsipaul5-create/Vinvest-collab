@@ -66,6 +66,7 @@ def me(request):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class GoogleAuthView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         token = request.data.get("token")
 
@@ -96,6 +97,7 @@ class GoogleAuthView(APIView):
                     "first_name": first_name,
                     "last_name": last_name,
                     "is_verified": True,
+                    "questions_remaining": 10,  # Give free users 10 questions
                 },
             )
 
@@ -166,6 +168,7 @@ class RegisterAPIView(APIView):
                 last_name=last_name,
                 is_active=False,
                 is_verified=False,
+                questions_remaining=10,  # Give free users 10 questions
             )
 
             user_email(request, user)

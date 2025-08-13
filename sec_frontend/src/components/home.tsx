@@ -494,18 +494,71 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Token refresh function
+  const refreshToken = async (): Promise<string | null> => {
+    try {
+      const refreshToken = localStorage.getItem('refresh');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const response = await fetch(`${baseUrl}/account/token/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refresh: refreshToken
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('access', data.access);
+        return data.access;
+      } else {
+        throw new Error('Token refresh failed');
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return null;
+    }
+  };
+
   const fetchChatHistory = async () => {
     try {
       setIsLoadingChatHistory(true);
-      const token = localStorage.getItem('access');
+      let token = localStorage.getItem('access');
       if (!token) return;
 
-      const response = await fetch(`${baseUrl}/api/chat/batches/`, {
+      let response = await fetch(`${baseUrl}/api/chat/batches/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
+
+      // If token expired, try to refresh and retry
+      if (response.status === 401) {
+        console.log('Token expired, attempting refresh...');
+        const newToken = await refreshToken();
+        if (newToken) {
+          response = await fetch(`${baseUrl}/api/chat/batches/`, {
+            headers: {
+              'Authorization': `Bearer ${newToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } else {
+          // Refresh failed, redirect to login
+          console.error('Token refresh failed, redirecting to login');
+          localStorage.removeItem('access');
+          localStorage.removeItem('refresh');
+          localStorage.removeItem('user_info');
+          window.location.href = '/login';
+          return;
+        }
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -523,7 +576,7 @@ const Dashboard: React.FC = () => {
 
   const loadChatBatch = async (batchId: number) => {
     try {
-      const token = localStorage.getItem('access');
+      let token = localStorage.getItem('access');
       console.log('Loading chat batch:', batchId);
       console.log('Token available:', !!token);
       
@@ -532,7 +585,7 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
+      let response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -541,14 +594,26 @@ const Dashboard: React.FC = () => {
 
       console.log('Response status:', response.status);
       
+      // If token expired, try to refresh and retry
       if (response.status === 401) {
-        console.error('Authentication failed - token may be expired');
-        // Clear tokens and redirect to login
-        localStorage.removeItem('access');
-        localStorage.removeItem('refresh');
-        localStorage.removeItem('user_info');
-        window.location.href = '/login';
-        return;
+        console.log('Token expired, attempting refresh...');
+        const newToken = await refreshToken();
+        if (newToken) {
+          response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
+            headers: {
+              'Authorization': `Bearer ${newToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } else {
+          // Refresh failed, redirect to login
+          console.error('Token refresh failed, redirecting to login');
+          localStorage.removeItem('access');
+          localStorage.removeItem('refresh');
+          localStorage.removeItem('user_info');
+          window.location.href = '/login';
+          return;
+        }
       }
 
       if (response.ok) {

@@ -268,6 +268,9 @@ export const useChat = ({
               data.data?.final_text_answer || data.answer || data.data || data.result || data.message || data.error ||
               "Sorry, I didn't get a proper response from the server.";
 
+            // Check if this is a quota exceeded response
+            const isQuotaExceeded = data.quota_exceeded === true;
+
             // Remove the thinking message and add the AI response
             setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
             
@@ -277,6 +280,11 @@ export const useChat = ({
             };
 
             setMessages(prev => [...prev, aiMessage]);
+            
+            // If quota exceeded, log for debugging
+            if (isQuotaExceeded) {
+              console.log('Quota exceeded for user plan:', data.plan);
+            }
             
             // Update current session ID if provided in response
             if (data.session_id && onSessionUpdate) {
@@ -319,6 +327,9 @@ export const useChat = ({
         data.data?.final_text_answer || data.answer || data.data || data.result || data.message || data.error ||
         "Sorry, I didn't get a proper response from the server.";
 
+      // Check if this is a quota exceeded response
+      const isQuotaExceeded = data.quota_exceeded === true;
+      
       // Remove the thinking message and add the AI response
       setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
       
@@ -328,6 +339,12 @@ export const useChat = ({
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // If quota exceeded, disable input temporarily to show the message clearly
+      if (isQuotaExceeded) {
+        console.log('Quota exceeded for user plan:', data.plan);
+        // You could add additional UI handling here if needed
+      }
       
       // Mark that new content has been added (AI response)
       if (onNewContent) {
