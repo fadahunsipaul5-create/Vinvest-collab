@@ -267,7 +267,7 @@ def fetch_and_store_xbrl_data(company, filing_data, period):
         xbrl_url = f"https://www.sec.gov/Archives/edgar/data/{int(company.cik)}/{accession_number}/{xbrl_file['name']}"
         
         headers = {
-            'User-Agent': 'Nanik paul@nanikworkforce.com',
+            'User-Agent': 'ValueAccel info@valueaccel.com',
             'Accept-Encoding': 'gzip, deflate',
             'Host': 'www.sec.gov'
         }

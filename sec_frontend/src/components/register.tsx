@@ -248,6 +248,13 @@ const Register = () => {
         <div className="text-center text-sm text-gray-500 mt-4">
           <a href="/login" className="text-blue-600 hover:underline">Already have an account? Sign in</a>
         </div>
+
+        {/* Simple AI Disclaimer */}
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-500">
+            AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
+          </p>
+        </div>
       </div>
     </div>
   );

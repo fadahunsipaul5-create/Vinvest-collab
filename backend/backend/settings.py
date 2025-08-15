@@ -174,7 +174,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- Your existing SEC API Settings ---
 SEC_API_KEY = os.getenv('SEC_API_KEY')
 SEC_API_BASE_URL = os.getenv('SEC_API_BASE_URL', 'https://api.sec-api.io')
-SEC_USER_AGENT = os.getenv('SEC_USER_AGENT', 'Nanik Workforce paul@nanikworkforce.com')
+SEC_USER_AGENT = os.getenv('SEC_USER_AGENT', 'ValueAccel info@valueaccel.com')
 
 
 # CORS Headers configuration

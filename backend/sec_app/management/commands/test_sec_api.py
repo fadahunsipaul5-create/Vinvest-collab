@@ -20,7 +20,7 @@ class Command(BaseCommand):
         
         # Headers for SEC API requests
         headers = {
-            'User-Agent': 'Nanik paul@nanikworkforce.com',
+            'User-Agent': 'ValueAccel info@valueaccel.com',
             'Accept-Encoding': 'gzip, deflate',
             'Host': 'data.sec.gov'
         }

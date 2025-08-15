@@ -91,7 +91,7 @@ const InsightsGenerators: React.FC<InsightsGeneratorsProps> = ({ onContactClick 
               </div>
               <div className="bg-gray-100 rounded-lg p-6 flex items-center justify-center">
                 <img 
-                  src="/const.PNG"
+                  src="/impact.PNG"
                   alt="Industrial facility with safety equipment and machinery" 
                   className="w-full h-80 object-cover rounded-lg shadow-md"
                 />

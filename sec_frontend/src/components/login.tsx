@@ -143,7 +143,14 @@ const Login = () => {
         </div>
 
         <div className="text-center text-sm text-gray-500 mt-4">
-          <a href="/register" className="text-blue-600 hover:underline">Don’t have an account? Sign up</a>
+          <a href="/register" className="text-blue-600 hover:underline">Don't have an account? Sign up</a>
+        </div>
+
+        {/* AI Disclaimer - Simple version for login */}
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+            ⚠️ AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
+          </p>
         </div>
       </div>
     </div>

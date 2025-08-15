@@ -34,6 +34,12 @@ interface MetricConfigs {
   [key: string]: MetricConfig;
 }
 
+// Message interface for chat
+interface Message {
+  role: 'assistant' | 'user';
+  content: string;
+}
+
 // Add this utility function at the top of the file
 function generateColorPalette(count: number): string[] {
   const baseColors = [
@@ -112,6 +118,8 @@ const Dashboard: React.FC = () => {
       await saveChatBatch(messages);
     }
     
+    // Clear chat persistence
+    localStorage.removeItem('current_chat_state');
     localStorage.removeItem('access');
     localStorage.removeItem('refresh');
     localStorage.removeItem('user_info');
@@ -130,6 +138,12 @@ const Dashboard: React.FC = () => {
   const [userSubscription, setUserSubscription] = useState(() => {
     const saved = localStorage.getItem('user_subscription');
     return saved ? JSON.parse(saved) : { plan: 'free', questionsUsed: 0, questionsLimit: 10 };
+  });
+  
+  // Track user registration for 24-hour auto-activation
+  const [userRegistrationTime, setUserRegistrationTime] = useState(() => {
+    const saved = localStorage.getItem('user_registration_time');
+    return saved ? parseInt(saved) : null;
   });
   const [questionsAsked, setQuestionsAsked] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -494,6 +508,80 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Check and handle 24-hour auto-activation
+  const check24HourActivation = async () => {
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      // Check if user registration time is stored
+      if (!userRegistrationTime) {
+        // First time user - get registration time from backend
+        const response = await fetch(`${baseUrl}/account/me/`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          const regTime = new Date(userData.date_joined).getTime();
+          setUserRegistrationTime(regTime);
+          localStorage.setItem('user_registration_time', regTime.toString());
+        }
+        return;
+      }
+
+      // Check if 24 hours have passed since registration
+      const now = Date.now();
+      const hoursPassed = (now - userRegistrationTime) / (1000 * 60 * 60);
+      
+      console.log(`Hours since registration: ${hoursPassed.toFixed(2)}`);
+
+      // If 24 hours have passed and user still doesn't have an active subscription
+      // For development: also allow activation if user has been registered for at least 1 minute for testing
+      const isDevelopment = import.meta.env.DEV;
+      const shouldActivate = (hoursPassed >= 24) || 
+        (isDevelopment && hoursPassed >= (1/60)); // 1 minute for development testing
+        
+      if (shouldActivate && (userSubscription.plan === 'trial' || !userSubscription.plan || userSubscription.questionsLimit === 0)) {
+        console.log('24 hours passed, activating free plan...');
+        
+        // Call backend to activate free plan
+        const activationResponse = await fetch(`${baseUrl}/api/activate-free-plan/`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (activationResponse.ok) {
+          const result = await activationResponse.json();
+          console.log('Free plan activated:', result);
+          
+          // Update local state
+          const newSubscription = {
+            plan: 'free',
+            questionsUsed: 0,
+            questionsLimit: 10
+          };
+          
+          setUserSubscription(newSubscription);
+          localStorage.setItem('user_subscription', JSON.stringify(newSubscription));
+          
+          // Show notification to user
+          alert('🎉 Great news! Your free plan has been activated. You now have 10 questions per day.');
+        } else {
+          console.error('Failed to activate free plan:', activationResponse.status);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking 24-hour activation:', error);
+    }
+  };
+
   // Token refresh function
   const refreshToken = async (): Promise<string | null> => {
     try {
@@ -529,7 +617,10 @@ const Dashboard: React.FC = () => {
     try {
       setIsLoadingChatHistory(true);
       let token = localStorage.getItem('access');
-      if (!token) return;
+      if (!token) {
+        setIsLoadingChatHistory(false);
+        return;
+      }
 
       let response = await fetch(`${baseUrl}/api/chat/batches/`, {
         headers: {
@@ -639,6 +730,21 @@ const Dashboard: React.FC = () => {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
+        
+        // Save the loaded chat state immediately
+        const chatState = {
+          messages: formattedMessages,
+          currentChatSession: batchId,
+          hasNewChatContent: false,
+          timestamp: Date.now()
+        };
+        
+        try {
+          localStorage.setItem('current_chat_state', JSON.stringify(chatState));
+          console.log('Loaded chat state saved to localStorage');
+        } catch (error) {
+          console.error('Error saving loaded chat state:', error);
+        }
       } else {
         console.error('Failed to load chat batch:', response.status, response.statusText);
         const errorText = await response.text();
@@ -656,12 +762,14 @@ const Dashboard: React.FC = () => {
     }
     
     // Reset to initial state
-    setMessages([
+    const initialMessages: Message[] = [
       {
-        role: 'assistant',
+        role: 'assistant' as const,
         content: 'I can help you analyze this data. What would you like to know?'
       }
-    ]);
+    ];
+    
+    setMessages(initialMessages);
     setCurrentChatSession(null);
     setShowChatHistoryDropdown(false);
     setHasNewChatContent(false); // Reset flag for new chat
@@ -671,6 +779,9 @@ const Dashboard: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    
+    // Clear saved chat state since user explicitly started new chat
+    localStorage.removeItem('current_chat_state');
   };
 
   const handleSessionUpdate = () => {
@@ -891,7 +1002,7 @@ const Dashboard: React.FC = () => {
     }
   });
 
-  // Get user info from localStorage
+  // Get user info from localStorage and handle chat state restoration
   useEffect(() => {
     const userInfo = localStorage.getItem('user_info');
     console.log('User info from localStorage:', userInfo);
@@ -921,6 +1032,34 @@ const Dashboard: React.FC = () => {
     } else {
       console.log('No user info found in localStorage');
     }
+
+    // Check for pricing modal flag from profile navigation
+    const showPricingModal = localStorage.getItem('show_pricing_modal');
+    if (showPricingModal === '1') {
+      localStorage.removeItem('show_pricing_modal');
+      setShowPricingModal(true);
+    }
+
+    // Restore chat state if available
+    const savedChatState = localStorage.getItem('current_chat_state');
+    if (savedChatState) {
+      try {
+        const chatState = JSON.parse(savedChatState);
+        console.log('Restoring chat state:', chatState);
+        
+        if (chatState.messages && chatState.messages.length > 1) {
+          setMessages(chatState.messages);
+          setCurrentChatSession(chatState.currentChatSession);
+          setHasNewChatContent(chatState.hasNewChatContent || false);
+          
+          // Don't auto-clear the saved state - let user explicitly start new chat
+          console.log('Chat state restored successfully');
+        }
+      } catch (error) {
+        console.error('Error restoring chat state:', error);
+        localStorage.removeItem('current_chat_state');
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -944,8 +1083,16 @@ const Dashboard: React.FC = () => {
     };
 
     fetchCompanies();
-    fetchChatHistory();
-  }, [baseUrl]);
+    // Fetch chat history with a small delay to avoid blocking initial render
+    setTimeout(() => {
+      fetchChatHistory();
+    }, 100);
+    
+    // Check for 24-hour auto-activation
+    setTimeout(() => {
+      check24HourActivation();
+    }, 2000); // Delay to let everything load first
+  }, [baseUrl, userRegistrationTime, userSubscription]);
 
 
   const fetchAvailableMetrics = async () => {
@@ -1420,6 +1567,55 @@ const Dashboard: React.FC = () => {
     }
   }, [messages]);
 
+  // Save chat state to localStorage when messages change (with debouncing)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (messages.length > 1) { // Only save if there are actual conversations
+        const chatState = {
+          messages,
+          currentChatSession,
+          hasNewChatContent,
+          timestamp: Date.now()
+        };
+        
+        try {
+          localStorage.setItem('current_chat_state', JSON.stringify(chatState));
+          console.log('Chat state saved to localStorage');
+        } catch (error) {
+          console.error('Error saving chat state:', error);
+        }
+      }
+    }, 1000); // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId);
+  }, [messages, currentChatSession, hasNewChatContent]);
+
+  // Handle page unload/navigation - save chat state
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (messages.length > 1) {
+        const chatState = {
+          messages,
+          currentChatSession,
+          hasNewChatContent,
+          timestamp: Date.now()
+        };
+        
+        try {
+          localStorage.setItem('current_chat_state', JSON.stringify(chatState));
+        } catch (error) {
+          console.error('Error saving chat state on unload:', error);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [messages, currentChatSession, hasNewChatContent]);
+
   // Example usage:
   // const getChatboxPayload = () => {
   //   // ... (original implementation)
@@ -1444,9 +1640,9 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Mobile Header */}
         <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
-          <div className="ml-6">
-            <img src="/deep.PNG" alt="GetDeep.AI" className="w-12 h-16 sm:w-12 sm:h-16 md:w-16 md:h-18 lg:w-18 lg:h-18" />
-          </div>
+                      <div className="ml-6">
+              <img src="/deep.PNG" alt="GetDeep.AI" className="w-8 h-12 sm:w-8 sm:h-12 md:w-10 md:h-14 lg:w-10 lg:h-14" />
+            </div>
         </div>
 
       {/* Sidebar */}
@@ -1644,7 +1840,7 @@ const Dashboard: React.FC = () => {
               <img 
                 src="/deep.PNG" 
                 alt="GetDeep.AI" 
-                className="w-24 h-12 xl:w-34 xl:h-16"
+                className="w-16 h-10 xl:w-20 xl:h-12"
               />
             </div>
             
@@ -2830,15 +3026,6 @@ const Dashboard: React.FC = () => {
             </div>
 
 
-              {/* Footer - adjust spacing on mobile */}
-              {/* <div className="mt-2 sm:mt-2 xl:mt-2 px-3 sm:px-4 lg:px-6 xl:px-8">
-                <div className="flex flex-wrap gap-3 sm:gap-4 xl:gap-6 text-xs sm:text-sm xl:text-base text-gray-600">
-                  <a href="#" className="hover:text-gray-800">Customer Stories</a>
-                  <a href="#" className="hover:text-gray-800">About Us</a>
-                  <a href="#" className="hover:text-gray-800">Careers</a>
-                  <a href="#" className="hover:text-gray-800">Contact Us</a>
-                </div>
-              </div> */}
             </div>
 
             {/* Insights Generation - full width on mobile */}
@@ -3001,6 +3188,11 @@ const Dashboard: React.FC = () => {
                         <span className="text-lg">{isChatLoading ? '⏳' : '➤'}</span>
                       </button>
                     </form>
+                    
+                    {/* Chat Disclaimer - beneath the input area */}
+                    <div className="mt-3 text-xs text-gray-500 bg-gray-50 p-2 rounded text-center">
+                      💡 AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
+                    </div>
                     
                     {/* Uploaded Files Display */}
                     {uploadedFiles.length > 0 && (

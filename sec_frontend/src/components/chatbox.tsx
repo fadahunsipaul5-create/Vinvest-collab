@@ -82,6 +82,7 @@ export const useChat = ({
       const token = localStorage.getItem('access');
       if (!token) return;
 
+      // Debounce this call to avoid too many requests
       const response = await fetch(`${baseUrl}/api/chat/`, {
         method: 'POST',
         headers: {
@@ -95,7 +96,10 @@ export const useChat = ({
       });
 
       if (response.ok && onSessionUpdate) {
-        onSessionUpdate();
+        // Debounce session updates to avoid excessive API calls
+        setTimeout(() => {
+          onSessionUpdate();
+        }, 500);
       }
     } catch (error) {
       console.error('Error saving message to session:', error);

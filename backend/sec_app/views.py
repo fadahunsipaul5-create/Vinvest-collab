@@ -46,6 +46,7 @@ import stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
 from account.models import User
 from .models.stripe_event import StripeEvent
+from datetime import timedelta
 #stripe webhook
 @csrf_exempt
 def create_checkout_session(request):
@@ -426,11 +427,12 @@ class ExternalChatbotProxyView(APIView):
             # Return a user-friendly message for the chatbot to display
             quota_message = (
                 "🚀 Free Plan Limit Reached\n\n"
-                "You've used all 10 questions from your free plan! To continue asking questions, "
+                "You've used all 10 questions per day from your free plan! To continue asking questions, "
                 "please upgrade to one of our premium plans:\n\n"
                 "• Pro Plan: 50 questions/month\n"
                 "• Pro Plus Plan: Unlimited questions\n\n"
-                "Click the upgrade button or GoPro in your profile to continue!"
+                "Click the upgrade button on your profile or GoPro to continue!"
+                "You can also wait till next day to ask more questions."
             )
             return Response({
                 "data": {
@@ -1246,3 +1248,52 @@ class ChatBatchDetailView(APIView):
         except Exception as e:
             logger.error(f"Error deleting chat batch {batch_id}: {str(e)}")
             return Response({'error': 'Failed to delete chat batch'}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def activate_free_plan(request):
+    try:
+        user = request.user
+        
+        if user.subscription_plan in ['pro', 'pro_plus']:
+            return Response({
+                'message': 'User already has an active paid plan',
+                'current_plan': user.subscription_plan
+            }, status=200)
+        
+        # Check if 24 hours have passed since registration
+        hours_since_registration = (timezone.now() - user.date_joined).total_seconds() / 3600
+        
+        # For development/testing: allow activation after 1 minute if DEBUG is True
+        min_hours_required = 1/60 if settings.DEBUG else 24  # 1 minute vs 24 hours
+        
+        if hours_since_registration < min_hours_required:
+            return Response({
+                'message': 'User not eligible for auto-activation yet',
+                'hours_remaining': min_hours_required - hours_since_registration,
+                'current_plan': user.subscription_plan,
+                'min_hours_required': min_hours_required
+            }, status=400)
+        
+        # Activate free plan
+        user.set_plan('free', quota=10)
+        user.subscription_status = 'active'
+        user.save(update_fields=['subscription_status'])
+        
+        logger.info(f"Auto-activated free plan for user {user.email} after {hours_since_registration:.2f} hours")
+        
+        return Response({
+            'message': 'Free plan activated successfully',
+            'plan': 'free',
+            'questions_remaining': user.questions_remaining,
+            'activation_time': timezone.now().isoformat(),
+            'hours_since_registration': hours_since_registration
+        }, status=200)
+        
+    except Exception as e:
+        logger.error(f"Error activating free plan for user {request.user.email}: {str(e)}")
+        return Response({
+            'error': 'Failed to activate free plan',
+            'details': str(e)
+        }, status=500)
