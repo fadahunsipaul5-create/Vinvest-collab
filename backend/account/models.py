@@ -64,6 +64,9 @@ class User(AbstractUser):
         return {"refresh": str(refresh), "access": str(refresh.access_token)}
     
     def set_plan(self, plan_name: str, quota: int | None = None, period_end=None):
+        if self.is_superuser:
+            return
+
         self.subscription_plan = plan_name
         # Use provided quota if given, else take from settings.SUBSCRIPTION_PLAN_QUOTAS
         if quota is None:
@@ -76,6 +79,9 @@ class User(AbstractUser):
         self.save(update_fields=["subscription_plan", "questions_remaining", "subscription_period_end"])
 
     def consume_question(self) -> bool:
+        if self.is_superuser:
+            return True
+
         if self.questions_remaining > 0:
             self.questions_remaining -= 1
             self.save(update_fields=["questions_remaining"])
