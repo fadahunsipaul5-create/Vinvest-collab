@@ -1840,7 +1840,7 @@ const Dashboard: React.FC = () => {
               <img 
                 src="/deep.PNG" 
                 alt="GetDeep.AI" 
-                className="w-16 h-10 xl:w-20 xl:h-12"
+                className="w-18 h-10 xl:w-30 xl:h-12"
               />
             </div>
             
