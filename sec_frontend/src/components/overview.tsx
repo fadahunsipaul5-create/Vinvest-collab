@@ -379,13 +379,13 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
         </TabsList>
 
         <TabsContent value="metrics">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
             {/* Ticker Search Bar */}
-            <div className="flex flex-wrap items-center gap-2 border rounded-md p-1">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 border rounded-md p-1 w-full sm:w-auto min-w-0">
               {tickers.map((ticker) => (
                 <div
                   key={ticker}
-                  className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-100 rounded"
+                  className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm bg-gray-100 rounded"
                 >
                   {ticker}
                   <button
@@ -399,7 +399,7 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
               <input
                 type="text"
                 placeholder="Add tickers..."
-                className="px-2 py-1 text-sm focus:outline-none min-w-[100px] flex-grow"
+                className="px-2 py-1 text-xs sm:text-sm focus:outline-none min-w-[80px] sm:min-w-[100px] flex-grow"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const value = e.currentTarget.value.toUpperCase();
@@ -413,11 +413,11 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
             </div>
 
             {/* Add Industry Selection */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full sm:w-auto">
               {selectedIndustries.map((industry) => (
                 <div
                   key={industry}
-                  className="flex items-center gap-1 px-2 py-1 text-sm bg-blue-100 rounded"
+                  className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm bg-blue-100 rounded"
                 >
                   {industry}
                   <button
@@ -432,8 +432,8 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
                 value=""
                 onValueChange={handleAddIndustry}
               >
-                <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Add industry average..." />
+                <SelectTrigger className="w-full sm:w-[200px] lg:w-[250px] text-xs sm:text-sm">
+                  <SelectValue placeholder="Add industry..." />
                 </SelectTrigger>
                 <SelectContent>
                   {availableIndustries.map((industry) => (
@@ -454,16 +454,16 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
               </Select>
             </div>
 
-            {/* Spacer */}
-            <div className="flex-1" />
+            {/* Spacer - hidden on mobile */}
+            <div className="flex-1 hidden lg:block" />
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Select Metric:</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Select Metric:</span>
               <Select
                 value={selectedMetric}
                 onValueChange={(value: MetricKey) => setSelectedMetric(value)}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[150px] lg:w-[180px] text-xs sm:text-sm">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
                 <SelectContent>
@@ -487,13 +487,13 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-4">
             {['1Y', '2Y', '3Y', '5Y', '10Y', '15Y','ALL'].map((period) => (
               <button
                 key={period}
                 onClick={() => handlePeriodChange(period)}
-                className={`px-2 py-1 text-sm rounded ${
-                  selectedPeriod === period ? 'bg-gray-300' : 'bg-gray-100'
+                className={`px-2 py-1 text-xs sm:text-sm rounded transition-colors ${
+                  selectedPeriod === period ? 'bg-gray-300' : 'bg-gray-100 hover:bg-gray-200'
                 }`}
               >
                 {period}
@@ -517,14 +517,14 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
                   ])
                 )
               }}
-              className="h-[300px]"
+              className="h-[250px] sm:h-[300px] lg:h-[350px]"
             >
               {error ? (
                 <div className="flex items-center justify-center h-full text-center text-red-500">
                   {error}
                 </div>
               ) : (
-                <LineChart width={600} height={300} data={data}>
+                <LineChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis 
@@ -565,7 +565,7 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
               )}
             </ChartContainer>
           ) : (
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
+            <div className="flex items-center justify-center h-[200px] sm:h-[250px] lg:h-[300px] text-gray-500 text-sm sm:text-base text-center px-4">
               Add tickers or industries to view chart data
             </div>
           )}

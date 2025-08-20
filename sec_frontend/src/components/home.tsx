@@ -160,6 +160,7 @@ const Dashboard: React.FC = () => {
   const [currentChatSession, setCurrentChatSession] = useState<any>(null);
   const [hasNewChatContent, setHasNewChatContent] = useState(false); // Track if chat has new content
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contactFormRef = useRef<HTMLFormElement>(null);
 
@@ -1636,13 +1637,59 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
+  // Close mobile sidebar when screen size changes to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { // lg breakpoint
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Close mobile sidebar with ESC key
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    if (isMobileSidebarOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+      // Prevent body scroll when mobile sidebar is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileSidebarOpen]);
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-        <div className="lg:hidden flex justify-center items-center p-3 sm:p-4 bg-white border-b">
-                      <div className="ml-6">
-              <img src="/deep.PNG" alt="GetDeep.AI" className="w-8 h-12 sm:w-8 sm:h-12 md:w-10 md:h-14 lg:w-10 lg:h-14" />
-            </div>
+              {/* Mobile Header */}
+        <div className="lg:hidden flex justify-between items-center p-1 xm:p-1.5 xs:p-2 sm:p-2.5 md:p-3 bg-white border-b h-14 xm:h-16 xs:h-16 sm:h-18 md:h-20">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1 xm:p-1.5 xs:p-2 rounded-md hover:bg-gray-100 transition-colors"
+            aria-label="Open menu"
+          >
+            <svg className="w-4 h-4 xm:w-4.5 xm:h-4.5 xs:w-5 xs:h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
+          <div className="flex-1"></div> {/* Spacer for center alignment */}
+          
+          <div className="w-6 xm:w-7 xs:w-8 sm:w-9 md:w-10"></div> {/* Spacer for balance */}
         </div>
 
       {/* Sidebar */}
@@ -1832,21 +1879,21 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1">
-        {/* Top section with both logos - full width */}
-        <div className="border-b bg-white absolute left-0 right-0 h-24">
-          <div className="flex items-center h-full relative">
-            {/* Logo container - hide on mobile */}
-            <div className="hidden lg:block w-62 xl:w-70 overflow-visible absolute bottom-0 pl-7">
+        {/* Desktop Header - hidden on mobile, shown only on lg+ screens */}
+        <div className="hidden lg:block border-b bg-white absolute left-0 right-0 h-20 lg:h-24">
+          <div className="flex items-center h-full relative border">
+            {/* Logo container - hide on mobile and show only on desktop */}
+            <div className="hidden lg:block h-12 w-fit  overflow-visible pl-4 lg:pl-6 xl:pl-7">
               <img 
                 src="/deep.PNG" 
                 alt="GetDeep.AI" 
-                className="w-18 h-10 xl:w-30 xl:h-12"
+                className="w-full h-full"
               />
             </div>
             
-            {/* GetDeeper icon container with user profile */}
-            <div className="flex-1 flex justify-end items-center gap-6">
-              <div className="lg:mr-[33%] absolute top-2">  
+            {/* GetDeeper icon container with user profile - hidden on mobile */}
+            <div className="hidden lg:flex flex-1 justify-end items-center gap-3 lg:gap-4 xl:gap-6">
+              <div className="absolute top-1 lg:top-2 left-1/2 transform -translate-x-1/2 lg:mr-[15%] xl:mr-[20%] 2xl:mr-[25%]">  
                 <button
                   onClick={() => setShowPricingModal(true)}
                   className="hover:opacity-80 transition-opacity cursor-pointer"
@@ -1855,17 +1902,17 @@ const Dashboard: React.FC = () => {
                   <img 
                     src="/GetDeeperIcons.png" 
                     alt="Pro" 
-                    className="w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-18"
+                    className="h-12 w-fit mt-3"
                   />
                 </button>
               </div>
               
-              {/* User Profile - hide on mobile */}
-              <div className="hidden lg:block absolute right-6" ref={profileDropdownRef}>
-                <div className="flex items-center gap-4">
+              {/* User Profile - hidden on mobile */}
+              <div className="absolute right-3 lg:right-4 xl:right-6" ref={profileDropdownRef}>
+                <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
                   <div className="text-right relative">
                     <button
-                      className="text-xl xl:text-2xl font-medium focus:outline-none"
+                      className="text-lg lg:text-xl xl:text-2xl font-medium focus:outline-none"
                       onClick={() => setProfileDropdownOpen((open) => !open)}
                     >
                       {userName}
@@ -1921,7 +1968,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="w-10 xl:w-12 h-10 xl:h-12 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-base xl:text-lg">
+                  <div className="w-8 lg:w-9 xl:w-10 2xl:w-12 h-8 lg:h-9 xl:h-10 2xl:h-12 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm lg:text-base xl:text-lg">
                     {userInitials}
                   </div>
                 </div>
@@ -1930,15 +1977,277 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Mobile Sidebar Overlay */}
+        {isMobileSidebarOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            
+            {/* Sidebar */}
+            <div className="fixed left-0 top-0 h-full w-64 xm:w-72 xs:w-80 sm:w-96 md:w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <img src="/deep.PNG" alt="GetDeep.AI" className="h-9 w-fit opacity-100" style={{ filter: 'contrast(1.2) brightness(1.1)' }} />
+                <button
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Navigation Items */}
+              <div className="px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      setShowContactModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">📞</span>
+                    <span className="text-sm sm:text-base">Contact Us</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">💡</span>
+                    <span className="text-sm sm:text-base">Our Capabilities, Solutions, & Accelerators</span>
+                    <svg 
+                      className={`w-4 h-4 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {showCapabilitiesDropdown && (
+                    <div className="pl-8 sm:pl-10 space-y-1 sm:space-y-2">
+                      <button 
+                        onClick={() => {
+                          setShowInsightsModal(true);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
+                      >
+                        Insights Generators (domain-specific)
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setShowAIOTModal(true);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
+                      >
+                        AIOT Platform & Solutions
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setShowOperationsModal(true);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
+                      >
+                        Operations Virtualization & Optimization
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      setShowApproachModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">⚡</span>
+                    <span className="text-sm sm:text-base">Our Approach To Accelerate Value Creation</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      setShowValueServicesModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">🎯</span>
+                    <span className="text-sm sm:text-base">Our Value Identification To Realization Services</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      setShowWhyUsModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">🌟</span>
+                    <span className="text-sm sm:text-base">Why Us - GetDeep.AI</span>
+                  </button>
+                </div>
+
+                {/* Chat History Section */}
+                <div className="space-y-2 border-t pt-4">
+                  <button 
+                    onClick={() => setShowChatHistoryDropdown(!showChatHistoryDropdown)}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">💬</span>
+                    <span className="text-sm sm:text-base">Chat History</span>
+                    <svg 
+                      className={`w-4 h-4 ml-auto transition-transform ${showChatHistoryDropdown ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {showChatHistoryDropdown && (
+                    <div className="pl-8 sm:pl-10 space-y-1 max-h-40 sm:max-h-48 overflow-y-auto">
+                      {isLoadingChatHistory ? (
+                        <div className="text-sm text-gray-500 p-2">Loading...</div>
+                      ) : chatHistory.length > 0 ? (
+                        chatHistory.map((chat) => (
+                          <button
+                            key={chat.id}
+                            onClick={() => {
+                              loadChatBatch(chat.id);
+                              setIsMobileSidebarOpen(false);
+                            }}
+                            className="block w-full text-left text-xs sm:text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors p-1.5 sm:p-2 rounded truncate"
+                          >
+                            {chat.title}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500 p-2">No chat history</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Upgrade Section */}
+                <div className="border-t pt-4">
+                  <button 
+                    onClick={() => {
+                      setShowPricingModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm sm:text-base"
+                  >
+                    ⚡ Go Pro
+                  </button>
+                </div>
+
+                {/* User Profile Section */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white">
+                      {(() => {
+                        const userInfo = localStorage.getItem('user_info');
+                        if (userInfo) {
+                          try {
+                            const user = JSON.parse(userInfo);
+                            const firstName = user.first_name || '';
+                            const lastName = user.last_name || '';
+                            return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || 'U';
+                          } catch (error) {
+                            return 'U';
+                          }
+                        }
+                        return 'U';
+                      })()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {(() => {
+                          const userInfo = localStorage.getItem('user_info');
+                          if (userInfo) {
+                            try {
+                              const user = JSON.parse(userInfo);
+                              return `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
+                            } catch (error) {
+                              return 'User';
+                            }
+                          }
+                          return 'User';
+                        })()}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {(() => {
+                          const userInfo = localStorage.getItem('user_info');
+                          if (userInfo) {
+                            try {
+                              const user = JSON.parse(userInfo);
+                              return user.email || 'No email';
+                            } catch (error) {
+                              return 'No email';
+                            }
+                          }
+                          return 'No email';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 space-y-1">
+                    <button
+                      onClick={() => {
+                        navigate('/profile');
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
+                    >
+                      View Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Grid */}
-        <div className="p-3 sm:p-4 lg:p-6 xl:p-8 mt-[60px]">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6">
+        <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:p-6 xl:p-8 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6">
             {/* Chart Section - full width on mobile */}
             <div className="lg:col-span-6">
-              <div className="bg-white rounded-lg p-4 xl:p-6 shadow-sm">
+              <div className="bg-white rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm">
                 {/* Chart Header with Save Button */}
-                <div className="flex justify-between items-center mb-4 xl:mb-6">
-                  <h2 className="text-lg sm:text-xl xl:text-2xl font-medium">Business Performance</h2>
+                <div className="flex justify-between items-center mb-2 xm:mb-3 xs:mb-3.5 sm:mb-4 md:mb-5 lg:mb-5 xl:mb-6">
+                  <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Business Performance</h2>
                   <button 
                     onClick={saveChart}
                     disabled={isSaving || (
@@ -1946,7 +2255,7 @@ const Dashboard: React.FC = () => {
                       (activeChart === 'peers' && (selectedCompanies.length === 0 || !selectedPeerMetric)) ||
                       (activeChart === 'industry' && (!selectedIndustry || selectedIndustryMetrics.length === 0))
                     )}
-                    className={`px-3 xl:px-4 py-2 text-sm xl:text-base rounded transition-colors ${
+                    className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       isSaving 
                         ? 'bg-gray-400 cursor-not-allowed' 
                         : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
@@ -1962,12 +2271,12 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Metrics Selector */}
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                  <div className="space-y-3 xl:space-y-4 min-w-max px-4 sm:px-0">
-                    <div className="flex gap-3 xl:gap-4">
+                <div className="overflow-x-auto -mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
+                  <div className="space-y-1.5 xm:space-y-2 xs:space-y-2.5 sm:space-y-3 md:space-y-3.5 lg:space-y-3.5 xl:space-y-4 min-w-max px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
+                    <div className="flex gap-2 xm:gap-2.5 xs:gap-3 sm:gap-3 md:gap-3.5 lg:gap-3.5 xl:gap-4">
                       <button 
                         onClick={() => setActiveChart('metrics')}
-                        className={`px-3 xl:px-4 py-2 text-sm xl:text-base rounded ${
+                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded ${
                           activeChart === 'metrics' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
                         }`}
                       >
@@ -1975,7 +2284,7 @@ const Dashboard: React.FC = () => {
                       </button>
                       <button 
                         onClick={() => setActiveChart('peers')}
-                        className={`px-4 py-2 text-gray-600 ${
+                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base ${
                           activeChart === 'peers' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
                         }`}
                       >
@@ -1983,7 +2292,7 @@ const Dashboard: React.FC = () => {
                       </button>
                       <button 
                         onClick={() => setActiveChart('industry')}
-                        className={`px-4 py-2 text-gray-600 ${
+                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base ${
                           activeChart === 'industry' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
                         }`}
                       >
@@ -2077,7 +2386,7 @@ const Dashboard: React.FC = () => {
 
                 {/* Chart Content */}
                 <div className="mt-4 xl:mt-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:gap-4 mb-4">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3 xl:gap-4 mb-3 sm:mb-4">
             {/* Industry selection - moved to top */}
             {activeChart === 'industry' && (
               <div className="col-span-full">
@@ -2606,7 +2915,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-                <div className="h-[200px] sm:h-[350px] xl:h-[400px] overflow-y-auto p-4 xl:p-6 space-y-4">
+                <div className="h-[180px] xs:h-[200px] sm:h-[300px] md:h-[350px] xl:h-[400px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4">
                   {activeChart === 'metrics' ? (
                     // Metrics Chart
                     isLoading ? (
@@ -3030,17 +3339,17 @@ const Dashboard: React.FC = () => {
 
             {/* Insights Generation - full width on mobile */}
             <div className="lg:col-span-4 lg:mr-[-11rem]">
-              <div className="mt-0 sm:mt-3 lg:mt-4">
+              <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
                 <div className="bg-white rounded-lg shadow-sm">
-                  <div className="p-4 xl:p-6 border-b flex justify-between items-center">
-                    <div className="flex items-center gap-2 xl:gap-3">
-                      <h2 className="text-lg sm:text-xl xl:text-2xl font-medium">Insights Generation</h2>
+                  <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 xm:gap-2 xs:gap-2.5 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
+                      <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Insights Generation</h2>
                       {/* <button className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] text-white rounded text-xl">+</button> */}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2">
                       {/* Clear Chat Button */}
                       <button
-                        className="px-2 py-2 text-sm xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                         title="Click to reset conversation"
                         onClick={() => {
                           const event = new CustomEvent('clearChat');
@@ -3048,7 +3357,7 @@ const Dashboard: React.FC = () => {
                         }}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        <svg width="18" height="18" fill="none" viewBox="0 0 20 20">
+                        <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
                           <path d="M6 6l8 8M6 14L14 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
                       </button>
@@ -3090,7 +3399,7 @@ const Dashboard: React.FC = () => {
                   {/* Chat Messages */}
                   <div 
                     ref={chatMessagesRef}
-                    className="h-[250px] sm:h-[300px] xl:h-[500px] overflow-y-auto p-4 xl:p-6 space-y-4"
+                    className="h-[200px] xs:h-[250px] sm:h-[300px] md:h-[400px] xl:h-[500px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
                   >
                     {messages.map((message, index) => 
                       message.role === 'assistant' ? (
@@ -3114,7 +3423,7 @@ const Dashboard: React.FC = () => {
                             </div>
                           </div>
                           <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm xl:text-base">
-                            AM
+                            {userInitials}
                           </div>
                         </div>
                       )
@@ -3250,7 +3559,7 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {subscriptionPlans.map((plan) => (
                   <div
                     key={plan.id}
@@ -3366,7 +3675,7 @@ const Dashboard: React.FC = () => {
 
               {/* Contact Form */}
               <form onSubmit={handleContactSubmit} className="space-y-4" ref={contactFormRef}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                       Full Name *
@@ -3395,7 +3704,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
                       Company
@@ -3459,9 +3768,9 @@ const Dashboard: React.FC = () => {
 
       {/* Insights Generator Modal */}
       {showInsightsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-3 sm:p-4">
               <div className="flex justify-end mb-4">
                 <button
                   onClick={() => setShowInsightsModal(false)}
@@ -3510,7 +3819,7 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                 {/* Feature 1 */}
                 <div className="text-center">
                   <div className="relative mb-6">
@@ -3570,8 +3879,8 @@ const Dashboard: React.FC = () => {
 
       {/* Value Services Modal */}
       {showValueServicesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold text-[#1B5A7D] flex-1 text-center">Our Value Identification To Realization Services</h1>
@@ -3600,7 +3909,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                 {/* Column 1 - Value Identification */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
                   <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
@@ -3691,9 +4000,9 @@ const Dashboard: React.FC = () => {
 
       {/* AIOT Platform & Solutions Modal */}
       {showAIOTModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-3 sm:p-4">
               <div className="flex justify-end mb-4">
                 <button
                   onClick={() => setShowAIOTModal(false)}
@@ -3715,9 +4024,9 @@ const Dashboard: React.FC = () => {
 
       {/* Operations Virtualization & Optimization Modal */}
       {showOperationsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-3 sm:p-4">
               <div className="flex justify-end mb-4">
                 <button
                   onClick={() => setShowOperationsModal(false)}
