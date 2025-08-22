@@ -224,83 +224,110 @@ const Dashboard: React.FC = () => {
       // Convert to PDF using jsPDF
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
-      
-      // Add title
-      doc.setFontSize(20);
-      doc.text('AI Conversation Report', 20, 20);
-      
-      // Add timestamp
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginLeft = 20;
+      const marginTop = 20;
+      const marginRight = 20;
+      const marginBottom = 20;
+      const usableWidth = pageWidth - marginLeft - marginRight;
+      const lineHeight = 12; // compact line height for fontSize 11
+      if ((doc as any).setLineHeightFactor) {
+        (doc as any).setLineHeightFactor(1.0);
+      }
+
+      const ensureSpace = (requiredHeight: number) => {
+        if (currentY + requiredHeight > pageHeight - marginBottom) {
+          doc.addPage();
+          currentY = marginTop;
+        }
+      };
+
+      const writeHeading = (text: string) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(20);
+        ensureSpace(28);
+        doc.text(text, marginLeft, currentY);
+        currentY += 18;
+      };
+
+      const writeSubheading = (text: string) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        ensureSpace(20);
+        doc.text(text, marginLeft, currentY);
+        currentY += 10;
+      };
+
+      const writeKeyValue = (label: string, value: string) => {
+        if (!value) return;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        const line = `${label} ${value}`;
+        const wrapped = doc.splitTextToSize(line, usableWidth);
+        ensureSpace(wrapped.length * lineHeight);
+        doc.text(wrapped, marginLeft, currentY);
+        currentY += wrapped.length * lineHeight - (lineHeight - 10);
+      };
+
+      const writeParagraph = (text: string) => {
+        if (!text) return;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        const normalized = text.replace(/\r\n/g, '\n');
+        const blocks = normalized.split(/\n\n+/);
+        blocks.forEach((block, idx) => {
+          const cleaned = block.replace(/```[\s\S]*?```/g, m => m.replace(/```/g, ''));
+          const rawLines = cleaned.split(/\n/);
+          rawLines.forEach((raw) => {
+            const trimmed = raw.trimEnd();
+            if (trimmed.length === 0) {
+              currentY += 3; // tiny gap for empty line
+              return;
+            }
+            const wrapped = doc.splitTextToSize(trimmed, usableWidth);
+            ensureSpace(wrapped.length * lineHeight);
+            wrapped.forEach((wLine: string) => {
+              doc.text(wLine, marginLeft, currentY);
+              currentY += lineHeight;
+            });
+          });
+          if (idx < blocks.length - 1) currentY += 3; // small paragraph gap
+        });
+      };
+
+      // Compose document
+      let currentY = marginTop;
+      writeHeading('AI Conversation Report');
+
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
-      doc.text(`Generated on: ${pdfContent.timestamp}`, 20, 30);
-      
-      // Add chart information
-      doc.setFontSize(14);
-      doc.text('Chart Configuration:', 20, 45);
-      doc.setFontSize(10);
-      doc.text(`Type: ${activeChart}`, 20, 55);
-      if (searchValue) doc.text(`Company: ${searchValue}`, 20, 65);
-      if (selectedSearchMetrics.length > 0) doc.text(`Metrics: ${selectedSearchMetrics.join(', ')}`, 20, 75);
-      if (selectedPeriod) doc.text(`Period: ${selectedPeriod}`, 20, 85);
-      
-      // Add conversation messages
-      let yPosition = 105;
-      doc.setFontSize(14);
-      doc.text('Conversation:', 20, yPosition);
-      yPosition += 10;
-      
-      doc.setFontSize(10);
+      ensureSpace(16);
+      doc.text(`Generated on: ${pdfContent.timestamp}`, marginLeft, currentY);
+      currentY += 16;
+
+      writeSubheading('Chart Configuration:');
+      writeKeyValue('Type:', String(activeChart));
+      writeKeyValue('Company:', searchValue || '');
+      writeKeyValue('Metrics:', (selectedSearchMetrics || []).join(', '));
+      writeKeyValue('Period:', selectedPeriod || '');
+      if (activeChart === 'peers' && selectedCompanies.length > 0) {
+        writeKeyValue('Companies:', selectedCompanies.map(c => c.name || c.ticker).join(', '));
+      }
+
+      writeSubheading('Conversation:');
       messages.forEach((message) => {
         const role = message.role === 'assistant' ? 'AI' : 'User';
-        const content = message.content;
-        
-        // Check if we need a new page
-        if (yPosition > 280) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        
-        // Add role and content
-        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${role}:`, 20, yPosition);
-        yPosition += 5;
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        
-        // Split content into lines that fit the page width
-        const maxWidth = 170;
-        const words = content.split(' ');
-        let line = '';
-        
-        for (const word of words) {
-          const testLine = line + word + ' ';
-          const testWidth = doc.getTextWidth(testLine);
-          
-          if (testWidth > maxWidth) {
-            doc.text(line, 20, yPosition);
-            yPosition += 5;
-            line = word + ' ';
-            
-            // Check if we need a new page
-            if (yPosition > 280) {
-              doc.addPage();
-              yPosition = 20;
-            }
-          } else {
-            line = testLine;
-          }
-        }
-        
-        // Add remaining line
-        if (line) {
-          doc.text(line, 20, yPosition);
-          yPosition += 5;
-        }
-        
-        yPosition += 5; // Add space between messages
+        doc.setFontSize(12);
+        ensureSpace(lineHeight);
+        doc.text(`${role}:`, marginLeft, currentY);
+        currentY += 8;
+        writeParagraph(message.content);
+        currentY += 5; // tighter spacing between messages
       });
-      
+
       // Save the PDF
       const fileName = `conversation_report_${Date.now()}.pdf`;
       doc.save(fileName);
