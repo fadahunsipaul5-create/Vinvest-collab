@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import InsightsGenerators from './InsightsGenerators';
@@ -23,16 +23,6 @@ declare global {
 }
 
 
-
-// Define metric colors and interface
-interface MetricConfig {
-  color: string;
-  label: string;
-}
-
-interface MetricConfigs {
-  [key: string]: MetricConfig;
-}
 
 // Message interface for chat
 interface Message {
@@ -329,58 +319,23 @@ const Dashboard: React.FC = () => {
   const saveChart = async () => {
     setIsSaving(true);
     try {
-      // Prepare chart data based on active chart type
-      let chartDataToSave = {};
-      
-      if (activeChart === 'metrics') {
-        chartDataToSave = {
-          type: 'metrics',
-          company: searchValue,
-          metrics: selectedSearchMetrics,
-          period: selectedPeriod,
-          data: chartData,
-          timestamp: new Date().toISOString()
-        };
-      } else if (activeChart === 'peers') {
-        chartDataToSave = {
-          type: 'peers',
-          companies: selectedCompanies.map(c => ({ ticker: c.ticker, name: c.name })),
-          metric: selectedPeerMetric,
-          period: selectedPeriod,
-          data: peerChartData,
-          timestamp: new Date().toISOString()
-        };
-      } else if (activeChart === 'industry') {
-        chartDataToSave = {
-          type: 'industry',
-          industry: selectedIndustry,
-          metrics: selectedIndustryMetrics,
-          period: selectedPeriod,
-          data: industryChartData,
-          companyNames: industryCompanyNames,
-          timestamp: new Date().toISOString()
-        };
-      }
+      const container = performanceCardRef.current;
+      if (!container) throw new Error('Business Performance container not found');
 
-      // Save to localStorage for now (you can extend this to save to backend)
-      const savedCharts = JSON.parse(localStorage.getItem('savedCharts') || '[]');
-      const chartId = `chart_${Date.now()}`;
-      const chartToSave = {
-        id: chartId,
-        name: `Chart ${savedCharts.length + 1}`,
-        ...chartDataToSave
+      const cleanup = () => {
+        document.body.classList.remove('print-bp-only');
+        window.removeEventListener('afterprint', cleanup);
+        setIsSaving(false);
       };
-      
-      savedCharts.push(chartToSave);
-      localStorage.setItem('savedCharts', JSON.stringify(savedCharts));
-      
-      // Show success message
-      alert('Chart saved successfully!');
-      
+
+      document.body.classList.add('print-bp-only');
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+      setTimeout(() => cleanup(), 8000); // Fallback cleanup
+
     } catch (error) {
-      console.error('Error saving chart:', error);
-      alert('Failed to save chart. Please try again.');
-    } finally {
+      console.error('Error printing chart:', error);
+      alert('Failed to open print dialog.');
       setIsSaving(false);
     }
   };
@@ -925,7 +880,7 @@ const Dashboard: React.FC = () => {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [metricColors, setMetricColors] = useState<MetricConfigs>({});
+
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('1Y');
   const [peerChartData, setPeerChartData] = useState<PeerDataPoint[]>([]);
   const [peerLoading, setPeerLoading] = useState(false);
@@ -954,8 +909,9 @@ const Dashboard: React.FC = () => {
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltip | null>(null);
   const [fixed2024Data, setFixed2024Data] = useState<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const performanceCardRef = useRef<HTMLDivElement>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
-  const [fixedTooltipPos, setFixedTooltipPos] = useState<{ left: number, top: number } | null>(null);
+
   const [companyMap, setCompanyMap] = useState<{ [ticker: string]: string }>({});
 
   // Add these lines for peer metrics
@@ -1418,21 +1374,7 @@ const Dashboard: React.FC = () => {
     }
   }, [activeChart, selectedIndustryMetrics, selectedPeriod, selectedIndustry, fetchIndustryData]);
 
-  useEffect(() => {
-    if (availableMetrics.length === 0) return;
-    
-    const colors = generateColorPalette(availableMetrics.length);
-    const newMetricColors: MetricConfigs = {};
-    
-    availableMetrics.forEach((metric, index) => {
-      newMetricColors[metric.value] = {
-        color: colors[index],
-        label: metric.label
-      };
-    });
-    
-    setMetricColors(newMetricColors);
-  }, [availableMetrics]);
+
 
   useEffect(() => {
     fetchAvailableIndustries();
@@ -1482,40 +1424,7 @@ const Dashboard: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Find the position of the last tick (2024) after chart renders
-  useLayoutEffect(() => {
-    const calculateTooltipPosition = () => {
-      if (!fixed2024Data) return;
-      const chartDiv = chartContainerRef.current;
-      if (!chartDiv) return;
-      // Find the tick element whose label is 2024
-      const tick2024 = document.querySelector(`.xAxis .recharts-cartesian-axis-tick:last-child`) as HTMLElement | null;
-      if (!tick2024) return;
-      const tickRect = tick2024.getBoundingClientRect();
-      const chartRect = chartDiv.getBoundingClientRect();
-      setFixedTooltipPos({
-        left: tickRect.left - chartRect.left + tickRect.width / 2,
-        top: 40 // adjust as needed
-      });
-      console.log('Set fixedTooltipPos:', {
-        left: tickRect.left - chartRect.left + tickRect.width / 2,
-        top: 40
-      });
-    };
 
-    calculateTooltipPosition();
-
-    // Add resize listener to recalculate position when screen size changes
-    const handleResize = () => {
-      setTimeout(calculateTooltipPosition, 100); // Small delay to allow chart to rerender
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [fixed2024Data, chartData, activeChart]);
 
   // Remove this function if not used
   // const toggleSidebar = () => {
@@ -1524,9 +1433,7 @@ const Dashboard: React.FC = () => {
 
   console.log('chartData:', chartData);
   console.log('fixed2024Data:', fixed2024Data);
-  console.log('fixedTooltipPos:', fixedTooltipPos);
   console.log('peerChartData:', peerChartData);
-  console.log('fixed2024Data:', fixed2024Data);
 
   useEffect(() => {
     console.log('Current selectedCompanies:', selectedCompanies);
@@ -1675,6 +1582,19 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
+      <style>
+        {`
+          @media print {
+            body.print-bp-only * { visibility: hidden !important; }
+            body.print-bp-only #bp-print-area, body.print-bp-only #bp-print-area * { visibility: visible !important; }
+            body.print-bp-only #bp-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            body.print-bp-only [data-ignore-pdf] { display: none !important; }
+            /* Ensure fixed tooltip is included when card scrolls */
+            body.print-bp-only #bp-print-area .bp-scroll { overflow: visible !important; height: auto !important; }
+            body.print-bp-only #bp-print-area .fixed-tooltip { position: static !important; margin-top: 8px; }
+          }
+        `}
+      </style>
               {/* Mobile Header */}
         <div className="lg:hidden flex justify-between items-center p-1 xm:p-1.5 xs:p-2 sm:p-2.5 md:p-3 bg-white border-b h-14 xm:h-16 xs:h-16 sm:h-18 md:h-20">
           <button
@@ -2244,7 +2164,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6">
             {/* Chart Section - full width on mobile */}
             <div className="lg:col-span-6">
-              <div className="bg-white rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm">
+              <div className="bg-white rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm" ref={performanceCardRef} id="bp-print-area">
                 {/* Chart Header with Save Button */}
                 <div className="flex justify-between items-center mb-2 xm:mb-3 xs:mb-3.5 sm:mb-4 md:mb-5 lg:mb-5 xl:mb-6">
                   <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Business Performance</h2>
@@ -2265,6 +2185,7 @@ const Dashboard: React.FC = () => {
                         ? 'Saving...' 
                         : 'Save current chart configuration and data'
                     }
+                    data-ignore-pdf
                   >
                     {isSaving ? 'Saving...' : 'Save chart'}
                   </button>
@@ -2915,7 +2836,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-                <div className="h-[180px] xs:h-[200px] sm:h-[300px] md:h-[350px] xl:h-[400px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4">
+                <div className="h-[180px] xs:h-[200px] sm:h-[300px] md:h-[350px] xl:h-[400px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4 bp-scroll">
                   {activeChart === 'metrics' ? (
                     // Metrics Chart
                     isLoading ? (
@@ -3000,7 +2921,6 @@ const Dashboard: React.FC = () => {
                               content={({ active, payload, label }) => {
                                 if (active && payload && payload.length > 0) {
                                   const point = payload[0].payload;
-                                  const ticker = searchValue.split(':')[0].trim().toUpperCase(); // Define ticker here as well
                                   if ((selectedPeriod === '1Y' && point.name?.startsWith('2024')) || 
                                       (selectedPeriod !== '1Y' && point.name === chartData[chartData.length - 1]?.name)) {
                                     return null;
@@ -3010,7 +2930,7 @@ const Dashboard: React.FC = () => {
                                       <p className="label">{label}</p>
                                       {payload.map((entry: any) => (
                                         <p key={entry.name} style={{ color: entry.color }}>
-                                          {`${entry.name} (${ticker})`}: {entry.value === null ? "N/A" : new Intl.NumberFormat('en-US', {
+                                          {entry.name}: {entry.value === null ? "N/A" : new Intl.NumberFormat('en-US', {
                                             notation: 'compact',
                                             maximumFractionDigits: 1
                                           }).format(entry.value)}
@@ -3026,7 +2946,7 @@ const Dashboard: React.FC = () => {
                               filterNull={false}  // Changed to false to show null values
                             />
 
-                            <Legend />
+                            <Legend layout="horizontal" />
                             {selectedSearchMetrics.map((metric, idx) => {
                               const color = generateColorPalette(selectedSearchMetrics.length)[idx];
                               const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
@@ -3048,28 +2968,28 @@ const Dashboard: React.FC = () => {
                             })}
                           </LineChart>
                         </ResponsiveContainer>
-                        {/* Fixed tooltip for 2024 */}
-                        {selectedSearchMetrics.length > 0 && fixed2024Data && fixedTooltipPos && (
+                        
+                        {/* Fixed tooltip positioned below legend inside chart */}
+                        {selectedSearchMetrics.length > 0 && fixed2024Data && (
                           <div
+                            className="fixed-tooltip absolute left-4 right-4 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md p-2 text-xs shadow-sm"
                             style={{
-                              position: 'absolute',
-                              left: fixedTooltipPos.left - 70,
-                              top: fixedTooltipPos.top + 16,
-                              zIndex: 99999,
-                              background: '#fff',
-                              border: '1px solid #ccc',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                              borderRadius: 4,
-                              padding: 10,
-                              minWidth: 0,
-                              fontSize: 'inherit',
-                              pointerEvents: 'none',
+                              bottom: `${-80 - Math.floor((selectedSearchMetrics.length - 1) / 3) * 25}px`
                             }}
                           >
-                            <div className="font-medium mb-1">
-                              {selectedPeriod === '1Y' ? '2024' : fixed2024Data.name}
+                            <div className="font-medium text-gray-700 mb-1 text-xs">
+                              {selectedPeriod === '1Y' ? '2024' : 
+                               selectedPeriod === '2Y' ? '2023-24' :
+                               selectedPeriod === '3Y' ? '2022-24' :
+                               selectedPeriod === '4Y' ? '2021-24' :
+                               selectedPeriod === '5Y' ? '2020-24' :
+                               selectedPeriod === '10Y' ? '2015-24' :
+                               selectedPeriod === '15Y' ? '2010-24' :
+                               selectedPeriod === '20Y' ? '2005-24' :
+                               fixed2024Data.name} Values
                             </div>
-                            {selectedSearchMetrics.map((metric) => {
+                            <div className="space-y-1">
+                              {selectedSearchMetrics.map((metric, idx) => {
                               const value = fixed2024Data[metric];
                               const hoveredValue = (activeTooltip && activeTooltip[metric] != null)
                                 ? Number(activeTooltip[metric])
@@ -3079,15 +2999,18 @@ const Dashboard: React.FC = () => {
                                 ? (diff / hoveredValue) * 100
                                 : null;
                               const isIncrease = percent != null && percent >= 0;
-                              const color = metricColors[metric]?.color || generateColorPalette(1)[0];
-                              const ticker = searchValue.split(':')[0].trim().toUpperCase(); // Define ticker here
+                                const color = generateColorPalette(selectedSearchMetrics.length)[idx];
 
                               return (
-                                <div key={metric} className="mb-1 flex items-center">
-                                  <span style={{ color, minWidth: 80, display: 'inline-block' }}>
-                                    {`${metric} (${ticker})`}:  {/* Include the ticker in the fixed tooltip */}
+                                  <div key={metric} className="flex items-center text-xs">
+                                    <div 
+                                      className="w-2 h-2 rounded-full mr-2"
+                                      style={{ backgroundColor: color }}
+                                    ></div>
+                                    <span style={{ color, minWidth: 60, display: 'inline-block' }}>
+                                      {metric}:
                                   </span>
-                                  <span>
+                                    <span className="ml-1">
                                     {value === null ? "N/A" : new Intl.NumberFormat('en-US', {
                                       notation: 'compact',
                                       maximumFractionDigits: 1
@@ -3095,8 +3018,8 @@ const Dashboard: React.FC = () => {
                                   </span>
                                   {percent != null && (
                                     <span
-                                      className={`ml-2 flex items-center text-xs font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
-                                      style={{ minWidth: 50 }}
+                                        className={`ml-2 flex items-center font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
+                                        style={{ minWidth: 40 }}
                                     >
                                       {isIncrease ? '▲' : '▼'}
                                       {Math.abs(percent).toFixed(1)}%
@@ -3105,8 +3028,10 @@ const Dashboard: React.FC = () => {
                                 </div>
                               );
                             })}
+                            </div>
                           </div>
                         )}
+
                       </div>
                     )
                   ) : activeChart === 'peers' ? (
@@ -3192,7 +3117,6 @@ const Dashboard: React.FC = () => {
                               content={({ active, payload, label }) => {
                                 if (active && payload && payload.length > 0) {
                                   const point = payload[0].payload;
-                                  const ticker = searchValue.split(':')[0].trim().toUpperCase(); // Define ticker here as well
                                   if ((selectedPeriod === '1Y' && point.name?.startsWith('2024')) || 
                                       (selectedPeriod !== '1Y' && point.name === peerChartData[peerChartData.length - 1]?.name)) {
                                     return null;
@@ -3202,7 +3126,7 @@ const Dashboard: React.FC = () => {
                                       <p className="label">{label}</p>
                                       {payload.map((entry: any) => (
                                         <p key={entry.name} style={{ color: entry.color }}>
-                                          {`${entry.name} (${ticker})`}: {entry.value === null ? "N/A" : new Intl.NumberFormat('en-US', {
+                                          {entry.name}: {entry.value === null ? "N/A" : new Intl.NumberFormat('en-US', {
                                             notation: 'compact',
                                             maximumFractionDigits: 1
                                           }).format(entry.value)}
@@ -3217,7 +3141,7 @@ const Dashboard: React.FC = () => {
                               itemStyle={{ padding: 0 }}
                               filterNull={false}
                             />
-                            <Legend />
+                            <Legend layout="horizontal" />
                             {selectedCompanies.map((company, idx) => {
                               const color = generateColorPalette(selectedCompanies.length)[idx];
                               return (
@@ -3238,25 +3162,16 @@ const Dashboard: React.FC = () => {
                             })}
                           </LineChart>
                         </ResponsiveContainer>
-                        {/* Fixed tooltip for peers chart */}
-                        {activeChart === 'peers' && fixed2024Data && fixedTooltipPos && (
+                        
+                        {/* Fixed tooltip for peers chart positioned below legend inside chart */}
+                        {selectedCompanies.length > 0 && selectedPeerMetric && fixed2024Data && (
                           <div
+                            className="fixed-tooltip absolute left-4 right-4 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md p-2 text-xs shadow-sm"
                             style={{
-                              position: 'absolute',
-                              left: fixedTooltipPos.left - 70,
-                              top: fixedTooltipPos.top + 16,
-                              zIndex: 99999,
-                              background: '#fff',
-                              border: '1px solid #ccc',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                              borderRadius: 4,
-                              padding: 10,
-                              minWidth: 0,
-                              fontSize: 'inherit',
-                              pointerEvents: 'none',
+                              bottom: `${-80 - Math.floor((selectedCompanies.length - 1) / 3) * 25}px`
                             }}
                           >
-                            <div className="font-medium mb-1">
+                            <div className="font-medium text-gray-700 mb-1 text-xs">
                               {selectedPeriod === '1Y' ? '2024' : 
                                selectedPeriod === '2Y' ? '2023-24' :
                                selectedPeriod === '3Y' ? '2022-24' :
@@ -3265,8 +3180,9 @@ const Dashboard: React.FC = () => {
                                selectedPeriod === '10Y' ? '2015-24' :
                                selectedPeriod === '15Y' ? '2010-24' :
                                selectedPeriod === '20Y' ? '2005-24' :
-                               fixed2024Data.name}
+                               fixed2024Data.name} Values
                             </div>
+                            <div className="space-y-1">
                             {selectedCompanies.map((company, idx) => {
                               const value = fixed2024Data[selectedPeerMetric]?.[company.ticker];
                               const hoveredValue = (activeTooltip && activeTooltip[selectedPeerMetric]?.[company.ticker] != null)
@@ -3278,12 +3194,17 @@ const Dashboard: React.FC = () => {
                                 : null;
                               const isIncrease = percent != null && percent >= 0;
                               const color = generateColorPalette(selectedCompanies.length)[idx];
+                                
                               return (
-                                <div key={company.ticker} className="mb-1 flex items-center">
-                                  <span style={{ color, minWidth: 80, display: 'inline-block' }}>
+                                  <div key={company.ticker} className="flex items-center text-xs">
+                                    <div 
+                                      className="w-2 h-2 rounded-full mr-2"
+                                      style={{ backgroundColor: color }}
+                                    ></div>
+                                    <span style={{ color, minWidth: 60, display: 'inline-block' }}>
                                     {company.ticker}:
                                   </span>
-                                  <span>
+                                    <span className="ml-1">
                                     {value === null ? "N/A" : new Intl.NumberFormat('en-US', {
                                       notation: 'compact',
                                       maximumFractionDigits: 1
@@ -3291,8 +3212,8 @@ const Dashboard: React.FC = () => {
                                   </span>
                                   {percent != null && (
                                     <span
-                                      className={`ml-2 flex items-center text-xs font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
-                                      style={{ minWidth: 50 }}
+                                        className={`ml-2 flex items-center font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
+                                        style={{ minWidth: 40 }}
                                     >
                                       {isIncrease ? '▲' : '▼'}
                                       {Math.abs(percent).toFixed(1)}%
@@ -3301,8 +3222,10 @@ const Dashboard: React.FC = () => {
                                 </div>
                               );
                             })}
+                            </div>
                           </div>
                         )}
+
                       </div>
                     )
                   ) : (
@@ -3333,6 +3256,8 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+
 
 
             </div>
