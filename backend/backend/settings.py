@@ -35,6 +35,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '[::1]',
     'sec-insights-backend-791634680391.us-central1.run.app',
+    "api.getdeep.ai",
+    "getdeep.ai",
 ]
 
 # Database Configuration
@@ -208,6 +210,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://sec-frontend-791634680391.us-central1.run.app",
     "https://sec-insights-backend-791634680391.us-central1.run.app",
     "https://sec-insights-app-d9wp.vercel.app",
+    "https://getdeep.ai",
+    "https://api.getdeep.ai",
 ]
 
 # CSRF settings for API endpoints
