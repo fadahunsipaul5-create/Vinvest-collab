@@ -1037,11 +1037,9 @@ class AggregatedDataAPIView(APIView):
         if period == "1Y":
             metrics = metrics.filter(period__period__regex=r"^\d{4}$")
         else:
-            year_span = int(period.replace("Y", ""))
-            metrics = metrics.filter(
-                period__period__regex=rf"^\d{{4}}-\d{{2}}$",
-                period__period__contains="-",
-            )
+            # Filter by exact period type (2Y, 3Y, 4Y, etc.)
+            metrics = metrics.filter(period__period__startswith=f"{period}: ")
+            
 
         print(f"After period filtering: {metrics.count()} metrics")
 

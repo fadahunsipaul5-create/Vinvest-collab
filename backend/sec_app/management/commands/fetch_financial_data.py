@@ -285,10 +285,12 @@ class Command(BaseCommand):
                 for col, value in col_dict.items():
                     if not col.startswith(f'{period_type}: '):
                         continue
-                    years = col.split(': ')[1]
+                    # Use the full column name to preserve period type
+                    period_name = col  # Keep "2Y: 2023-24" format
+                    years = col.split(': ')[1]  # Extract "2023-24" for date calculation
                     
                     # Create period if needed
-                    period_key = (company.id, years)
+                    period_key = (company.id, period_name)
                     if period_key not in periods_to_create:
                         start_year, end_year = years.split('-')
                         # Handle 2-digit years
@@ -296,19 +298,19 @@ class Command(BaseCommand):
                             end_year = f'20{end_year}'
                         periods_to_create[period_key] = FinancialPeriod(
                             company=company,
-                            period=years,
+                            period=period_name,  # Store full name like "2Y: 2023-24"
                             start_date=f'{start_year}-01-01',
                             end_date=f'{end_year}-12-31'
                         )
                     
                     # Collect metric data
-                    if not skip_existing or (years, metric_name, company.id) not in existing_metrics:
+                    if not skip_existing or (period_name, metric_name, company.id) not in existing_metrics:
                         metrics_data.append({
                             'company': company,
                             'company_id': company.id,
-                            'period_name': years,
+                            'period_name': period_name,  # Use full period name
                             'metric_name': metric_name,
                             'value': value
                         })
                         if skip_existing:
-                            existing_metrics.add((years, metric_name, company.id))
+                            existing_metrics.add((period_name, metric_name, company.id))
