@@ -1073,8 +1073,13 @@ class AggregatedDataAPIView(APIView):
                     period_str = metric_obj.period.period
                     print(f"Adding data point: {ticker}, {period_str}, {value}")
 
+                    # For frontend compatibility, extract just the year part from period names
+                    display_name = period_str
+                    if ": " in period_str:
+                        display_name = period_str.split(": ")[1]  # "2Y: 2023-24" -> "2023-24"
+                    
                     aggregated_data.append(
-                        {"name": period_str, "ticker": ticker, "value": value}
+                        {"name": display_name, "ticker": ticker, "value": value}
                     )
                 except Exception as e:
                     print(f"Error processing metric: {str(e)}")
