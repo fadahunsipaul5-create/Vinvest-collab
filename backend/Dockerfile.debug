@@ -1,8 +1,0 @@
-# Dockerfile.debug (Corrected Version)
-FROM python:3.11-slim
-
-# Install Cloud SQL Auth Proxy client. We will use the one Google provides.
-# No extra installations are needed for this test.
-
-# This command starts a simple web server on port 8080 to pass the health check.
-CMD ["python", "-m", "http.server", "8080"]

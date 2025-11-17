@@ -1,0 +1,570 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  BarChart,
+  Bar,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  Label,
+  Cell
+} from 'recharts';
+import { loadAllMultiplesData, calculateMultiple, getNumericValue, MultiplesData } from '../utils/multiplesDataLoader';
+import baseUrl from './api';
+
+interface MultiplesChartProps {
+  className?: string;
+  initialCompany?: string; // Ticker from parent component
+}
+
+interface CompanyTicker {
+  ticker: string;
+  name: string;
+}
+
+const YEAR_PERIODS = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
+
+const DENOMINATOR_OPTIONS = [
+  'GrossMargin',
+  'OperatingIncome',
+  'PretaxIncome',
+  'NetIncome',
+  'Revenue',
+  'EBITAAdjusted',
+  'EBITDAAdjusted',
+  'NOPAT'
+];
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white border border-gray-300 rounded p-2 shadow-lg">
+        <p className="font-semibold">{data.ticker}</p>
+        {data.revenueGrowth !== undefined && (
+          <p className="text-xs">Revenue Growth: {typeof data.revenueGrowth === 'number' ? data.revenueGrowth.toFixed(2) : data.revenueGrowth}%</p>
+        )}
+        {data.roic !== undefined && (
+          <p className="text-xs">ROIC: {typeof data.roic === 'number' ? data.roic.toFixed(2) : data.roic}%</p>
+        )}
+        {data.multiple !== undefined && (
+          <p className="text-xs">Multiple: {typeof data.multiple === 'number' ? data.multiple.toFixed(2) : data.multiple}x</p>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
+interface MultiplesSelectorsProps {
+  numerator: string;
+  denominator: string;
+  onNumeratorChange: (value: string) => void;
+  onDenominatorChange: (value: string) => void;
+}
+
+const MultiplesSelectors: React.FC<MultiplesSelectorsProps> = ({ 
+  numerator, 
+  denominator, 
+  onNumeratorChange, 
+  onDenominatorChange 
+}) => {
+  return (
+    <div className="space-y-2 sm:space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="text-xs sm:text-sm text-gray-600 w-24 sm:w-24">Numerator</div>
+        <select
+          value={numerator}
+          onChange={(e) => onNumeratorChange(e.target.value)}
+          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 bg-white text-gray-700"
+        >
+          <option value="EV foundational">EV foundational</option>
+          <option value="Market Cap">Market Cap</option>
+        </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="text-xs sm:text-sm text-gray-600 w-24 sm:w-24">Denominator</div>
+        <select
+          value={denominator}
+          onChange={(e) => onDenominatorChange(e.target.value)}
+          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 bg-white text-gray-700"
+        >
+          {DENOMINATOR_OPTIONS.map(opt => (
+            <option key={opt} value={opt}>{opt === 'NOPAT' ? 'NOPAT' : opt}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+};
+
+const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initialCompany }) => {
+  // Hide company selector for presentation
+  const SHOW_COMPANY_SELECTOR = false;
+  
+  const [viewMode, setViewMode] = useState<'holistic' | 'simple'>('simple');
+  const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
+  const [companyInput, setCompanyInput] = useState('');
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Year period selection state
+  const [selectedYears, setSelectedYears] = useState('5Y');
+  const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const yearDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Numerator and denominator selection
+  const [numerator, setNumerator] = useState('EV foundational');
+  const [denominator, setDenominator] = useState('NOPAT');
+  
+  // Loaded multiples data
+  const [multiplesData, setMultiplesData] = useState<{ [ticker: string]: MultiplesData } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Available companies from API
+  const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  
+  // Fetch companies from API
+  const fetchCompanies = async () => {
+    setCompaniesLoading(true);
+    try {
+      const response = await fetch(`${baseUrl}/api/companies/`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch companies: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      // Handle both paginated (results) and non-paginated responses
+      const companiesList = data.results || data;
+      
+      const companies: CompanyTicker[] = [];
+      companiesList.forEach((company: any) => {
+        const ticker = company.ticker;
+        const name = company.display_name || company.name || company.ticker;
+        companies.push({ ticker, name });
+      });
+      
+      setAvailableCompanies(companies);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+  
+  // Load companies on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+  
+  // Load data on mount
+  useEffect(() => {
+    setIsLoading(true);
+    loadAllMultiplesData()
+      .then(data => {
+        setMultiplesData(data);
+        setIsLoading(false);
+        console.log('Multiples data loaded:', data);
+      })
+      .catch(error => {
+        console.error('Failed to load multiples data:', error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
+        setShowCompanyDropdown(false);
+      }
+      if (yearDropdownRef.current && !yearDropdownRef.current.contains(event.target as Node)) {
+        setShowYearDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Auto-select company when initialCompany prop changes
+  useEffect(() => {
+    if (initialCompany && multiplesData && availableCompanies.length > 0) {
+      const company = availableCompanies.find(c => c.ticker.toUpperCase() === initialCompany.toUpperCase());
+      if (company) {
+        // Add the company to selection
+        setSelectedCompanies(prev => {
+          // Only add if not already selected
+          const alreadySelected = prev.some(c => c.ticker.toUpperCase() === initialCompany.toUpperCase());
+          if (!alreadySelected) {
+            return [...prev, company];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [initialCompany, multiplesData, availableCompanies]); // Note: selectedCompanies NOT in deps to allow deletion
+  
+  // Helper function to get denominator key
+  const getDenominatorKey = (denominator: string): string => {
+    if (denominator === 'NOPAT') return 'netOperatingProfitAfterTaxes';
+    if (denominator === 'GrossMargin') return 'grossMargin';
+    if (denominator === 'OperatingIncome') return 'operatingIncome';
+    if (denominator === 'PretaxIncome') return 'pretaxIncome';
+    if (denominator === 'NetIncome') return 'netIncome';
+    if (denominator === 'Revenue') return 'revenue';
+    if (denominator === 'EBITAAdjusted') return 'ebitaAdjusted';
+    if (denominator === 'EBITDAAdjusted') return 'ebitdaAdjusted';
+    return denominator.charAt(0).toLowerCase() + denominator.slice(1);
+  };
+  
+  // Calculate data for simple chart with useMemo
+  const simpleData = useMemo(() => {
+    if (!multiplesData) return [];
+    
+    return selectedCompanies.map(company => {
+      const data = multiplesData[company.ticker];
+      if (!data) return { ticker: company.ticker, value: 0 };
+      
+      // Get numerator
+      const numValue = numerator === 'EV foundational' 
+        ? data.numerators.enterpriseValue_Fundamental 
+        : data.numerators.marketCap_Fundamental;
+      
+      // Get denominator
+      const denKey = getDenominatorKey(denominator);
+      const denValue = (data.denominators[selectedYears] as any)?.[denKey];
+      
+      // Debug logging for verification
+      console.log(`[${company.ticker}] Simple Chart Calculation:`, {
+        numerator,
+        numValue,
+        denominator,
+        denKey,
+        selectedYears,
+        denValue,
+        rawCalculation: numValue && denValue ? Number(numValue) / Number(denValue) : null,
+        dataStructure: {
+          numerators: data.numerators,
+          denominators: data.denominators[selectedYears]
+        }
+      });
+      
+      // Calculate multiple
+      const multiple = calculateMultiple(numValue, denValue);
+      
+      // Handle different return types
+      if (multiple === null) return { ticker: company.ticker, value: 0 };
+      if (multiple === 'N/A' || multiple === 'inf') return { ticker: company.ticker, value: 0 };
+      if (typeof multiple !== 'number') return { ticker: company.ticker, value: 0 };
+      
+      return {
+        ticker: company.ticker,
+        value: Math.round(multiple * 100) / 100
+      };
+    });
+  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears]);
+  
+  // Calculate data for holistic chart with useMemo
+  const holisticData = useMemo(() => {
+    if (!multiplesData) return [];
+    
+    return selectedCompanies
+      .map(company => {
+        const data = multiplesData[company.ticker];
+        if (!data) return null;
+        
+        // Get revenue growth
+        const revenueGrowth = getNumericValue(data.revenueGrowth[selectedYears]);
+        
+        // Get ROIC (use excluding goodwill)
+        const roic = getNumericValue(data.roicMetrics[selectedYears]?.excludingGoodwill);
+        
+        // Calculate multiple
+        const numValue = numerator === 'EV foundational' 
+          ? data.numerators.enterpriseValue_Fundamental 
+          : data.numerators.marketCap_Fundamental;
+        const denKey = getDenominatorKey(denominator);
+        const denValue = (data.denominators[selectedYears] as any)?.[denKey];
+        const multiple = calculateMultiple(numValue, denValue);
+        
+        // Debug logging for holistic chart
+        console.log(`[${company.ticker}] Holistic Chart Calculation:`, {
+          selectedYears,
+          revenueGrowth: {
+            raw: data.revenueGrowth[selectedYears],
+            parsed: revenueGrowth
+          },
+          roic: {
+            raw: data.roicMetrics[selectedYears]?.excludingGoodwill,
+            parsed: roic
+          },
+          multiple: {
+            numerator: numValue,
+            denominator: denValue,
+            calculated: multiple
+          },
+          dataStructure: {
+            revenueGrowth: data.revenueGrowth,
+            roicMetrics: data.roicMetrics[selectedYears]
+          }
+        });
+        
+        // Filter out invalid data points (missing ROIC or revenue growth)
+        if (revenueGrowth === null || roic === null) return null;
+        if (!isFinite(revenueGrowth) || !isFinite(roic)) return null;
+        
+        const multipleValue = typeof multiple === 'number' ? Math.round(multiple * 100) / 100 : 0;
+        
+        return {
+          ticker: company.ticker,
+          revenueGrowth,
+          roic,
+          multiple: multipleValue
+        };
+      })
+      .filter(item => item !== null); // Remove invalid data points
+  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears]);
+
+  return (
+    <div className={`bg-white rounded-lg border shadow-sm p-3 sm:p-4 ${className}`}>
+      {/* Header and controls */}
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex items-center justify-between">
+          <div className="text-base sm:text-lg font-semibold text-gray-800">Multiples</div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setViewMode('holistic')}
+              className={`px-3 py-1 text-xs sm:text-sm rounded-full border ${
+                viewMode === 'holistic' 
+                  ? 'bg-[#1B5A7D] text-white border-[#1B5A7D]' 
+                  : 'border-gray-300 bg-gray-50 text-gray-700'
+              }`}
+            >
+              Holistic
+            </button>
+            <button 
+              onClick={() => setViewMode('simple')}
+              className={`px-3 py-1 text-xs sm:text-sm rounded-full border ${
+                viewMode === 'simple' 
+                  ? 'bg-[#1B5A7D] text-white border-[#1B5A7D]' 
+                  : 'border-gray-300 bg-gray-50 text-gray-700'
+              }`}
+            >
+              Simple
+            </button>
+          </div>
+        </div>
+
+        {/* Numerator / Denominator rows (per sketch) */}
+        <MultiplesSelectors 
+          numerator={numerator}
+          denominator={denominator}
+          onNumeratorChange={setNumerator}
+          onDenominatorChange={setDenominator}
+        />
+
+        {/* Company Multi-Select Search - Hidden for presentation */}
+        {SHOW_COMPANY_SELECTOR && (
+          <div className="relative" ref={companyDropdownRef}>
+            <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
+              {selectedCompanies.map((company, index) => (
+                <div 
+                  key={index} 
+                  className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                >
+                  {company.name || company.ticker}
+                  <button
+                    onClick={() => setSelectedCompanies(companies => 
+                      companies.filter((_, i) => i !== index)
+                    )}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+          <input
+            type="text"
+                value={companyInput}
+                onChange={(e) => setCompanyInput(e.target.value)}
+                onFocus={() => setShowCompanyDropdown(true)}
+                placeholder="Search companies..."
+                className="flex-1 min-w-[100px] outline-none text-xs sm:text-sm"
+              />
+            </div>
+            
+            {showCompanyDropdown && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                {companiesLoading ? (
+                  <div className="px-3 py-2 text-xs sm:text-sm text-gray-500">Loading companies...</div>
+                ) : availableCompanies.length === 0 ? (
+                  <div className="px-3 py-2 text-xs sm:text-sm text-gray-500">No companies available</div>
+                ) : (
+                  availableCompanies
+                    .filter(company => {
+                      // Only show companies that have multiples data
+                      const hasMultiplesData = multiplesData && multiplesData[company.ticker] && 
+                        multiplesData[company.ticker].numerators && 
+                        Object.keys(multiplesData[company.ticker].numerators).length > 0;
+                      return hasMultiplesData && 
+                        !selectedCompanies.some(c => c.ticker === company.ticker) &&
+                        (company.ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
+                         company.name.toLowerCase().includes(companyInput.toLowerCase()));
+                    })
+                    .map(company => (
+                      <div
+                        key={company.ticker}
+                        onClick={() => {
+                          if (!selectedCompanies.some(c => c.ticker === company.ticker)) {
+                            setSelectedCompanies([...selectedCompanies, company]);
+                          }
+                          setCompanyInput('');
+                          setShowCompanyDropdown(false);
+                        }}
+                        className="px-3 py-2 text-xs sm:text-sm hover:bg-gray-100 cursor-pointer"
+                      >
+                        {company.name} ({company.ticker})
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Chart */}
+      <div className="mt-4 h-[220px] sm:h-[260px]">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            Loading data...
+          </div>
+        ) : selectedCompanies.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            Select companies to view multiples
+          </div>
+        ) : viewMode === 'simple' ? (
+          // Simple Bar Chart
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={simpleData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis dataKey="ticker" tickLine={false} axisLine={false} />
+            <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+            <Bar dataKey="value" fill="#1B5A7D" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        ) : (
+          // Holistic Scatter Chart
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 28, right: -5, left: 6, bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis
+                  type="number"
+                  dataKey="roic"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${v}%`}
+                >
+                  <Label
+                    value={`ROIC (${selectedYears})`}
+                    position="insideBottomRight"
+                    offset={0}
+                    dy={8}
+                    style={{ fontSize: '12px', textAnchor: 'end' }}
+                  />
+                </XAxis>
+                <YAxis
+                  type="number"
+                  dataKey="revenueGrowth"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${v}%`}
+                />
+                <Tooltip 
+                  content={CustomTooltip}
+                />
+                <Scatter data={holisticData} fill="#1B5A7D">
+                  {holisticData.map((_, index) => (
+                    <Cell key={`cell-${index}`} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+            
+            {/* Custom Y-axis Label with Year Selector */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-5px',
+                left: '20%',
+                transform: 'translateX(-50%)',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span className="text-xs font-medium text-gray-700">Revenue Growth</span>
+              
+              {/* Year Selector Dropdown */}
+              <div ref={yearDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowYearDropdown(!showYearDropdown)}
+                  className="text-xs font-medium text-[#1B5A7D] bg-white px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
+                >
+                  ({selectedYears})
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showYearDropdown && (
+                  <div className="absolute top-full mt-1 left-0 bg-white border border-gray-200 rounded shadow-lg z-20">
+                    {YEAR_PERIODS.map(period => (
+                      <div
+                        key={period}
+                        onClick={() => {
+                          setSelectedYears(period);
+                          setShowYearDropdown(false);
+                        }}
+                        className={`px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 whitespace-nowrap ${
+                          selectedYears === period ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-700'
+                        }`}
+                      >
+                        {period}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MultiplesChart;
+
+

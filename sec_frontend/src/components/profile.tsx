@@ -147,7 +147,7 @@ const Profile: React.FC = () => {
                 <p className="text-sm sm:text-base text-gray-600 hidden sm:block">Manage your account settings and preferences</p>
               </div>
             </div>
-            <img src="/deep.PNG" alt="GetDeep.AI" className="h-8 sm:h-10" />
+            <img src="/inv.png" alt="GetDeep.AI" className="h-8 sm:h-10" />
           </div>
         </div>
       </div>

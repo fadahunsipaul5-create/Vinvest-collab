@@ -5,10 +5,15 @@ import InsightsGenerators from './InsightsGenerators';
 import AIOTPlatformSolutions from './AIOTPlatformSolutions';
 import OperationsVirtualization from './OperationsVirtualization';
 import Approach from './approach';
+import ValuationPage from './ValuationPage';
+import ValueBuildupChart from './ValueBuildupChart';
+import MultiplesChart from './MultiplesChart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import BoxPlot from './BoxPlot';
 import { useChat } from './chatbox';
 import { TooltipProps } from 'recharts';
+import { AVAILABLE_METRICS } from '../data/availableMetrics';
+import { useCompanyData } from '../contexts/CompanyDataContext';
 // const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // import {baseUrl} from '../api';
 import baseUrl from './api';
@@ -50,8 +55,29 @@ function generateColorPalette(count: number): string[] {
   return colors;
 }
 
+// Helper function to add opacity to a color for future data
+function addOpacityToColor(hexColor: string, opacity: number = 0.5): string {
+  // If the color is in HSL format, extract and modify it
+  if (hexColor.startsWith('hsl')) {
+    const match = hexColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+    if (match) {
+      const [, h, s, l] = match;
+      // Increase lightness for future data to make it lighter
+      const newL = Math.min(parseInt(l) + 25, 80);
+      return `hsl(${h}, ${s}%, ${newL}%)`;
+    }
+  }
+  
+  // For hex colors, add opacity as alpha channel
+  const opacityHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
+  return `${hexColor}${opacityHex}`;
+}
+
 // Update the PeriodType to include all available periods
-type PeriodType = '1Y' | '2Y' | '3Y' | '4Y' | '5Y' | '10Y' | '15Y' | '20Y';
+type PeriodType = 'Annual' | 'Average' | 'CAGR' | 
+                  'Last 1Y AVG' | 'Last 2Y AVG' | 'Last 3Y AVG' | 
+                  'Last 4Y AVG' | 'Last 5Y AVG' | 'Last 10Y AVG' | 'Last 15Y AVG' |
+                  '1Y' | '2Y' | '3Y' | '4Y' | '5Y' | '10Y' | '15Y' | '20Y';
 
 // Add interface for peer data
 interface PeerDataPoint {
@@ -93,10 +119,27 @@ interface TimePoint {
   [key: string]: any;  // Add other properties as needed
 }
 
+// Companies will be fetched from API
 
+// Hardcoded industry for presentation - TODO: Remove when database is ready
+const HARDCODED_INDUSTRIES = [
+  {
+    id: 'discount-stores',
+    name: 'Discount Stores',
+    companies: [
+      { ticker: 'COST', name: 'Costco' },
+      { ticker: 'WMT', name: 'Walmart Inc.' },
+      { ticker: 'BJ', name: "BJ's Wholesale Club" },
+      { ticker: 'DG', name: 'Dollar General' },
+      { ticker: 'DLTR', name: 'Dollar Tree' },
+      { ticker: 'TGT', name: 'Target Corporation' }
+    ]
+  }
+];
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { modifiedData, resetTrigger } = useCompanyData();
   
   // Initialize Stripe
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51Rtnsm3OKz7lNN5EIAyB8tRqrJQ2KBPMvLiNh5mjZiKLOqnhezmIzhCSNRk1E0QVVlN1G4RPgbZlTbXOHmmAahvN00ChkAsNey');
@@ -141,7 +184,9 @@ const Dashboard: React.FC = () => {
   const [showApproachModal, setShowApproachModal] = useState(false);
   const [showWhyUsModal, setShowWhyUsModal] = useState(false);
   const [showValueServicesModal, setShowValueServicesModal] = useState(false);
+  const [showValuationModal, setShowValuationModal] = useState(false);
   const [showCapabilitiesDropdown, setShowCapabilitiesDropdown] = useState(false);
+  const [isChatbotMinimized, setIsChatbotMinimized] = useState(false);
   const [showAIOTModal, setShowAIOTModal] = useState(false);
   const [showOperationsModal, setShowOperationsModal] = useState(false);
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
@@ -896,10 +941,12 @@ const Dashboard: React.FC = () => {
 
   const [userName, setUserName] = useState('Guest User');
   const [userInitials, setUserInitials] = useState('GU');
-  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry'>('metrics');
+  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation'>('metrics');
   const [searchValue, setSearchValue] = useState('');
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
   const [companyInput, setCompanyInput] = useState('');
+  const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
   const [selectedPeerMetric, setSelectedPeerMetric] = useState<string>('');
   const [selectedSearchMetrics, setSelectedSearchMetrics] = useState<string[]>([]);
   const [searchMetricInput, setSearchMetricInput] = useState('');
@@ -908,7 +955,7 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('1Y');
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('Annual');
   const [peerChartData, setPeerChartData] = useState<PeerDataPoint[]>([]);
   const [peerLoading, setPeerLoading] = useState(false);
   const [peerError, setPeerError] = useState<string | null>(null);
@@ -939,13 +986,16 @@ const Dashboard: React.FC = () => {
   const performanceCardRef = useRef<HTMLDivElement>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
-  const [companyMap, setCompanyMap] = useState<{ [ticker: string]: string }>({});
+  const [_companyMap, setCompanyMap] = useState<{ [ticker: string]: string }>({});
 
   // Add these lines for peer metrics
   const [selectedPeerMetrics, setSelectedPeerMetrics] = useState<string[]>([]);
 
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Business Performance tabs state
+  const [activePerformanceTab, setActivePerformanceTab] = useState<'top-picks' | 'performance' | 'valuation'>('performance');
 
   const {
     messages,
@@ -1048,21 +1098,34 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchCompanies = async () => {
+      setCompaniesLoading(true);
       try {
         const response = await fetch(`${baseUrl}/api/companies/`);
         if (!response.ok) {
           throw new Error(`Failed to fetch companies: ${response.status}`);
         }
         const data = await response.json();
+        
+        // Handle both paginated (results) and non-paginated responses
+        const companiesList = data.results || data;
 
         const map: { [ticker: string]: string } = {};
-        data.forEach((company: any) => {
-          map[company.ticker] = company.display_name || company.name || company.ticker;
+        const companies: CompanyTicker[] = [];
+        
+        companiesList.forEach((company: any) => {
+          const ticker = company.ticker;
+          const name = company.display_name || company.name || company.ticker;
+          map[ticker] = name;
+          companies.push({ ticker, name });
         });
 
         setCompanyMap(map);
+        setAvailableCompanies(companies);
       } catch (error) {
         console.error('Error fetching companies:', error);
+        setError('Failed to load companies. Please refresh the page.');
+      } finally {
+        setCompaniesLoading(false);
       }
     };
 
@@ -1081,23 +1144,26 @@ const Dashboard: React.FC = () => {
 
   const fetchAvailableMetrics = async () => {
     try {
-      const response = await fetch(`${baseUrl}/api/available-metrics/`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch metrics');
-      }
-      const data = await response.json();
-      console.log('Fetched metrics:', data);
+      // TODO: Replace with API call when database is ready
+      // const response = await fetch(`${baseUrl}/api/available-metrics/`);
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch metrics');
+      // }
+      // const data = await response.json();
+      // console.log('Fetched metrics:', data);
       
-      // Format metric names for display
-      const formattedMetrics = data.metrics.map((metric: string) => ({
-        value: metric,
-        label: metric
-          .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-          .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-          .trim()
-      }));
+      // // Format metric names for display
+      // const formattedMetrics = data.metrics.map((metric: string) => ({
+      //   value: metric,
+      //   label: metric
+      //     .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      //     .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+      //     .trim()
+      // }));
       
-      setAvailableMetrics(formattedMetrics);
+      // Use hardcoded metrics for now
+      setAvailableMetrics(AVAILABLE_METRICS);
+      console.log('Using hardcoded metrics:', AVAILABLE_METRICS.length);
     } catch (error) {
       console.error('Error fetching metrics:', error);
     }
@@ -1111,117 +1177,160 @@ const Dashboard: React.FC = () => {
     
     try {
       const ticker = searchValue.split(':')[0].trim().toUpperCase();
-      console.log('Fetching data for ticker:', ticker, 'period:', selectedPeriod);
+      console.log('Fetching data from API for ticker:', ticker, 'period:', selectedPeriod);
 
-      // Create array of time periods based on selectedPeriod
-      let timePoints: string[] = [];
-      if (selectedPeriod === '1Y') {
-        // For annual data, use single years
-        timePoints = Array.from({ length: 20 }, (_, i) => (2005 + i).toString());
-      } else {
-        // For multi-year periods, use predefined ranges
-        switch (selectedPeriod) {
-          case '2Y':
-            timePoints = [
-              '2005-06', '2007-08', '2009-10', '2011-12', '2013-14',
-              '2015-16', '2017-18', '2019-20', '2021-22', '2023-24'
-            ];
-            break;
-          case '3Y':
-            timePoints = [
-              '2007-09', '2010-12', '2013-15', '2016-18',
-              '2019-21', '2022-24'
-            ];
-            break;
-          case '4Y':
-            timePoints = [
-              '2005-08', '2009-12', '2013-16', '2017-20', '2021-24'
-            ];
-            break;
-          case '5Y':
-            timePoints = [
-              '2005-09', '2010-14', '2015-19', '2020-24'
-            ];
-            break;
-          case '10Y':
-            timePoints = ['2005-14', '2015-24'];
-            break;
-          case '15Y':
-            timePoints = ['2010-24'];
-            break;
-          case '20Y':
-            timePoints = ['2005-24'];
-            break;
-        }
-      }
+      let transformedData: ChartDataPoint[] = [];
 
-      // First check if company exists
-      const companyResponse = await fetch(`${baseUrl}/api/companies/${ticker}/`);
-      if (!companyResponse.ok) {
-        setError(`No data available for ${ticker}. Please try another company.`);
-        setChartData([]);
-        return;
-      }
-
-      // Fetch data for all selected metrics
-      const promises = selectedSearchMetrics.map(async metric => {
-        const url = `${baseUrl}/api/aggregated-data/?tickers=${ticker}&metric=${metric}&period=${selectedPeriod}`;
-        console.log('Fetching from URL:', url);
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data for ${metric}`);
-        }
-        const data = await response.json();
-        console.log(`Raw data for ${metric}:`, data);
-        return { metric, data };
-      });
-
-      const results = await Promise.all(promises);
-      console.log('All results:', results);
-
-      if (results.every(result => result.data.length === 0)) {
-        setError(`No data available for ${ticker} for the selected metrics and period.`);
-        setChartData([]);
-        return;
-      }
-
-      // Initialize data points for all time periods
-      const baseData = timePoints.map(period => ({
-        name: period,
-        ticker: ticker,
-        value: 0
-      }));
-
-      // Transform the data for the chart
-      const transformedData = results.reduce((acc, { metric, data }) => {
-        // Start with the base data structure
-        if (acc.length === 0) {
-          acc = [...baseData];
-        }
-
-        // Create a map of existing data points
-        const dataMap = new Map<string, number>(data.map((item: DataItem) => [item.name, item.value]));
-
-        // Update all time points, using null for missing data instead of 0
-        acc.forEach(point => {
-          point[metric] = dataMap.get(point.name) ?? null;  // Use null coalescing
-          point.ticker = ticker;
+      if (selectedPeriod === 'Annual') {
+        // For Annual: Fetch data for each metric with period='1Y' (returns all annual years)
+        const yearData: { [year: string]: any } = {};
+        
+        // Fetch data for each metric
+        const promises = selectedSearchMetrics.map(async (metric) => {
+          const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=1Y`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${metric} data: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          return { metric, data };
         });
 
-        return acc;
-      }, [] as ChartDataPoint[]);
+        const results = await Promise.all(promises);
+        
+        // Transform API response to chart format
+        results.forEach(({ metric, data }) => {
+          data.forEach((item: { name: string; ticker: string; value: number | null }) => {
+            const year = item.name;
+            if (!yearData[year]) {
+              yearData[year] = {
+                name: year,
+                year: parseInt(year) || year
+                };
+              }
+              
+            // Determine if historical (year <= 2024) or future
+            const yearNum = parseInt(year);
+            const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
+            const suffix = isHistorical ? '_historical' : '_future';
+            yearData[year][`${metric}${suffix}`] = item.value;
+            });
+        });
+        
+        // Convert to array and sort by year
+        transformedData = Object.values(yearData).sort((a, b) => {
+          const yearA = parseInt(a.name) || 0;
+          const yearB = parseInt(b.name) || 0;
+          return yearA - yearB;
+        });
 
-      console.log('Transformed data:', transformedData);
+      } else if (selectedPeriod === 'Average') {
+        // For Average: Fetch data for each period (1Y, 2Y, 3Y, 4Y, 5Y, 10Y, 15Y)
+        const periods = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
+        const periodData: { [period: string]: any } = {};
+        
+        // Fetch data for each metric and period combination
+        const promises = selectedSearchMetrics.flatMap((metric) =>
+          periods.map(async (period) => {
+            const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=Average`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              console.warn(`Failed to fetch ${metric} data for period ${period}: ${response.status}`);
+              return { metric, period, value: null };
+            }
+            
+            const data = await response.json();
+            // Get the first (and should be only) value for this period
+            const value = data.length > 0 ? data[0].value : null;
+            return { metric, period, value };
+          })
+        );
+
+        const results = await Promise.all(promises);
+        
+        // Group by period
+        results.forEach(({ metric, period, value }) => {
+          if (!periodData[period]) {
+            periodData[period] = {
+              name: period,
+              period: period
+                };
+              }
+          if (value !== null) {
+            periodData[period][metric] = value;
+          }
+        });
+
+        // Convert to array, sorted by period
+        transformedData = Object.values(periodData).sort((a, b) => {
+          const periodOrder = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
+          return periodOrder.indexOf(a.period) - periodOrder.indexOf(b.period);
+        });
+
+      } else if (selectedPeriod === 'CAGR') {
+        // For CAGR: Similar to Average but with periodType=CAGR
+        const periods = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
+        const periodData: { [period: string]: any } = {};
+        
+        // Fetch data for each metric and period combination
+        const promises = selectedSearchMetrics.flatMap((metric) =>
+          periods.map(async (period) => {
+            const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=CAGR`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              console.warn(`Failed to fetch ${metric} CAGR data for period ${period}: ${response.status}`);
+              return { metric, period, value: null };
+            }
+            
+            const data = await response.json();
+            const value = data.length > 0 ? data[0].value : null;
+            return { metric, period, value };
+          })
+        );
+
+        const results = await Promise.all(promises);
+        
+        // Group by period
+        results.forEach(({ metric, period, value }) => {
+          if (!periodData[period]) {
+            periodData[period] = {
+              name: period,
+              period: period
+                };
+              }
+          if (value !== null) {
+            periodData[period][metric] = value;
+          }
+        });
+
+        // Convert to array, sorted by period
+        transformedData = Object.values(periodData).sort((a, b) => {
+          const periodOrder = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
+          return periodOrder.indexOf(a.period) - periodOrder.indexOf(b.period);
+        });
+      }
+
+      if (transformedData.length === 0) {
+        setError(`No data available for ${ticker}. Please try another company or metric.`);
+        setChartData([]);
+        return;
+      }
+
+      console.log('Transformed API data:', transformedData);
       setChartData(transformedData);
 
     } catch (error) {
-      console.error('Error fetching metric data:', error);
-      setError('Failed to fetch data');
+      console.error('Error fetching data from API:', error);
+      setError('Failed to load data from database. Please try again.');
+      setChartData([]);
     } finally {
       setIsLoading(false);
     }
-  }, [searchValue, selectedSearchMetrics, selectedPeriod]);
+  }, [searchValue, selectedSearchMetrics, selectedPeriod, baseUrl]);
 
   const fetchPeerData = useCallback(async () => {
     try {
@@ -1242,9 +1351,25 @@ const Dashboard: React.FC = () => {
       setPeerLoading(true);
       setPeerError(null);
 
+      // Determine periodType and period value based on selectedPeriod
+      let periodTypeParam = '';
+      let periodValue = selectedPeriod;
+      
+      if (selectedPeriod === 'Average') {
+        periodTypeParam = '&periodType=Average';
+        periodValue = '1Y'; // Default to 1Y for Average mode
+      } else if (selectedPeriod === 'CAGR') {
+        periodTypeParam = '&periodType=CAGR';
+        periodValue = '1Y'; // Default to 1Y for CAGR mode
+      } else if (selectedPeriod === 'Annual') {
+        // Convert 'Annual' to '1Y' for backend API
+        periodValue = '1Y';
+      }
+      // For period strings like '1Y', '2Y', etc., use as-is
+      
       // Fetch data for each company
       const promises = selectedCompanies.map(async company => {
-        const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(selectedPeriod)}`;
+        const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(periodValue)}${periodTypeParam}`;
         console.log('Fetching from:', url);
         const response = await fetch(url);
         
@@ -1260,36 +1385,76 @@ const Dashboard: React.FC = () => {
       const results = await Promise.all(promises);
       
       if (results.length === 0 || results[0].data.length === 0) {
-        console.error('No data returned from API');
-        setPeerError('No data available for the selected companies and metric');
+        setPeerError('No data available for the selected companies and metric.');
         setPeerChartData([]);
         return;
       }
 
-      // Create a unified dataset with all companies
-      const transformedData = results[0].data.map((timePoint: TimePoint) => {
-        const point: PeerDataPoint = { 
-          name: timePoint.name,
-          // Add metric name as key with company values
-          [selectedPeerMetric]: {} 
-        };
+      let transformedData: PeerDataPoint[];
+
+      if (selectedPeriod === 'Annual') {
+        // For Annual: Split data into _historical and _future based on year
+        const yearData: { [year: string]: any } = {};
         
+        // Collect all unique time points from all companies
         results.forEach(({ company, data }) => {
-          const matchingPoint = data.find((d: DataItem) => d.name === timePoint.name);
-          if (matchingPoint) {
-            (point[selectedPeerMetric] as { [ticker: string]: number })[company.ticker] = matchingPoint.value;
-          }
+          data.forEach((item: DataItem) => {
+            const year = item.name;
+            if (!yearData[year]) {
+              yearData[year] = {
+                name: year,
+                year: parseInt(year) || year
+              };
+            }
+            
+            // Determine if historical (year <= 2024) or future
+            const yearNum = parseInt(year);
+            const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
+            const suffix = isHistorical ? '_historical' : '_future';
+            const metricKey = `${selectedPeerMetric}${suffix}`;
+            
+            // Initialize the metric key if it doesn't exist
+            if (!yearData[year][metricKey]) {
+              yearData[year][metricKey] = {};
+            }
+            
+            // Add company value
+            yearData[year][metricKey][company.ticker] = item.value;
+          });
         });
         
-        return point;
-      });
+        // Convert to array and sort by year
+        transformedData = Object.values(yearData).sort((a, b) => {
+          const yearA = parseInt(a.name) || 0;
+          const yearB = parseInt(b.name) || 0;
+          return yearA - yearB;
+        }) as PeerDataPoint[];
+      } else {
+        // For Average/CAGR: Create a unified dataset with all companies
+        transformedData = results[0].data.map((timePoint: TimePoint) => {
+          const point: PeerDataPoint = { 
+            name: timePoint.name,
+            // Add metric name as key with company values
+            [selectedPeerMetric]: {} 
+          };
+          
+          results.forEach(({ company, data }) => {
+            const matchingPoint = data.find((d: DataItem) => d.name === timePoint.name);
+            if (matchingPoint) {
+              (point[selectedPeerMetric] as { [ticker: string]: number })[company.ticker] = matchingPoint.value;
+            }
+          });
+          
+          return point;
+        });
+      }
 
       console.log('Transformed peer data:', transformedData);
       setPeerChartData(transformedData);
 
     } catch (error) {
-      console.error('Error fetching peer data:', error);
-      setPeerError(`Failed to connect to backend. Ensure it's running at ${baseUrl}`);
+      console.error('Error fetching peer data from API:', error);
+      setPeerError('Failed to load peer comparison data. Please try again.');
       setPeerChartData([]);
     } finally {
       setPeerLoading(false);
@@ -1297,34 +1462,114 @@ const Dashboard: React.FC = () => {
   }, [selectedCompanies, selectedPeerMetric, selectedPeriod, baseUrl]);
 
   const fetchIndustryData = useCallback(async () => {
-    if (selectedIndustryMetrics.length === 0 || !selectedIndustry) return;
+    if (selectedIndustryMetrics.length === 0) return;
     
     setIndustryLoading(true);
     setIndustryError(null);
     
     try {
-      const metricsParams = selectedIndustryMetrics.map(m => `metric[]=${encodeURIComponent(m)}`).join('&');
-      const url = `${baseUrl}/api/boxplot-data/?${metricsParams}&period=${selectedPeriod}&industry=${encodeURIComponent(selectedIndustry)}`;
-      console.log('Fetching from URL:', url);
+      console.log('Fetching industry data from API for metrics:', selectedIndustryMetrics, 'period:', selectedPeriod);
 
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch industry data');
+      // Get companies from selected industry
+      const selectedIndustryObj = [...HARDCODED_INDUSTRIES, ...availableIndustries].find(
+        ind => ('id' in ind ? ind.id : (ind as any).value) === selectedIndustry
+      );
+      
+      if (!selectedIndustryObj) {
+        setIndustryError('No industry selected');
+        setIndustryChartData({});
+        return;
       }
-      const data = await response.json();
-      console.log('Raw industry data:', data);
+      
+      const allCompanies = selectedIndustryObj?.companies?.map(c => 
+        typeof c === 'string' ? c : (c as any).ticker
+      ) || [];
+      
+      if (allCompanies.length === 0) {
+        setIndustryError('No companies found in selected industry');
+        setIndustryChartData({});
+        return;
+      }
 
-      // Directly use the values object
-      setIndustryChartData(data.values || {});
-      setIndustryCompanyNames(data.companyNames || {});
+      // Map period to backend format and determine periodType
+      const periodMap: { [key: string]: string } = {
+        'Last 1Y AVG': '1Y',
+        'Last 2Y AVG': '2Y',
+        'Last 3Y AVG': '3Y',
+        'Last 4Y AVG': '4Y',
+        'Last 5Y AVG': '5Y',
+        'Last 10Y AVG': '10Y',
+        'Last 15Y AVG': '15Y'
+      };
+      const backendPeriod = periodMap[selectedPeriod] || '1Y';
+      
+      // Determine periodType - if selectedPeriod contains 'AVG', use Average
+      let periodTypeParam = '';
+      if (selectedPeriod.includes('AVG') || selectedPeriod === 'Average') {
+        periodTypeParam = '&periodType=Average';
+      } else if (selectedPeriod.includes('CAGR') || selectedPeriod === 'CAGR') {
+        periodTypeParam = '&periodType=CAGR';
+      }
+
+      const industryData: { [key: string]: number[] } = {};
+      const companyNames: { [metric: string]: string[] } = {};
+
+      // Fetch data for each metric and company combination
+      for (const metric of selectedIndustryMetrics) {
+        const metricValues: number[] = [];
+        const metricCompanyNames: string[] = [];
+        
+        const promises = allCompanies.map(async (ticker: string) => {
+          try {
+            const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(backendPeriod)}${periodTypeParam}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              console.warn(`Failed to fetch ${metric} for ${ticker}: ${response.status}`);
+              return { ticker, value: null, name: ticker };
+            }
+            
+            const data = await response.json();
+            const value = data.length > 0 ? data[0].value : null;
+            
+            // Get company name from availableCompanies
+            const company = availableCompanies.find(c => c.ticker === ticker);
+            const name = company?.name || ticker;
+            
+            return { ticker, value, name };
+          } catch (error) {
+            console.error(`Error fetching ${metric} for ${ticker}:`, error);
+            return { ticker, value: null, name: ticker };
+          }
+        });
+
+        const results = await Promise.all(promises);
+        
+        results.forEach(({ value, name }) => {
+          if (value !== null && value !== undefined) {
+            metricValues.push(value);
+            metricCompanyNames.push(name);
+          }
+        });
+
+        if (metricValues.length > 0) {
+          industryData[metric] = metricValues;
+          companyNames[metric] = metricCompanyNames;
+        }
+      }
+
+      console.log('Industry data from API:', industryData);
+      setIndustryChartData(industryData);
+      setIndustryCompanyNames(companyNames);
 
     } catch (error) {
       console.error('Error fetching industry data:', error);
-      setIndustryError('Failed to fetch industry data');
+      setIndustryError('Failed to fetch industry data from database. Please try again.');
+      setIndustryChartData({});
     } finally {
       setIndustryLoading(false);
     }
-  }, [selectedIndustryMetrics, selectedPeriod, selectedIndustry]);
+  }, [selectedIndustryMetrics, selectedPeriod, selectedIndustry, availableIndustries, availableCompanies, baseUrl]);
 
   const fetchAvailableIndustries = async () => {
     try {
@@ -1350,18 +1595,36 @@ const Dashboard: React.FC = () => {
     fetchAvailableMetrics();
   }, []);
 
+  // Clear all cached chart data when reset occurs to force complete refresh
+  useEffect(() => {
+    if (resetTrigger > 0) { // Only clear if resetTrigger has been set (not initial 0)
+      setChartData([]);
+      setPeerChartData([]);
+      setIndustryChartData({});
+      setFixed2024Data(null);
+      setError(null);
+      setPeerError(null);
+      setIndustryError(null);
+      
+      // Force immediate re-fetch if currently on metrics tab
+      if (activeChart === 'metrics') {
+        setTimeout(() => fetchMetricData(), 50);
+      }
+    }
+  }, [resetTrigger, activeChart, fetchMetricData, searchValue]);
+
   // Fetch metric data when dependencies change (do NOT depend on chartData)
   useEffect(() => {
     if (activeChart === 'metrics') {
       fetchMetricData();
     }
-  }, [searchValue, selectedSearchMetrics, activeChart, selectedPeriod, fetchMetricData]);
+  }, [searchValue, selectedSearchMetrics, activeChart, selectedPeriod, fetchMetricData, modifiedData, resetTrigger]);
 
   // Update the useEffect that sets fixed2024Data
   useEffect(() => {
     if (activeChart === 'metrics' && chartData.length > 0) {
       // For annual view, keep the 2024 logic
-      if (selectedPeriod === '1Y') {
+      if (selectedPeriod === 'Annual') {
         const data2024 = chartData.find(d => d.name.startsWith('2024'));
         if (data2024) {
           setFixed2024Data(data2024);
@@ -1374,8 +1637,8 @@ const Dashboard: React.FC = () => {
         }
       }
     } else if (activeChart === 'peers' && peerChartData.length > 0) {
-      if (selectedPeriod === '1Y') {
-        const data2024 = peerChartData.find(d => d.name.startsWith('2024'));
+      if (selectedPeriod === 'Annual') {
+        const data2024 = peerChartData.find(d => String(d.name).startsWith('2024'));
         if (data2024) {
           setFixed2024Data(data2024);
         }
@@ -1393,13 +1656,13 @@ const Dashboard: React.FC = () => {
       console.log('Triggering peer data fetch');
       fetchPeerData();
     }
-  }, [activeChart, selectedPeerMetric, selectedCompanies, fetchPeerData]);
+  }, [activeChart, selectedPeerMetric, selectedCompanies, fetchPeerData, resetTrigger]);
 
   useEffect(() => {
     if (activeChart === 'industry') {
       fetchIndustryData();
     }
-  }, [activeChart, selectedIndustryMetrics, selectedPeriod, selectedIndustry, fetchIndustryData]);
+  }, [activeChart, selectedIndustryMetrics, selectedPeriod, selectedIndustry, fetchIndustryData, resetTrigger]);
 
 
 
@@ -1480,6 +1743,21 @@ const Dashboard: React.FC = () => {
       setSelectedPeerMetrics([selectedPeerMetric]);
     }
   }, [selectedPeerMetric]);
+
+  // Handle period state when switching tabs
+  useEffect(() => {
+    if (activeChart === 'industry') {
+      // Set default to 'Last 1Y AVG' for industry tab
+      if (!selectedPeriod.startsWith('Last') || !selectedPeriod.includes('AVG')) {
+        setSelectedPeriod('Last 1Y AVG');
+      }
+    } else {
+      // Set default to 'Annual' for other tabs
+      if (selectedPeriod.startsWith('Last') || !['Annual', 'Average', 'CAGR'].includes(selectedPeriod)) {
+        setSelectedPeriod('Annual');
+      }
+    }
+  }, [activeChart, selectedPeriod]);
 
 
   useEffect(() => {
@@ -1608,6 +1886,7 @@ const Dashboard: React.FC = () => {
   }, [isMobileSidebarOpen]);
 
   return (
+    <>
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       <style>
         {`
@@ -1653,6 +1932,16 @@ const Dashboard: React.FC = () => {
               <div>Add data sources</div>
               <div>Change model</div>
             </div> */}
+          </div>
+
+          <div className="space-y-2">
+            <button 
+              onClick={() => setShowValuationModal(true)}
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
+            >
+              <span className="text-sm">📊</span>
+              <span className="text-sm">Company Valuation</span>
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -1830,9 +2119,9 @@ const Dashboard: React.FC = () => {
         <div className="hidden lg:block border-b bg-white absolute left-0 right-0 h-20 lg:h-24">
           <div className="flex items-center h-full relative border">
             {/* Logo container - hide on mobile and show only on desktop */}
-            <div className="hidden lg:block h-12 w-fit  overflow-visible pl-4 lg:pl-6 xl:pl-7">
+            <div className="hidden lg:block h-9 w-fit  overflow-visible pl-4 lg:pl-6 xl:pl-7">
               <img 
-                src="/deep.PNG" 
+                src="/inv.png" 
                 alt="GetDeep.AI" 
                 className="w-full h-full"
               />
@@ -1937,7 +2226,7 @@ const Dashboard: React.FC = () => {
             <div className="fixed left-0 top-0 h-full w-64 xm:w-72 xs:w-80 sm:w-96 md:w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b">
-                <img src="/deep.PNG" alt="GetDeep.AI" className="h-9 w-fit opacity-100" style={{ filter: 'contrast(1.2) brightness(1.1)' }} />
+                <img src="/inv.png" alt="GetDeep.AI" className="h-9 w-fit opacity-100" style={{ filter: 'contrast(1.2) brightness(1.1)' }} />
                 <button
                   onClick={() => setIsMobileSidebarOpen(false)}
                   className="p-2 rounded-md hover:bg-gray-100 transition-colors"
@@ -1951,6 +2240,19 @@ const Dashboard: React.FC = () => {
               
               {/* Navigation Items */}
               <div className="px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      setShowValuationModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">📊</span>
+                    <span className="text-sm sm:text-base">Company Valuation</span>
+                  </button>
+                </div>
+
                 <div className="space-y-2">
                   <button 
                     onClick={() => {
@@ -2190,8 +2492,45 @@ const Dashboard: React.FC = () => {
         <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:p-6 xl:p-8 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6">
             {/* Chart Section - full width on mobile */}
-            <div className="lg:col-span-6">
+            <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-6'} transition-all duration-300`}>
               <div className="bg-white rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm" ref={performanceCardRef} id="bp-print-area">
+
+                {/* Business Performance Tabs */}
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => {
+                      setActivePerformanceTab('top-picks');
+                      setIsChatbotMinimized(false);
+                    }}
+                    className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
+                      activePerformanceTab === 'top-picks'
+                        ? 'bg-[#1B5A7D] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Top Picks
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActivePerformanceTab('performance');
+                      setIsChatbotMinimized(true);
+                    }}
+                    className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
+                      activePerformanceTab === 'performance'
+                        ? 'bg-[#1B5A7D] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Performance
+                  </button>
+                  <button
+                    onClick={() => setShowValuationModal(true)}
+                    className="px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  >
+                    Valuation Model
+                  </button>
+                </div>
+
                 {/* Chart Header with Save Button */}
                 <div className="flex justify-between items-center mb-2 xm:mb-3 xs:mb-3.5 sm:mb-4 md:mb-5 lg:mb-5 xl:mb-6">
                   <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Business Performance</h2>
@@ -2218,13 +2557,244 @@ const Dashboard: React.FC = () => {
                   </button>
         </div>
 
+        {/* Company Search */}
+        <div className="mb-4">
+          <div className="text-sm xl:text-base text-gray-500">Company</div>
+          {activeChart === 'peers' ? (
+            <div className="relative" ref={companyDropdownRef}>
+              <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
+                {selectedCompanies.map((company, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                  >
+                    {company.name || company.ticker}
+                    <button
+                      onClick={() => setSelectedCompanies(companies => 
+                        companies.filter((_, i) => i !== index)
+                      )}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                <input
+                  type="text"
+                  value={companyInput}
+                  onChange={(e) => setCompanyInput(e.target.value)}
+                  onFocus={() => setShowCompanyDropdown(true)}
+                  placeholder="Search companies..."
+                  className="flex-1 min-w-[100px] outline-none text-sm"
+                />
+              </div>
+              
+              {showCompanyDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {companiesLoading ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                  ) : availableCompanies.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                  ) : (
+                    availableCompanies
+                    .filter(company => 
+                      !selectedCompanies.some(c => c.ticker === company.ticker) &&
+                      (company.ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
+                       company.name.toLowerCase().includes(companyInput.toLowerCase()))
+                    )
+                    .map(company => (
+                      <div
+                        key={company.ticker}
+                          onClick={() => {
+                          if (!selectedCompanies.some(c => c.ticker === company.ticker)) {
+                            setSelectedCompanies([...selectedCompanies, company]);
+                            }
+                            setCompanyInput('');
+                            setShowCompanyDropdown(false);
+                          }}
+                        className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                        >
+                        {company.name} ({company.ticker})
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : activeChart === 'industry' ? (
+            <div className="relative" ref={companyDropdownRef}>
+              <input
+                type="text"
+                placeholder="Search companies..."
+                value={selectedTicker || companySearch}
+                onChange={(e) => {
+                  setCompanySearch(e.target.value);
+                  setSelectedTicker(''); // Clear selection when typing
+                  setSelectedIndustry('');
+                  setIndustrySearch('');
+                }}
+                onFocus={() => setShowCompanyDropdown(true)}
+                className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+              />
+              {selectedTicker && (
+                <button
+                  onClick={() => {
+                    setSelectedTicker('');
+                    setCompanySearch('');
+                    setSelectedIndustry('');
+                    setIndustrySearch('');
+                  }}
+                  className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              
+              {showCompanyDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {companiesLoading ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                  ) : availableCompanies.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                  ) : (
+                    availableCompanies
+                    .filter(company => 
+                      company.ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
+                      company.name.toLowerCase().includes(companySearch.toLowerCase())
+                    )
+                    .map(company => (
+                      <div
+                        key={company.ticker}
+                          onClick={() => {
+                          setSelectedTicker(company.ticker);
+                            setCompanySearch('');
+                            setShowCompanyDropdown(false);
+                            
+                            // Auto-select industry based on company
+                            const companyIndustry = [...HARDCODED_INDUSTRIES, ...availableIndustries].find(industry => {
+                              return industry.companies?.some(c => 
+                                (typeof c === 'string' ? c : (c as any).ticker) === company.ticker
+                              );
+                            });
+
+                            if (companyIndustry) {
+                              const industryId = 'id' in companyIndustry ? companyIndustry.id : (companyIndustry as any).value;
+                              const industryName = 'name' in companyIndustry ? companyIndustry.name : (companyIndustry as any).label;
+                              setSelectedIndustry(industryId);
+                              setIndustrySearch(industryName);
+                            }
+                          }}
+                        className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                        >
+                        {company.name} ({company.ticker})
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative" ref={companyDropdownRef}>
+              <input
+                type="text"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onFocus={() => setShowCompanyDropdown(true)}
+                placeholder="Search company..."
+                className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+              />
+              {searchValue && (
+                <button
+                  onClick={() => setSearchValue('')}
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+
+              {showCompanyDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {companiesLoading ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                  ) : availableCompanies.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                  ) : (
+                    availableCompanies
+                    .filter(company => 
+                      company.ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
+                      company.name.toLowerCase().includes(searchValue.toLowerCase())
+                    )
+                    .map(company => (
+                      <div
+                        key={company.ticker}
+                          onClick={() => {
+                          setSearchValue(company.ticker);
+                            setShowCompanyDropdown(false);
+                          }}
+                        className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                        >
+                        {company.name} ({company.ticker})
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Metrics Selector */}
-                <div className="overflow-x-auto -mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
-                  <div className="space-y-1.5 xm:space-y-2 xs:space-y-2.5 sm:space-y-3 md:space-y-3.5 lg:space-y-3.5 xl:space-y-4 min-w-max px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
-                    <div className="flex gap-2 xm:gap-2.5 xs:gap-3 sm:gap-3 md:gap-3.5 lg:gap-3.5 xl:gap-4">
+                <div className="-mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
+                  <div className="space-y-1 xm:space-y-1.5 xs:space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 xl:space-y-3 px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
+                     {/* Across tabs - NO scrolling, stays fixed */}
+                     <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
+                      <button 
+                        onClick={() => setActiveChart('valuation')}
+                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
+                          activeChart === 'valuation' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                        }`}
+                      >
+                        Valuation
+                      </button>
                       <button 
                         onClick={() => setActiveChart('metrics')}
-                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded ${
+                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
                           activeChart === 'metrics' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
                         }`}
                       >
@@ -2232,7 +2802,7 @@ const Dashboard: React.FC = () => {
                       </button>
                       <button 
                         onClick={() => setActiveChart('peers')}
-                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base ${
+                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
                           activeChart === 'peers' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
                         }`}
                       >
@@ -2240,101 +2810,130 @@ const Dashboard: React.FC = () => {
                       </button>
                       <button 
                         onClick={() => setActiveChart('industry')}
-                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base ${
+                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
                           activeChart === 'industry' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
                         }`}
                       >
                         Across Industry
                       </button>
           </div>
-          <div className="flex gap-4">
+                     
+                     {/* Period buttons - conditionally scrollable */}
+{activeChart === 'industry' ? (
+              <div className="overflow-x-auto -mx-1 px-1">
+                <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3 min-w-max">
                       <button 
-                        onClick={() => setSelectedPeriod('1Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '1Y' 
+                  onClick={() => setSelectedPeriod('Last 1Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 1Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 1Y' : 'Annual'}
+                  Last 1Y AVG
                       </button>
                       <button 
-                        onClick={() => setSelectedPeriod('2Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '2Y' 
+                  onClick={() => setSelectedPeriod('Last 2Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 2Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 2Ys' : '2Ys'}
+                  Last 2Y AVG
                       </button>
                       <button 
-                        onClick={() => setSelectedPeriod('3Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '3Y' 
+                  onClick={() => setSelectedPeriod('Last 3Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 3Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 3Ys' : '3Ys'}
+                  Last 3Y AVG
                       </button>
                       <button 
-                        onClick={() => setSelectedPeriod('4Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '4Y' 
+                  onClick={() => setSelectedPeriod('Last 4Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 4Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 4Ys' : '4Ys'}
+                  Last 4Y AVG
                       </button>
                       <button 
-                        onClick={() => setSelectedPeriod('5Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '5Y' 
+                  onClick={() => setSelectedPeriod('Last 5Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 5Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 5Ys' : '5Ys'}
+                  Last 5Y AVG
                       </button>
                       <button 
-                        onClick={() => setSelectedPeriod('10Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '10Y' 
+                  onClick={() => setSelectedPeriod('Last 10Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 10Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 10Ys' : '10Ys'}
+                  Last 10Y AVG
                       </button>
                       <button 
-                        onClick={() => setSelectedPeriod('15Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '15Y' 
+                  onClick={() => setSelectedPeriod('Last 15Y AVG')}
+                  className={`flex-1 px-2 py-2 rounded text-xs ${
+                    selectedPeriod === 'Last 15Y AVG' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 15Ys' : '15Ys'}
+                  Last 15Y AVG
                       </button>
+                </div>
+              </div>
+            ) : activeChart === 'valuation' ? null : (
+              <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
                       <button 
-                        onClick={() => setSelectedPeriod('20Y')}
-                        className={`px-4 py-1 rounded text-sm ${
-                          selectedPeriod === '20Y' 
+                  onClick={() => setSelectedPeriod('Annual')}
+                   className={`flex-1 px-4 py-2 rounded text-sm ${
+                    selectedPeriod === 'Annual' 
                             ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
                             : 'text-gray-600'
                         }`}
                       >
-                        {activeChart === 'industry' ? 'Last 20Ys' : '20Ys'}
+                  Annual
+                </button>
+                <button 
+                  onClick={() => setSelectedPeriod('Average')}
+                   className={`flex-1 px-4 py-2 rounded text-sm ${
+                    selectedPeriod === 'Average' 
+                      ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                      : 'text-gray-600'
+                  }`}
+                >
+                  Average
+                </button>
+                <button 
+                  onClick={() => setSelectedPeriod('CAGR')}
+                   className={`flex-1 px-4 py-2 rounded text-sm ${
+                    selectedPeriod === 'CAGR' 
+                      ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                      : 'text-gray-600'
+                  }`}
+                >
+                  CAGR
                       </button>
                     </div>
+            )}
           </div>
         </div>
 
                 {/* Chart Content */}
                 <div className="mt-4 xl:mt-6">
-                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3 xl:gap-4 mb-3 sm:mb-4">
+                  <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-1 gap-2 sm:gap-3 xl:gap-4 mb-3 sm:mb-4">
             {/* Industry selection - moved to top */}
             {activeChart === 'industry' && (
               <div className="col-span-full">
@@ -2346,7 +2945,7 @@ const Dashboard: React.FC = () => {
                     value={industrySearch}
                     onChange={(e) => setIndustrySearch(e.target.value)}
                     onFocus={() => setShowIndustryDropdown(true)}
-                    className="w-full font-medium text-sm xl:text-base px-3 py-2 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
                   />
                   {industrySearch && (
                     <button
@@ -2376,286 +2975,118 @@ const Dashboard: React.FC = () => {
                   
                   {showIndustryDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                      {availableIndustries
-                        .filter(industry => 
-                          industry.label.toLowerCase().includes(industrySearch.toLowerCase()) ||
-                          industry.value.toLowerCase().includes(industrySearch.toLowerCase())
-                        )
-                        .map(industry => (
-                          <div
-                            key={industry.value}
+                      {[...HARDCODED_INDUSTRIES, ...availableIndustries]
+                        .filter(industry => {
+                          const name = 'name' in industry ? industry.name : (industry as any).label;
+                          const value = 'id' in industry ? industry.id : (industry as any).value;
+                          return name.toLowerCase().includes(industrySearch.toLowerCase()) ||
+                                 value.toLowerCase().includes(industrySearch.toLowerCase());
+                        })
+                        .map(industry => {
+                          const name = 'name' in industry ? industry.name : (industry as any).label;
+                          const value = 'id' in industry ? industry.id : (industry as any).value;
+                          return (
+                            <div
+                              key={value}
                             onClick={() => {
-                              setSelectedIndustry(industry.value);
-                              setIndustrySearch(industry.label);
+                                setSelectedIndustry(value);
+                                setIndustrySearch(name);
                               setShowIndustryDropdown(false);
                             }}
-                            className="px-3 py-2 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                              className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
                           >
-                            {industry.label.replace(/  +/g, ' ')}
+                              {name.replace(/  +/g, ' ')}
                           </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Company Search */}
-            <div>
-              <div className="text-sm xl:text-base text-gray-500">Company</div>
-              {activeChart === 'peers' ? (
-                <div className="relative" ref={companyDropdownRef}>
-                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
-                    {selectedCompanies.map((company, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
-                      >
-                        {company.name || company.ticker}
-                        <button
-                          onClick={() => setSelectedCompanies(companies => 
-                            companies.filter((_, i) => i !== index)
-                          )}
-                          className="text-gray-400 hover:text-gray-600"
-                        >
-                          <svg
-                            className="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                    <input
-                      type="text"
-                      value={companyInput}
-                      onChange={(e) => setCompanyInput(e.target.value)}
-                      onFocus={() => setShowCompanyDropdown(true)}
-                      placeholder="Search companies..."
-                      className="flex-1 min-w-[100px] outline-none text-sm"
-                    />
-                  </div>
-                  
-                  {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                      {availableIndustries
-                        .flatMap(industry => industry.companies)
-                        .filter((ticker, index, self) => self.indexOf(ticker) === index) // Remove duplicates
-                        .filter(ticker => {
-                          const displayName = companyMap[ticker] || ticker;
-                          return ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
-                                 displayName.toLowerCase().includes(companyInput.toLowerCase());
-                        })
-                        .sort((a, b) => a.localeCompare(b))
-                        .map(ticker => {
-                          const displayName = companyMap[ticker] || ticker;
-                          
-                          return (
-                            <div
-                              key={ticker}
-                              onClick={() => {
-                                if (!selectedCompanies.some(c => c.ticker === ticker)) {
-                                  setSelectedCompanies([...selectedCompanies, { ticker, name: displayName }]);
-                                }
-                                setCompanyInput('');
-                                setShowCompanyDropdown(false);
-                              }}
-                              className="px-3 py-2 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                            >
-                              {displayName} ({ticker})
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              ) : activeChart === 'industry' ? (
-                <div className="relative" ref={companyDropdownRef}>
-                  <input
-                    type="text"
-                    placeholder="Search companies..."
-                    value={selectedTicker || companySearch}
-                    onChange={(e) => {
-                      setCompanySearch(e.target.value);
-                      setSelectedTicker(''); // Clear selection when typing
-                    }}
-                    onFocus={() => setShowCompanyDropdown(true)}
-                    className="w-full font-medium text-sm xl:text-base px-3 py-2 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
-                  />
-                  {selectedTicker && (
-                    <button
-                      onClick={() => {
-                        setSelectedTicker('');
-                        setCompanySearch('');
-                      }}
-                      className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  
-                  {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                      {availableIndustries
-                        .find(ind => ind.value === selectedIndustry)
-                        ?.companies
-                        .filter(ticker => {
-                          const displayName = companyMap[ticker] || ticker;
-                          return ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
-                                 displayName.toLowerCase().includes(companySearch.toLowerCase());
-                        })
-                        .sort((a, b) => a.localeCompare(b))
-                        .map(ticker => {
-                          const displayName = companyMap[ticker] || ticker;
-
-                          return (
-                            <div
-                              key={ticker}
-                              onClick={() => {
-                                setSelectedTicker(ticker);
-                                setCompanySearch('');
-                                setShowCompanyDropdown(false);
-                              }}
-                              className="px-3 py-2 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                            >
-                              {displayName} ({ticker})
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="relative" ref={companyDropdownRef}>
-                  <input
-                    type="text"
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    onFocus={() => setShowCompanyDropdown(true)}
-                    placeholder="Search company..."
-                    className="w-full font-medium text-sm xl:text-base px-3 py-2 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
-                  />
-                  {searchValue && (
-                    <button
-                      onClick={() => setSearchValue('')}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-
-                  {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                      {availableIndustries.flatMap(industry => 
-                        industry.companies.filter(ticker => {
-                          const displayName = companyMap[ticker] || ticker;
-                          return ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
-                                 displayName.toLowerCase().includes(searchValue.toLowerCase());
-                        }).map(ticker => {
-                          const displayName = companyMap[ticker] || ticker;
-                          return (
-                            <div
-                              key={ticker}
-                              onClick={() => {
-                                setSearchValue(ticker);
-                                setShowCompanyDropdown(false);
-                              }}
-                              className="px-3 py-2 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                            >
-                              {displayName} ({ticker})
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
             {/* Metric Search */}
+            {activeChart !== 'valuation' && (
             <div>
               <div className="text-sm xl:text-base text-gray-500">Metric</div>
               {activeChart === 'peers' ? (
                 <div className="relative" ref={peerDropdownRef}>
-                  <input
-                    type="text"
-                    placeholder="Search metrics..."
-                    value={peerMetricSearch || selectedPeerMetric}
-                    onChange={(e) => {
-                      setPeerMetricSearch(e.target.value);
-                      setSelectedPeerMetric('');
-                    }}
-                    onFocus={() => setShowPeerMetricDropdown(true)}
-                    className="w-full font-medium text-sm xl:text-base px-3 py-2 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
-                  />
-                  {(peerMetricSearch || selectedPeerMetric) && (
+                  {/* Unified input with inline chips */}
+                  <div className="relative border border-gray-200 rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D]">
+                    {/* Selected metrics as chips */}
+                    {selectedPeerMetrics.map((metric, index) => {
+                      const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
+                      return (
+                        <div 
+                          key={index} 
+                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                        >
+                          {metricLabel}
                     <button
                       onClick={() => {
-                        setPeerMetricSearch('');
+                              setSelectedPeerMetrics(metrics => metrics.filter((_, i) => i !== index));
                         setSelectedPeerMetric('');
                       }}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <svg
+                              className="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
                       </svg>
                     </button>
-                  )}
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Search input */}
+                    <input
+                      type="text"
+                      placeholder={selectedPeerMetrics.length === 0 ? "Search metrics..." : ""}
+                      value={peerMetricSearch}
+                      onChange={(e) => setPeerMetricSearch(e.target.value)}
+                      onFocus={() => setShowPeerMetricDropdown(true)}
+                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base"
+                    />
+                    
+                    {/* Dropdown chevron */}
+                    <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
+                    </div>
                   </div>
                   
+                  {/* Dropdown menu */}
                   {showPeerMetricDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
                       {availableMetrics
                         .filter(metric => 
-                          metric.label.toLowerCase().includes(peerMetricSearch.toLowerCase()) ||
-                          metric.value.toLowerCase().includes(peerMetricSearch.toLowerCase())
+                          !selectedPeerMetrics.includes(metric.value) &&
+                          (metric.label.toLowerCase().includes(peerMetricSearch.toLowerCase()) ||
+                          metric.value.toLowerCase().includes(peerMetricSearch.toLowerCase()))
                         )
                         .map(metric => (
                           <div
                             key={metric.value}
                             onClick={() => {
+                              if (!selectedPeerMetrics.includes(metric.value)) {
+                                setSelectedPeerMetrics([...selectedPeerMetrics, metric.value]);
                               setSelectedPeerMetric(metric.value);
+                              }
                               setPeerMetricSearch('');
                               setShowPeerMetricDropdown(false);
                             }}
-                            className="px-3 py-2 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
                           >
                         {metric.label}
                           </div>
@@ -2664,9 +3095,10 @@ const Dashboard: React.FC = () => {
                   )}
                 </div>
               ) : activeChart === 'metrics' ? (
-                <div className="space-y-3">
-                  {/* Search box with selected metrics */}
-                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
+                <div className="relative" ref={dropdownRef}>
+                  {/* Unified input with inline chips */}
+                  <div className="relative border border-gray-200 rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D]">
+                    {/* Selected metrics as chips */}
                     {selectedSearchMetrics.map((metric, index) => (
                       <div 
                         key={index} 
@@ -2695,37 +3127,26 @@ const Dashboard: React.FC = () => {
                         </button>
                       </div>
                     ))}
-                  </div>
 
-                  {/* Updated metric search dropdown */}
-                  <div className="relative" ref={dropdownRef}>
+                    {/* Search input */}
                     <input
                       type="text"
-                      placeholder="Search metrics..."
+                      placeholder={selectedSearchMetrics.length === 0 ? "Search metrics..." : ""}
                       value={searchMetricInput}
                       onChange={(e) => setSearchMetricInput(e.target.value)}
                       onFocus={() => setShowMetricDropdown(true)}
-                      className="w-full font-medium text-sm xl:text-base px-3 py-2 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base"
                     />
-                    {searchMetricInput && (
-                      <button
-                        onClick={() => {
-                          setSearchMetricInput('');
-                          setShowMetricDropdown(false);
-                        }}
-                        className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    
+                    {/* Dropdown chevron */}
+                    <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
+                    </div>
 
+                  {/* Dropdown menu */}
                     {showMetricDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
                         {availableMetrics
@@ -2744,19 +3165,19 @@ const Dashboard: React.FC = () => {
                                 setSearchMetricInput('');
                                 setShowMetricDropdown(false);
                               }}
-                              className="px-3 py-2 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
                             >
                             {metric.label}
                             </div>
                           ))}
                       </div>
                     )}
-                  </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="relative" ref={dropdownRef}>
+                  {/* Unified input with inline chips */}
+                  <div className={`relative border border-gray-200 rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50' : ''}`}>
                   {/* Selected metrics as chips */}
-                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
                     {selectedIndustryMetrics.map((metric, index) => {
                       const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
                       return (
@@ -2788,44 +3209,27 @@ const Dashboard: React.FC = () => {
                         </div>
                       );
                     })}
-                  </div>
                   
-                  <div className="relative" ref={dropdownRef}>
+                    {/* Search input */}
                     <input
                       type="text"
-                      placeholder="Search metrics..."
+                      placeholder={selectedIndustryMetrics.length === 0 ? "Search metrics..." : ""}
                       value={industryMetricInput}
                       onChange={(e) => setIndustryMetricInput(e.target.value)}
                       onFocus={() => setShowMetricDropdown(true)}
-                      className="w-full font-medium text-sm xl:text-base px-3 py-2 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                      className={`flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                       disabled={selectedIndustryMetrics.length >= 3}
                     />
-                    {industryMetricInput && (
-                      <button
-                        onClick={() => {
-                          if (selectedIndustryMetrics.length >= 3) {
-                            alert('Maximum of 3 metrics allowed');
-                            return;
-                          }
-                          setSelectedIndustryMetrics([...selectedIndustryMetrics, industryMetricInput]);
-                          setIndustryMetricInput('');
-                          setShowMetricDropdown(false);
-                        }}
-                        className={`px-3 py-2 text-sm xl:text-base cursor-pointer ${
-                          selectedIndustryMetrics.length >= 3 
-                            ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
-                            : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        {industryMetricInput}
-                      </button>
-                    )}
-                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    
+                    {/* Dropdown chevron */}
+                    <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
+                    </div>
                     
+                  {/* Dropdown menu */}
                     {showMetricDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
                         {availableMetrics
@@ -2838,15 +3242,13 @@ const Dashboard: React.FC = () => {
                             <div
                               key={metric.value}
                               onClick={() => {
-                                if (selectedIndustryMetrics.length >= 3) {
-                                  alert('Maximum of 3 metrics allowed');
-                                  return;
-                                }
+                              if (selectedIndustryMetrics.length < 3 && !selectedIndustryMetrics.includes(metric.value)) {
                                 setSelectedIndustryMetrics([...selectedIndustryMetrics, metric.value]);
+                              }
                                 setIndustryMetricInput('');
                                 setShowMetricDropdown(false);
                               }}
-                              className={`px-3 py-2 text-sm xl:text-base cursor-pointer ${
+                            className={`px-3 py-1 text-sm xl:text-base cursor-pointer ${
                                 selectedIndustryMetrics.length >= 3 
                                   ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
                                   : 'hover:bg-gray-100'
@@ -2857,10 +3259,10 @@ const Dashboard: React.FC = () => {
                           ))}
                       </div>
                     )}
-                  </div>
                 </div>
               )}
             </div>
+            )}
           </div>
 
                 <div className="h-[180px] xs:h-[200px] sm:h-[300px] md:h-[350px] xl:h-[400px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4 bp-scroll">
@@ -2886,7 +3288,7 @@ const Dashboard: React.FC = () => {
                             onMouseMove={e => {
                               if (e && e.activePayload && e.activePayload.length > 0) {
                                 const payload = e.activePayload[0].payload;
-                                const isFixedPoint = selectedPeriod === '1Y' 
+                                const isFixedPoint = selectedPeriod === 'Annual' 
                                   ? payload.name?.startsWith('2024')
                                   : payload.name === chartData[chartData.length - 1]?.name;
                                 
@@ -2906,7 +3308,7 @@ const Dashboard: React.FC = () => {
                               dataKey="name" 
                               tickFormatter={(value) => {
                                 if (typeof value === 'string' && value.includes('-')) {
-                                  if (selectedPeriod !== '1Y') {
+                                  if (selectedPeriod !== 'Annual') {
                                     return value;
                                   }
                                   const [startYear] = value.split('-');
@@ -2937,7 +3339,7 @@ const Dashboard: React.FC = () => {
                               }) as TooltipProps<string | number, string>['formatter']}
                               labelFormatter={(label) => {
                                 if (typeof label === 'string' && label.includes('-')) {
-                                  if (selectedPeriod !== '1Y') {
+                                  if (selectedPeriod !== 'Annual') {
                                     return label;
                                   }
                                   const [startYear] = label.split('-');
@@ -2948,8 +3350,8 @@ const Dashboard: React.FC = () => {
                               content={({ active, payload, label }) => {
                                 if (active && payload && payload.length > 0) {
                                   const point = payload[0].payload;
-                                  if ((selectedPeriod === '1Y' && point.name?.startsWith('2024')) || 
-                                      (selectedPeriod !== '1Y' && point.name === chartData[chartData.length - 1]?.name)) {
+                                  if ((selectedPeriod === 'Annual' && point.name?.startsWith('2024')) || 
+                                      (selectedPeriod !== 'Annual' && point.name === chartData[chartData.length - 1]?.name)) {
                                     return null;
                                   }
                                   return (
@@ -2974,7 +3376,47 @@ const Dashboard: React.FC = () => {
                             />
 
                             <Legend layout="horizontal" />
-                            {selectedSearchMetrics.map((metric, idx) => {
+                            {selectedPeriod === 'Annual' ? (
+                              // For Annual: Render historical and future series separately
+                              selectedSearchMetrics.flatMap((metric, idx) => {
+                                const baseColor = generateColorPalette(selectedSearchMetrics.length)[idx];
+                                const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
+                                
+                                return [
+                                  // Historical series (2011-2024)
+                                  <Line
+                                    key={`${metric}_historical`}
+                                    type="monotone"
+                                    dataKey={`${metric}_historical`}
+                                    stroke={baseColor}
+                                    name={`${metricLabel} (Historical)`}
+                                    strokeWidth={2}
+                                    dot={{
+                                      fill: baseColor,
+                                      r: 4
+                                    }}
+                                    connectNulls={false}
+                                  />,
+                                  // Future series (2025-2035)
+                                  <Line
+                                    key={`${metric}_future`}
+                                    type="monotone"
+                                    dataKey={`${metric}_future`}
+                                    stroke={addOpacityToColor(baseColor, 0.5)}
+                                    strokeDasharray="5 5"
+                                    name={`${metricLabel} (Future)`}
+                                    strokeWidth={2}
+                                    dot={{
+                                      fill: addOpacityToColor(baseColor, 0.5),
+                                      r: 4
+                                    }}
+                                    connectNulls={false}
+                                  />
+                                ];
+                              })
+                            ) : (
+                              // For Average and CAGR: Render single series per metric
+                              selectedSearchMetrics.map((metric, idx) => {
                               const color = generateColorPalette(selectedSearchMetrics.length)[idx];
                               const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
                               return (
@@ -2989,10 +3431,11 @@ const Dashboard: React.FC = () => {
                                     fill: color,
                                     r: 4
                                   }}
-                                  connectNulls={false}  // Add this prop to each Line component
+                                    connectNulls={false}
                                 />
                               );
-                            })}
+                              })
+                            )}
                           </LineChart>
                         </ResponsiveContainer>
                         
@@ -3124,7 +3567,7 @@ const Dashboard: React.FC = () => {
                               tickFormatter={(value) => {
                                 // Display the full range for multi-year periods
                                 if (typeof value === 'string') {
-                                  if (selectedPeriod !== '1Y') {
+                                  if (selectedPeriod !== 'Annual') {
                                     return value; // Return the full range (e.g., "2005-06", "2007-08")
                                   } else {
                                     // For 1Y period, just show the year
@@ -3169,7 +3612,43 @@ const Dashboard: React.FC = () => {
                               filterNull={false}
                             />
                             <Legend layout="horizontal" />
-                            {selectedCompanies.map((company, idx) => {
+                            {selectedPeriod === 'Annual' ? (
+                              // For Annual: Render historical and future separately
+                              selectedCompanies.flatMap((company, idx) => {
+                                const baseColor = generateColorPalette(selectedCompanies.length)[idx];
+                                return [
+                                  <Line
+                                    key={`${company.ticker}_historical`}
+                                    type="monotone"
+                                    dataKey={`${selectedPeerMetric}_historical.${company.ticker}`}
+                                    stroke={baseColor}
+                                    name={`${company.ticker} (Historical)`}
+                                    strokeWidth={2}
+                                    dot={{
+                                      fill: baseColor,
+                                      r: 4
+                                    }}
+                                    connectNulls={false}
+                                  />,
+                                  <Line
+                                    key={`${company.ticker}_future`}
+                                    type="monotone"
+                                    dataKey={`${selectedPeerMetric}_future.${company.ticker}`}
+                                    stroke={addOpacityToColor(baseColor, 0.5)}
+                                    strokeDasharray="5 5"
+                                    name={`${company.ticker} (Future)`}
+                                    strokeWidth={2}
+                                    dot={{
+                                      fill: addOpacityToColor(baseColor, 0.5),
+                                      r: 4
+                                    }}
+                                    connectNulls={false}
+                                  />
+                                ];
+                              })
+                            ) : (
+                              // For Average/CAGR: Single line per company
+                              selectedCompanies.map((company, idx) => {
                               const color = generateColorPalette(selectedCompanies.length)[idx];
                               return (
                                 <Line
@@ -3177,7 +3656,7 @@ const Dashboard: React.FC = () => {
                                   type="monotone"
                                   dataKey={`${selectedPeerMetric}.${company.ticker}`}
                                   stroke={color}
-                                  name={`${company.ticker} - ${selectedPeerMetric}`}
+                                    name={`${company.ticker}`}
                                   strokeWidth={2}
                                   dot={{
                                     fill: color,
@@ -3186,7 +3665,8 @@ const Dashboard: React.FC = () => {
                                   connectNulls={false}
                                 />
                               );
-                            })}
+                              })
+                            )}
                           </LineChart>
                         </ResponsiveContainer>
                         
@@ -3255,6 +3735,16 @@ const Dashboard: React.FC = () => {
 
                       </div>
                     )
+                  ) : activeChart === 'valuation' ? (
+                    // Valuation Charts - Conditional Layout
+                    <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
+                      <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
+                        <ValueBuildupChart initialCompany={searchValue} />
+                      </div>
+                      <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
+                        <MultiplesChart initialCompany={searchValue} />
+                      </div>
+                    </div>
                   ) : (
                     // Industry Chart
                     industryLoading ? (
@@ -3290,15 +3780,27 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Insights Generation - full width on mobile */}
-            <div className="lg:col-span-4 lg:mr-[-11rem]">
-              <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
-                <div className="bg-white rounded-lg shadow-sm">
-                  <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b flex justify-between items-center">
-                    <div className="flex items-center gap-1.5 xm:gap-2 xs:gap-2.5 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
-                      <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Insights Generation</h2>
-                      {/* <button className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] text-white rounded text-xl">+</button> */}
-                    </div>
-                    <div className="flex items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2">
+            {!isChatbotMinimized && (
+              <div className="lg:col-span-4 lg:mr-[-11rem] transition-all duration-300">
+                <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
+                  <div className="bg-white rounded-lg shadow-sm">
+                  <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b">
+                    <div className="flex justify-end items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2 mb-3">
+                      {/* Minimize/Hide Button */}
+                      <button
+                        onClick={() => setIsChatbotMinimized(!isChatbotMinimized)}
+                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                        title={isChatbotMinimized ? "Show chatbot" : "Hide chatbot"}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
+                          {isChatbotMinimized ? (
+                            <path d="M10 4v12M4 10h12" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
+                          ) : (
+                            <path d="M4 10h12" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
+                          )}
+                        </svg>
+                      </button>
                       {/* Clear Chat Button */}
                       <button
                         className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
@@ -3317,7 +3819,7 @@ const Dashboard: React.FC = () => {
                       <button 
                         onClick={saveConversation}
                         disabled={isSavingConversation || messages.length <= 1}
-                        className={`px-3 xl:px-4 py-2 text-sm xl:text-base rounded transition-colors ${
+                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                           isSavingConversation || messages.length <= 1
                             ? 'bg-gray-400 cursor-not-allowed' 
                             : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
@@ -3333,6 +3835,7 @@ const Dashboard: React.FC = () => {
                         {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
                       </button>
                     </div>
+                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Insights Generation</h2>
                   </div>
                   
                   {/* Chat Header with New Chat Button */}
@@ -3490,8 +3993,26 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          )}
+        
           </div>
         </div>
+        
+        {/* Minimized Chatbot Indicator */}
+        {isChatbotMinimized && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <button
+              onClick={() => setIsChatbotMinimized(false)}
+              className="bg-[#1B5A7D] text-white px-4 py-2 rounded-lg shadow-lg hover:bg-[#164964] transition-colors flex items-center gap-2"
+              title="Show chatbot"
+            >
+              <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+                <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <span className="text-sm">Show Insights</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Pricing Modal */}
@@ -3637,7 +4158,7 @@ const Dashboard: React.FC = () => {
                       id="name"
                       name="name"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
                       placeholder="Enter your full name"
                     />
                   </div>
@@ -3650,7 +4171,7 @@ const Dashboard: React.FC = () => {
                       id="email"
                       name="email"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
                       placeholder="Enter your email address"
                     />
                   </div>
@@ -3665,7 +4186,7 @@ const Dashboard: React.FC = () => {
                       type="text"
                       id="company"
                       name="company"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
                       placeholder="Enter your company name"
                     />
                   </div>
@@ -3677,7 +4198,7 @@ const Dashboard: React.FC = () => {
                       type="tel"
                       id="phone"
                       name="phone"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
                       placeholder="Enter your phone number"
                     />
                   </div>
@@ -3692,7 +4213,7 @@ const Dashboard: React.FC = () => {
                     name="message"
                     required
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                    className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
                     placeholder="Tell us how we can help you..."
                   ></textarea>
                 </div>
@@ -3997,7 +4518,21 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Valuation Modal */}
+      {showValuationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
+            <ValuationPage 
+              onClose={() => setShowValuationModal(false)}
+              initialCompany={searchValue}
+              onCompanyChange={(company) => setSearchValue(company)}
+            />
+          </div>
+        </div>
+      )}
     </div>
+    </>
   );
 }
 

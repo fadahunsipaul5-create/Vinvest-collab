@@ -30,6 +30,8 @@ from .utility.chatbox import answer_question
 import traceback
 from django.http import StreamingHttpResponse
 import json
+from .models.multiples import CompanyMultiples
+from .serializer import CompanyMultiplesSerializer
 
 logger = logging.getLogger(__name__)
 from .utility.bot import *
@@ -668,7 +670,7 @@ class ChartDataAPIView(APIView):
                 company = Company.objects.filter(ticker=ticker).first()
                 if company:
                     metrics = FinancialMetric.objects.filter(
-                        company=company, metric_name=metric
+                        company=company, metric_name__iexact=metric
                     ).select_related("period")
 
                     # Log the number of metrics found
@@ -734,7 +736,7 @@ class InsightsAPIView(APIView):
 
         insights = []
         revenue_trend = FinancialMetric.objects.filter(
-            period__company=company,metric_name="Revenue"
+            period__company=company, metric_name__iexact="Revenue"
         ).order_by("period__year")
 
         if revenue_trend.count() >= 5:
@@ -769,7 +771,7 @@ class CustomQueryAPIView(APIView):
             data[metric] = {}
             for period in periods:
                 fm = FinancialMetric.objects.filter(
-                    period__company=company, metric_name=metric, period__year=period
+                    period__company=company, metric_name__iexact=metric, period__year=period
                 ).first()
                 data[metric][period] = fm.value if fm else None
 
@@ -797,7 +799,7 @@ class IndustryComparisonAPIView(APIView):
             for industry, tickers in industry_tickers.items():
                 metrics = (
                     FinancialMetric.objects.filter(
-                        company__ticker__in=tickers, metric_name=metric
+                        company__ticker__in=tickers, metric_name__iexact=metric
                     )
                     .values("period__period")
                     .annotate(
@@ -959,7 +961,7 @@ class BoxPlotDataAPIView(APIView):
                     for metric in metrics:
                         metrics_query = (
                             FinancialMetric.objects.filter(
-                                metric_name=metric,
+                                metric_name__iexact=metric,
                                 period__period__contains=period_str,
                                 company__ticker__in=industry_companies,
                             )
@@ -1017,28 +1019,68 @@ class AggregatedDataAPIView(APIView):
             "metric", "Revenue"
         )  
         period = request.GET.get("period", "1Y").strip('"')
+        periodType = request.GET.get("periodType", "").strip()  # "Average", "CAGR", or empty for Annual
+        
         if not tickers or not tickers[0]:
             return Response({"error": "Tickers are required."}, status=400)
         print(
-            f"Fetching data for tickers: {tickers}, metric: {metric}, period: {period}"
+            f"Fetching data for tickers: {tickers}, metric: {metric}, period: {period}, periodType: {periodType}"
         )
-        # Capitalize first letter of metric to match database
-        metric = metric[0].upper() + metric[1:] if metric else ""
+        # Use case-insensitive matching for metric names
+        # Frontend sends PascalCase (e.g., "Revenue", "CostOfRevenue") which matches database
+        # But we use case-insensitive matching to be robust against any case variations
         # Check if companies exist
         companies = Company.objects.filter(ticker__in=tickers)
         print(f"Found companies in DB: {list(companies.values_list('ticker', flat=True))}")
-        # Get metrics based on period type
+        # Get metrics based on period type with case-insensitive metric name matching
         metrics = FinancialMetric.objects.filter(
-            company__ticker__in=tickers, metric_name=metric
+            company__ticker__in=tickers, metric_name__iexact=metric
         ).select_related("period")
         print(f"Found {metrics.count()} total metrics")
         print(f"SQL Query: {metrics.query}")
-        # Filter metrics based on period type
-        if period == "1Y":
-            metrics = metrics.filter(period__period__regex=r"^\d{4}$")
+        
+        # Filter metrics based on period type and periodType
+        if periodType == "Average":
+            # Map period to AVG format: "1Y" -> "Last1Y_AVG", "2Y" -> "Last2Y_AVG", etc.
+            period_mapping = {
+                "1Y": "Last1Y_AVG",
+                "2Y": "Last2Y_AVG",
+                "3Y": "Last3Y_AVG",
+                "4Y": "Last4Y_AVG",
+                "5Y": "Last5Y_AVG",
+                "10Y": "Last10Y_AVG",
+                "15Y": "Last15Y_AVG"
+            }
+            mapped_period = period_mapping.get(period)
+            if mapped_period:
+                metrics = metrics.filter(period__period=mapped_period)
+            else:
+                # If period not in mapping, try to match pattern
+                metrics = metrics.filter(period__period__endswith="_AVG")
+        elif periodType == "CAGR":
+            # Map period to CAGR format: "1Y" -> "Last1Y_CAGR", "2Y" -> "Last2Y_CAGR", etc.
+            period_mapping = {
+                "1Y": "Last1Y_CAGR",
+                "2Y": "Last2Y_CAGR",
+                "3Y": "Last3Y_CAGR",
+                "4Y": "Last4Y_CAGR",
+                "5Y": "Last5Y_CAGR",
+                "10Y": "Last10Y_CAGR",
+                "15Y": "Last15Y_CAGR"
+            }
+            mapped_period = period_mapping.get(period)
+            if mapped_period:
+                metrics = metrics.filter(period__period=mapped_period)
+            else:
+                # If period not in mapping, try to match pattern
+                metrics = metrics.filter(period__period__endswith="_CAGR")
         else:
-            # Filter by exact period type (2Y, 3Y, 4Y, etc.)
-            metrics = metrics.filter(period__period__startswith=f"{period}: ")
+            # Annual mode: use existing logic
+            if period == "1Y":
+                metrics = metrics.filter(period__period__regex=r"^\d{4}$")
+            else:
+                # Filter by exact period type (2Y, 3Y, 4Y, etc.) - old format
+                metrics = metrics.filter(period__period__startswith=f"{period}: ")
             
 
         print(f"After period filtering: {metrics.count()} metrics")
@@ -1073,10 +1115,18 @@ class AggregatedDataAPIView(APIView):
                     period_str = metric_obj.period.period
                     print(f"Adding data point: {ticker}, {period_str}, {value}")
 
-                    # For frontend compatibility, extract just the year part from period names
+                    # For frontend compatibility, extract display name from period names
                     display_name = period_str
                     if ": " in period_str:
-                        display_name = period_str.split(": ")[1]  # "2Y: 2023-24" -> "2023-24"
+                        # Old format: "2Y: 2023-24" -> "2023-24"
+                        display_name = period_str.split(": ")[1]
+                    elif period_str.startswith("Last") and ("_AVG" in period_str or "_CAGR" in period_str):
+                        # New format: "Last1Y_AVG" -> "1Y", "Last2Y_CAGR" -> "2Y"
+                        # Extract the period part (e.g., "1Y" from "Last1Y_AVG")
+                        if "_AVG" in period_str:
+                            display_name = period_str.replace("Last", "").replace("_AVG", "")
+                        elif "_CAGR" in period_str:
+                            display_name = period_str.replace("Last", "").replace("_CAGR", "")
                     
                     aggregated_data.append(
                         {"name": display_name, "ticker": ticker, "value": value}
@@ -1300,3 +1350,32 @@ def activate_free_plan(request):
             'error': 'Failed to activate free plan',
             'details': str(e)
         }, status=500)
+
+
+class CompanyMultiplesAPIView(APIView):
+    permission_classes = []  # Allow any, adjust as needed
+    
+    def get(self, request, ticker=None):         
+        try:
+            if ticker:
+                # Get specific company
+                try:
+                    multiples = CompanyMultiples.objects.get(ticker=ticker.upper())
+                    serializer = CompanyMultiplesSerializer(multiples)
+                    return Response(serializer.data, status=200)
+                except CompanyMultiples.DoesNotExist:
+                    return Response({
+                        'error': f'Multiples data not found for ticker: {ticker}'
+                    }, status=404)
+            else:
+                # List all companies
+                multiples = CompanyMultiples.objects.all()
+                serializer = CompanyMultiplesSerializer(multiples, many=True)
+                return Response(serializer.data, status=200)
+                
+        except Exception as e:
+            logger.error(f"Error retrieving multiples data: {str(e)}")
+            return Response({
+                'error': 'Failed to retrieve multiples data',
+                'details': str(e)
+            }, status=500)

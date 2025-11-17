@@ -7,7 +7,7 @@ from .views import (
     get_available_metrics, check_company,load_data,ExternalChatbotProxyView,
     ContactView, FileUploadView, ChatSessionListView, ChatSessionDetailView,
     ChatBatchListView, ChatBatchDetailView,create_checkout_session,stripe_webhook,
-    activate_free_plan
+    activate_free_plan, CompanyMultiplesAPIView
 )
 
 # Create a router and register only ViewSets.
@@ -39,5 +39,7 @@ urlpatterns = [
     path('create-checkout-session/', create_checkout_session, name='create_checkout_session'),
     path('stripe/webhook/', stripe_webhook, name='stripe_webhook'),
     path('activate-free-plan/', activate_free_plan, name='activate_free_plan'),
+    path('multiples/', CompanyMultiplesAPIView.as_view(), name='multiples_list'),
+    path('multiples/<str:ticker>/', CompanyMultiplesAPIView.as_view(), name='multiples_detail'),
     path('', include(router.urls)),
 ]

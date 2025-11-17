@@ -1,8 +1,9 @@
-import pandas as pd
 from django.core.management.base import BaseCommand
 from sec_app.models.company import Company
 import os
 from django.db import transaction
+import requests
+from sec_app.api_client import COMPANY_TICKERS_URL, HEADERS
 
 class Command(BaseCommand):
     help = 'Load company data from tickers directory (fast bulk version)'
@@ -15,9 +16,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Project root: {project_root}")
 
         possible_paths = [
-            os.path.join(project_root, 'sec_app', 'stdmetrics'),
-            os.path.join(project_root, 'backend', 'sec_app', 'stdmetrics'),
-            os.path.join(os.path.dirname(project_root), 'sec_app', 'stdmetrics')
+            os.path.join(project_root, 'backend', 'sec_app', 'data', 'data_financials'),
+            os.path.join(project_root, 'sec_app', 'data', 'data_financials'),
+            os.path.join(os.path.dirname(project_root), 'backend', 'sec_app', 'data', 'data_financials')
         ]
 
         tickers_dir = None
@@ -27,43 +28,58 @@ class Command(BaseCommand):
                 break
 
         if not tickers_dir:
-            self.stdout.write(self.style.ERROR("Could not find tickers directory. Tried:"))
+            self.stdout.write(self.style.ERROR("Could not find data_financials directory. Tried:"))
             for path in possible_paths:
                 self.stdout.write(self.style.ERROR(f"- {path}"))
             return
 
-        self.stdout.write(f"Found tickers directory at: {tickers_dir}")
-        ticker_files = [f for f in os.listdir(tickers_dir) if f.endswith('_StdMetrics.csv')]
-        self.stdout.write(f"Found {len(ticker_files)} ticker files")
+        self.stdout.write(f"Found data_financials directory at: {tickers_dir}")
+        
+        # Get all subdirectories (each represents a ticker)
+        ticker_folders = [f for f in os.listdir(tickers_dir) 
+                         if os.path.isdir(os.path.join(tickers_dir, f))]
+        self.stdout.write(f"Found {len(ticker_folders)} company folders")
 
-        excel_path = os.path.join(project_root, 'backend', 'sec_app', 'data', 'stocks_perf_data.xlsx')
-        df = None
-        if os.path.exists(excel_path):
-            try:
-                df = pd.read_excel(excel_path)
-                df.columns = df.columns.str.strip().str.lower()
-                self.stdout.write(self.style.SUCCESS(f"Excel columns: {df.columns.tolist()}"))
-                df['symbol'] = df['symbol'].str.upper()
-                self.stdout.write(self.style.SUCCESS("Excel file loaded successfully"))
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f"Could not read Excel file: {str(e)}"))
-        else:
-            self.stdout.write(self.style.WARNING("Excel file not found, using ticker as fallback name"))
+        # Fetch company names from SEC API
+        self.stdout.write("Fetching company names from SEC API...")
+        ticker_to_name = {}
+        try:
+            response = requests.get(COMPANY_TICKERS_URL, headers=HEADERS, timeout=30)
+            if response.status_code == 200:
+                sec_data = response.json()
+                # SEC data structure: {numeric_key: {ticker: str, title: str, cik_str: int}}
+                for key, company_data in sec_data.items():
+                    ticker = company_data.get('ticker', '').upper()
+                    company_name = company_data.get('title', '')
+                    if ticker and company_name:
+                        ticker_to_name[ticker] = company_name
+                self.stdout.write(self.style.SUCCESS(
+                    f"Successfully loaded {len(ticker_to_name)} company names from SEC API"
+                ))
+            else:
+                self.stdout.write(self.style.WARNING(
+                    f"Failed to fetch SEC data: HTTP {response.status_code}"
+                ))
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(
+                f"Error fetching company names from SEC API: {str(e)}"
+            ))
+            self.stdout.write(self.style.WARNING("Will use ticker as company name for all companies"))
 
         company_objs = []
         unmatched_tickers = []
         matched_tickers = []
 
-        for file_name in ticker_files:
-            ticker = file_name.replace('_StdMetrics.csv', '')
+        for folder_name in ticker_folders:
+            ticker = folder_name.upper()  # Use folder name as ticker
             company_name = ticker  # default fallback
 
-            if df is not None:
-                try:
-                    company_name = df.loc[df['symbol'] == ticker.upper(), 'company name'].iloc[0]
-                    matched_tickers.append(ticker)
-                except (KeyError, IndexError):
-                    unmatched_tickers.append(ticker)
+            # Look up company name from SEC API data
+            if ticker in ticker_to_name:
+                company_name = ticker_to_name[ticker]
+                matched_tickers.append(ticker)
+            else:
+                unmatched_tickers.append(ticker)
 
             placeholder_cik = f"CIK{ticker}"[:10]
             company_objs.append(
@@ -105,6 +121,6 @@ class Command(BaseCommand):
             f"Successfully processed companies: {companies_added} added, {companies_updated} updated"
         ))
 
-        self.stdout.write(self.style.WARNING(f"{len(unmatched_tickers)} tickers had no Excel match:"))
+        self.stdout.write(self.style.WARNING(f"{len(unmatched_tickers)} tickers had no SEC API match:"))
         for t in unmatched_tickers:
             self.stdout.write(f" - {t}")

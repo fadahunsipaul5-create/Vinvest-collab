@@ -40,17 +40,22 @@ ALLOWED_HOSTS = [
 ]
 
 # Database Configuration
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.environ.get('DB_NAME'),
+#         'USER': os.environ.get('DB_USER'),
+#         'PASSWORD': os.environ.get('DB_PASSWORD'),
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / "db.sqlite3",  
     }
 }
 
-# Check if running in the Google Cloud environment.
-# This uses the 'IS_CLOUD_ENV=True' flag from your cloudbuild.yaml
 if os.environ.get('IS_CLOUD_ENV'):
     DATABASES['default'].update({
         'HOST': '/cloudsql/getdeepaiapp:us-central1:sec-db'
@@ -72,8 +77,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Your apps
     "account",
-    'backend', # Assuming 'backend' is also an app, or your 'sec_app' if it's main
     'sec_app', # Example app
+    'sec_app_2',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -82,6 +87,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_filters',  
     'whitenoise', 
+    'django_extensions',
 
     #google auth
     'django.contrib.sites',
@@ -265,7 +271,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'rest_framework.filters.SearchFilter',
-    ]
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -318,3 +327,6 @@ PLAN_QUOTAS = {
     "pro": 100,
     "pro_plus": 200,
 }
+
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None

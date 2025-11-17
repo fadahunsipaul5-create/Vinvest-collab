@@ -77,8 +77,8 @@ const RequestPasswordReset = () => {
       <div className="max-w-xs xm:max-w-sm xs:max-w-md sm:max-w-lg w-full space-y-4 xm:space-y-6 xs:space-y-7 sm:space-y-8">
         <div>
           <img 
-            className="mx-auto h-8 w-auto xm:h-10 xs:h-12 sm:h-14 md:h-16 lg:h-18 xl:h-20"
-            src="/deep.PNG"
+            className="mx-auto h-8 w-auto xm:h-10 xs:h-12 sm:h-14 md:h-16 lg:h-18 xl:h-13"
+            src="/inv.png"
             alt="GetDeep.AI"
           />
           <h2 className="mt-3 xm:mt-4 xs:mt-5 sm:mt-6 text-center text-xl xm:text-2xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-bold text-gray-900">
