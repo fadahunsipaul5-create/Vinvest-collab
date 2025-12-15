@@ -169,6 +169,9 @@ export function hasMetricData(ticker: string, metricName: string): boolean {
 }
 
 // Get company name from ticker
+// NOTE: This is a fallback function with hardcoded names. 
+// Components should prefer using `display_name` from the API when available (via CompanySerializer).
+// This function is only for cases where API data is not accessible.
 export function getCompanyName(ticker: string): string {
   const companyNames: { [key: string]: string } = {
     'WMT': 'Walmart Inc.',

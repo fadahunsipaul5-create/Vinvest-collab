@@ -6,8 +6,6 @@ import { ppeChangesReal } from '../data/ppeChangesReal';
 
 import { balanceSheetAnalysisReal } from '../data/balanceSheetAnalysisReal';
 
-import { incomeStatementReal } from '../data/incomeStatementReal';
-
 import { balanceSheetReal } from '../data/balanceSheetReal';
 
 import { investedCapitalReal } from '../data/investedCapitalReal';
@@ -41,6 +39,14 @@ import { tgtMockData } from '../data/tgtMockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useCompanyData } from '../contexts/CompanyDataContext';
+
+import baseUrl from './api';
+
+interface CompanyTicker {
+  ticker: string;
+  name: string;
+  display_name?: string;
+}
 
 import {
 
@@ -2112,9 +2118,11 @@ const NoPATTable: React.FC<{
 
   isInputField?: (field: string) => boolean,
 
-  isCalculatedField?: (field: string) => boolean
+  isCalculatedField?: (field: string) => boolean,
 
-}> = ({ data, onDataChange, isInputField: _isInputField, isCalculatedField }) => {
+  companyTicker?: string
+
+}> = ({ data, onDataChange, isInputField: _isInputField, isCalculatedField, companyTicker = 'COST' }) => {
 
   // Debounce timers for real-time calculations
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
@@ -2566,7 +2574,7 @@ const NoPATTable: React.FC<{
 
       <div className="px-6 py-4 border-b">
 
-        <h3 className="text-lg font-semibold text-gray-900">COST NoPAT</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} NoPAT</h3>
 
       </div>
 
@@ -2750,9 +2758,11 @@ const InvestedCapitalTable: React.FC<{
 
   isInputField?: (field: string) => boolean,
 
-  isCalculatedField?: (field: string) => boolean
+  isCalculatedField?: (field: string) => boolean,
 
-}> = ({ data, onDataChange, isCalculatedField }) => {
+  companyTicker?: string
+
+}> = ({ data, onDataChange, isCalculatedField, companyTicker = 'COST' }) => {
 
   // Debounce timers for real-time calculations
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
@@ -3165,7 +3175,7 @@ const InvestedCapitalTable: React.FC<{
 
       <div className="px-6 py-4 border-b">
 
-        <h3 className="text-lg font-semibold text-gray-900">COST Invested Capital</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Invested Capital</h3>
 
       </div>
 
@@ -3347,9 +3357,11 @@ const FreeCashFlowTable: React.FC<{
 
   isInputField?: (field: string) => boolean,
 
-  isCalculatedField?: (field: string) => boolean
+  isCalculatedField?: (field: string) => boolean,
 
-}> = ({ data, onDataChange, isInputField: _isInputField, isCalculatedField: _isCalculatedField }) => {
+  companyTicker?: string
+
+}> = ({ data, onDataChange, isInputField: _isInputField, isCalculatedField: _isCalculatedField, companyTicker = 'COST' }) => {
 
   // Debounce timers for real-time calculations
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
@@ -3807,7 +3819,7 @@ const FreeCashFlowTable: React.FC<{
 
       <div className="px-6 py-4 border-b">
 
-        <h3 className="text-lg font-semibold text-gray-900">COST Free Cash Flow</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Free Cash Flow</h3>
 
       </div>
 
@@ -3989,9 +4001,11 @@ const CashFlowsTable: React.FC<{
 
   isInputField?: (field: string) => boolean,
 
-  isCalculatedField?: (field: string) => boolean
+  isCalculatedField?: (field: string) => boolean,
 
-}> = ({ data, onDataChange, isCalculatedField }) => {
+  companyTicker?: string
+
+}> = ({ data, onDataChange, isCalculatedField, companyTicker = 'COST' }) => {
 
   // Debounce timers for real-time calculations
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
@@ -4417,7 +4431,7 @@ const CashFlowsTable: React.FC<{
 
       <div className="px-6 py-4 border-b">
 
-        <h3 className="text-lg font-semibold text-gray-900">COST Cash Flows</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Cash Flows</h3>
 
       </div>
 
@@ -9431,29 +9445,74 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   // Helper function to merge static data with context modifications
   const mergeDataWithContext = useCallback((staticData: {[key: string]: TableData}, ticker: string): {[key: string]: TableData} => {
     const modifiedData = getModifiedCompanyData(ticker);
-    if (!modifiedData) return staticData;
+    if (!modifiedData) {
+      console.log(`[mergeDataWithContext] No modified data for ${ticker}, returning static data as-is`);
+      return staticData;
+    }
+    
+    console.log(`[mergeDataWithContext] Merging data for ${ticker}, modified tables:`, Object.keys(modifiedData));
     
     const merged = { ...staticData };
     
     // Merge each table that has modifications
     Object.keys(modifiedData).forEach(tableId => {
-      if (modifiedData[tableId] && staticData[tableId]) {
-        const mergedTable: TableData = { ...staticData[tableId] };
+      // Special handling for income statement: ensure API data (staticData) is the base
+      // Only merge user edits from context, not full table replacements
+      if (tableId === 'incomeStatement') {
+        console.log(`[mergeDataWithContext] Merging income statement for ${ticker}`);
+        console.log(`[mergeDataWithContext] Static income statement has ${Object.keys(staticData[tableId] || {}).length} years`);
+        console.log(`[mergeDataWithContext] Modified income statement has ${Object.keys(modifiedData[tableId] || {}).length} years`);
         
-        // Merge each year's data
-        Object.keys(modifiedData[tableId]).forEach(year => {
-          const yearNum = typeof year === 'string' && !isNaN(Number(year)) ? Number(year) : year;
-          if ((mergedTable as any)[yearNum]) {
-            (mergedTable as any)[yearNum] = {
-              ...(mergedTable as any)[yearNum],
-              ...(modifiedData as any)[tableId][year]
-            };
-          } else {
-            (mergedTable as any)[yearNum] = { ...(modifiedData as any)[tableId][year] };
-          }
-        });
+        // If we have API data (staticData), use it as the base - it takes precedence
+        // If staticData is empty but we have context data, that means API hasn't loaded yet, so use context
+        const hasApiData = staticData[tableId] && Object.keys(staticData[tableId]).length > 0;
         
-        merged[tableId] = mergedTable;
+        if (hasApiData) {
+          // Start with API data as base - this is the source of truth
+          const mergedTable: TableData = { ...staticData[tableId] };
+          
+          // Only merge user edits (field-level modifications) from context on top of API data
+          Object.keys(modifiedData[tableId]).forEach(year => {
+            const yearNum = typeof year === 'string' && !isNaN(Number(year)) ? Number(year) : year;
+            if ((mergedTable as any)[yearNum]) {
+              // Merge user edits on top of API data (user edits take precedence for specific fields)
+              (mergedTable as any)[yearNum] = {
+                ...(mergedTable as any)[yearNum],
+                ...(modifiedData as any)[tableId][year]
+              };
+            } else {
+              // If year doesn't exist in API data, add it from context (user-added forecast year)
+              (mergedTable as any)[yearNum] = { ...(modifiedData as any)[tableId][year] };
+            }
+          });
+          
+          merged[tableId] = mergedTable;
+          console.log(`[mergeDataWithContext] Using API data as base, final merged income statement has ${Object.keys(mergedTable).length} years`);
+        } else {
+          // No API data yet, use context data temporarily (shouldn't happen after API loads)
+          console.warn(`[mergeDataWithContext] No API data for income statement, using context data`);
+          merged[tableId] = { ...(modifiedData[tableId] as TableData) };
+        }
+      } else {
+        // For other tables, use existing merge logic
+        if (modifiedData[tableId] && staticData[tableId]) {
+          const mergedTable: TableData = { ...staticData[tableId] };
+          
+          // Merge each year's data
+          Object.keys(modifiedData[tableId]).forEach(year => {
+            const yearNum = typeof year === 'string' && !isNaN(Number(year)) ? Number(year) : year;
+            if ((mergedTable as any)[yearNum]) {
+              (mergedTable as any)[yearNum] = {
+                ...(mergedTable as any)[yearNum],
+                ...(modifiedData as any)[tableId][year]
+              };
+            } else {
+              (mergedTable as any)[yearNum] = { ...(modifiedData as any)[tableId][year] };
+            }
+          });
+          
+          merged[tableId] = mergedTable;
+        }
       }
     });
     
@@ -9467,7 +9526,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       ppeChanges: ppeChangesReal,
       freeCashFlow: freeCashFlowReal,
       cashFlows: (cashFlowReal as unknown) as TableData,
-      incomeStatement: incomeStatementReal,
+      incomeStatement: {} as TableData, // Will be loaded from API
       incomeStatementCommonSize: (incomeStatementCommonReal as unknown) as TableData,
       balanceSheetCommonSize: (balanceSheetCommonReal as unknown) as TableData,
       nopat: nopatReal,
@@ -9488,6 +9547,228 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
   const [activeTab, setActiveTab] = useState('incomeStatement');
 
+  // Company dropdown state
+  const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState<boolean>(false);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState<boolean>(false);
+  const [companyInput, setCompanyInput] = useState<string>('');
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch companies from API
+  const fetchCompanies = async () => {
+    setCompaniesLoading(true);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/companies`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch companies: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      // Handle both paginated (results) and non-paginated responses
+      const companiesList = data.results || data;
+      
+      const companies: CompanyTicker[] = [];
+      companiesList.forEach((company: any) => {
+        const ticker = company.ticker;
+        const display_name = company.display_name || company.name || company.ticker;
+        const name = company.name || company.ticker;
+        companies.push({ ticker, name, display_name });
+      });
+      
+      setAvailableCompanies(companies);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
+  // Map CSV metric names to frontend field names
+  const mapMetricNameToFrontendField = (csvMetricName: string): string => {
+    const mapping: { [key: string]: string } = {
+      'SellingGeneralAndAdministration': 'SellingGeneralAdministrative',
+      'DepreciationAndAmortization': 'Depreciation',
+      'NetIncomeControlling': 'ProfitLossControlling',
+      'OtherNonoperatingIncome': 'OtherIncome',
+    };
+    
+    // Return mapped name if exists, otherwise return original
+    return mapping[csvMetricName] || csvMetricName;
+  };
+
+  // Map balance sheet CSV metric names to frontend field names
+  const mapBalanceSheetMetricNameToFrontendField = (csvMetricName: string): string => {
+    const mapping: { [key: string]: string } = {
+      'EmployeeAccruedLiabilitiesCurrent': 'EmployeeRelatedLiabilitiesCurrent',
+      // Most CSV field names match frontend expectations directly
+      // Add more mappings here if needed as we discover differences
+    };
+    
+    // Return mapped name if exists, otherwise return original
+    return mapping[csvMetricName] || csvMetricName;
+  };
+
+  // Map cash flow CSV metric names to frontend field names
+  const mapCashFlowMetricNameToFrontendField = (csvMetricName: string): string => {
+    const mapping: { [key: string]: string } = {
+      'DepreciationAndAmortization': 'DepreciationDepletionAndAmortization',
+      'PaidInCapitalCommonStockIssuance': 'CommonStockIssuance',
+      'PaidInCapitalCommonStockRepurchasePayment': 'CommonStockRepurchasePayment',
+      'PaidInCapitalCommonStockDividendPayment': 'CommonStockDividendPayment',
+      // Most other CSV field names match frontend expectations directly
+    };
+    
+    // Return mapped name if exists, otherwise return original
+    return mapping[csvMetricName] || csvMetricName;
+  };
+
+  // Fetch income statement data from API
+  const fetchIncomeStatementData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Income Statement] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/income-statement-data/${ticker}/`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Income Statement] No income statement data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch income statement data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Income Statement] Raw API response for ${ticker}:`, data);
+      
+      // Transform API response to TableData format
+      // API returns: { [year: string]: { [metric_name: string]: number } }
+      // We need: { [year: number]: { [field_name: string]: number } }
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          
+          // Map each metric name to frontend field name
+          for (const [csvMetricName, value] of Object.entries(metrics as { [key: string]: number | string })) {
+            const frontendFieldName = mapMetricNameToFrontendField(csvMetricName);
+            yearData[frontendFieldName] = value;
+          }
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Income Statement] Transformed data for ${ticker}:`, tableData);
+      console.log(`[Income Statement] Years available:`, Object.keys(tableData));
+      if (Object.keys(tableData).length > 0) {
+        const firstYear = Object.keys(tableData)[0];
+        console.log(`[Income Statement] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
+      }
+      
+      return tableData;
+    } catch (error) {
+      console.error(`[Income Statement] Error fetching income statement data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch balance sheet data from API
+  const fetchBalanceSheetData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Balance Sheet] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/balance-sheet-data/${ticker}/`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Balance Sheet] No balance sheet data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch balance sheet data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Balance Sheet] Raw API response for ${ticker}:`, data);
+      
+      // Transform API response to TableData format
+      // API returns: { [year: string]: { [metric_name: string]: number } }
+      // We need: { [year: number]: { [field_name: string]: number } }
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          
+          // Map each metric name to frontend field name
+          for (const [csvMetricName, value] of Object.entries(metrics as { [key: string]: number | string })) {
+            const frontendFieldName = mapBalanceSheetMetricNameToFrontendField(csvMetricName);
+            yearData[frontendFieldName] = value;
+          }
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Balance Sheet] Transformed data for ${ticker}:`, tableData);
+      console.log(`[Balance Sheet] Years available:`, Object.keys(tableData));
+      if (Object.keys(tableData).length > 0) {
+        const firstYear = Object.keys(tableData)[0];
+        console.log(`[Balance Sheet] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
+      }
+      
+      return tableData;
+    } catch (error) {
+      console.error(`[Balance Sheet] Error fetching balance sheet data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch cash flow data from API
+  const fetchCashFlowData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Cash Flow] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/cash-flow-data/${ticker}/`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Cash Flow] No cash flow data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch cash flow data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Cash Flow] Raw API response for ${ticker}:`, data);
+      
+      // Transform API response to TableData format
+      // API returns: { [year: string]: { [metric_name: string]: number } }
+      // We need: { [year: number]: { [field_name: string]: number } }
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          
+          // Map each metric name to frontend field name
+          for (const [csvMetricName, value] of Object.entries(metrics as { [key: string]: number | string })) {
+            const frontendFieldName = mapCashFlowMetricNameToFrontendField(csvMetricName);
+            yearData[frontendFieldName] = value;
+          }
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Cash Flow] Transformed data for ${ticker}:`, tableData);
+      console.log(`[Cash Flow] Years available:`, Object.keys(tableData));
+      if (Object.keys(tableData).length > 0) {
+        const firstYear = Object.keys(tableData)[0];
+        console.log(`[Cash Flow] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
+      }
+      
+      return tableData;
+    } catch (error) {
+      console.error(`[Cash Flow] Error fetching cash flow data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
   // removed navigate = useNavigate();
 
 
@@ -9499,139 +9780,178 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
 
 
+  // Fetch companies on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
+        setShowCompanyDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Switch company data when selectedCompany changes
 
   useEffect(() => {
-
-    if (selectedCompany === 'WMT') {
-
-      // Load Walmart data
-
-      const walmartStaticData = {
-        balanceSheet: walmartMockData.balanceSheet as TableData,
+    const loadCompanyData = async () => {
+      console.log(`[ValuationPage] Loading company data for ${selectedCompany}`);
+      // Fetch income statement from API
+      const incomeStatementData = await fetchIncomeStatementData(selectedCompany);
+      console.log(`[ValuationPage] Income statement data received:`, incomeStatementData ? `Has ${Object.keys(incomeStatementData).length} years` : 'null/empty');
+      
+      // Fetch balance sheet from API
+      const balanceSheetData = await fetchBalanceSheetData(selectedCompany);
+      console.log(`[ValuationPage] Balance sheet data received:`, balanceSheetData ? `Has ${Object.keys(balanceSheetData).length} years` : 'null/empty');
+      
+      // Fetch cash flow from API
+      const cashFlowData = await fetchCashFlowData(selectedCompany);
+      console.log(`[ValuationPage] Cash flow data received:`, cashFlowData ? `Has ${Object.keys(cashFlowData).length} years` : 'null/empty');
+      
+      // For now, keep other tables as hardcoded (will be replaced later)
+      // Start with default/fallback data structure
+      let staticData: any = {
+        balanceSheet: balanceSheetData || {} as TableData,
         ppeChanges: ppeChangesReal as TableData,
-        freeCashFlow: walmartMockData.cashFlow as TableData,
-        cashFlows: walmartMockData.cashFlow as TableData,
-        incomeStatement: walmartMockData.incomeStatement as TableData,
-        incomeStatementCommonSize: walmartMockData.incomeStatementCommonSize as TableData,
-        balanceSheetCommonSize: walmartMockData.balanceSheetCommonSize as TableData,
-        nopat: walmartMockData.nopat as TableData,
-        investedCapital: walmartMockData.investedCapital as TableData,
-        roicPerformance: walmartMockData.roicPerformance as TableData,
-        financingHealth: walmartMockData.financingHealth as TableData,
-        operationalPerformance: walmartMockData.operationalPerformance as TableData
+        freeCashFlow: {} as TableData,
+        cashFlows: cashFlowData || {} as TableData,
+        incomeStatement: incomeStatementData || {} as TableData,
+        incomeStatementCommonSize: {} as TableData,
+        balanceSheetCommonSize: {} as TableData,
+        nopat: {} as TableData,
+        investedCapital: {} as TableData,
+        roicPerformance: {} as TableData,
+        financingHealth: {} as TableData,
+        operationalPerformance: {} as TableData
       };
+
+      // Load other tables from mock data for specific companies (temporary until we load them from DB)
+      if (selectedCompany === 'WMT') {
+        staticData = {
+          ...staticData,
+          balanceSheet: walmartMockData.balanceSheet as TableData,
+          freeCashFlow: walmartMockData.cashFlow as TableData,
+          cashFlows: walmartMockData.cashFlow as TableData,
+          incomeStatementCommonSize: walmartMockData.incomeStatementCommonSize as TableData,
+          balanceSheetCommonSize: walmartMockData.balanceSheetCommonSize as TableData,
+          nopat: walmartMockData.nopat as TableData,
+          investedCapital: walmartMockData.investedCapital as TableData,
+          roicPerformance: walmartMockData.roicPerformance as TableData,
+          financingHealth: walmartMockData.financingHealth as TableData,
+          operationalPerformance: walmartMockData.operationalPerformance as TableData
+        };
+      } else if (selectedCompany === 'BJ') {
+        staticData = {
+          ...staticData,
+          balanceSheet: bjMockData.balanceSheet as TableData,
+          freeCashFlow: bjMockData.freeCashFlow as TableData,
+          cashFlows: bjMockData.cashFlow as TableData,
+          incomeStatementCommonSize: bjMockData.incomeStatementCommonSize as TableData,
+          balanceSheetCommonSize: bjMockData.balanceSheetCommonSize as TableData,
+          nopat: bjMockData.nopat as TableData,
+          investedCapital: bjMockData.investedCapital as TableData,
+          roicPerformance: bjMockData.roicPerformance as TableData,
+          financingHealth: bjMockData.financingHealth as TableData,
+          operationalPerformance: bjMockData.operationalPerformance as TableData
+        };
+      } else if (selectedCompany === 'DG') {
+        staticData = {
+          ...staticData,
+          balanceSheet: dgMockData.balanceSheet as TableData,
+          freeCashFlow: dgMockData.cashFlow as TableData,
+          cashFlows: dgMockData.cashFlow as TableData,
+          incomeStatementCommonSize: dgMockData.incomeStatementCommonSize as TableData,
+          balanceSheetCommonSize: dgMockData.balanceSheetCommonSize as TableData,
+          nopat: dgMockData.nopat as TableData,
+          investedCapital: dgMockData.investedCapital as TableData,
+          roicPerformance: dgMockData.roicPerformance as TableData,
+          financingHealth: dgMockData.financingHealth as TableData,
+          operationalPerformance: dgMockData.operationalPerformance as TableData
+        };
+      } else if (selectedCompany === 'DLTR') {
+        staticData = {
+          ...staticData,
+          balanceSheet: dltrMockData.balanceSheet as TableData,
+          ppeChanges: dltrMockData.ppeChanges as TableData,
+          freeCashFlow: dltrMockData.freeCashFlow as TableData,
+          cashFlows: dltrMockData.cashFlow as TableData,
+          incomeStatementCommonSize: dltrMockData.incomeStatementCommonSize as TableData,
+          balanceSheetCommonSize: dltrMockData.balanceSheetCommonSize as TableData,
+          nopat: dltrMockData.nopat as TableData,
+          investedCapital: dltrMockData.investedCapital as TableData,
+          roicPerformance: dltrMockData.roicPerformance as TableData,
+          financingHealth: dltrMockData.financingHealth as TableData,
+          operationalPerformance: dltrMockData.operationalPerformance as TableData
+        };
+      } else if (selectedCompany === 'TGT') {
+        staticData = {
+          ...staticData,
+          balanceSheet: tgtMockData.balanceSheet as TableData,
+          ppeChanges: tgtMockData.ppeChanges as TableData,
+          freeCashFlow: tgtMockData.freeCashFlow as TableData,
+          cashFlows: tgtMockData.cashFlow as TableData,
+          incomeStatementCommonSize: tgtMockData.incomeStatementCommonSize as TableData,
+          balanceSheetCommonSize: tgtMockData.balanceSheetCommonSize as TableData,
+          nopat: tgtMockData.nopat as TableData,
+          investedCapital: tgtMockData.investedCapital as TableData,
+          roicPerformance: tgtMockData.roicPerformance as TableData,
+          financingHealth: tgtMockData.financingHealth as TableData,
+          operationalPerformance: tgtMockData.operationalPerformance as TableData
+        };
+      } else {
+        // Default to Costco data structure for other companies (only as fallback if API data not available)
+        staticData = {
+          ...staticData,
+          balanceSheet: staticData.balanceSheet && Object.keys(staticData.balanceSheet).length > 0 ? staticData.balanceSheet : balanceSheetReal,
+          freeCashFlow: staticData.freeCashFlow && Object.keys(staticData.freeCashFlow).length > 0 ? staticData.freeCashFlow : freeCashFlowReal,
+          cashFlows: staticData.cashFlows && Object.keys(staticData.cashFlows).length > 0 ? staticData.cashFlows : (cashFlowReal as unknown) as TableData,
+          incomeStatementCommonSize: (incomeStatementCommonReal as unknown) as TableData,
+          balanceSheetCommonSize: (balanceSheetCommonReal as unknown) as TableData,
+          nopat: nopatReal,
+          investedCapital: investedCapitalReal,
+          roicPerformance: (roicReal as unknown) as TableData,
+          financingHealth: (financeHealthReal as unknown) as TableData,
+          operationalPerformance: (operationalPerformanceReal as unknown) as TableData
+        };
+      }
       
-      setAllData(mergeDataWithContext(walmartStaticData, 'WMT'));
-
-    } else if (selectedCompany === 'BJ') {
-
-      // Load BJ's Wholesale Club data
-
-      const bjStaticData = {
-        balanceSheet: bjMockData.balanceSheet as TableData,
-        ppeChanges: bjMockData.ppeChanges as TableData,
-        freeCashFlow: bjMockData.freeCashFlow as TableData,
-        cashFlows: bjMockData.cashFlow as TableData,
-        incomeStatement: bjMockData.incomeStatement as TableData,
-        incomeStatementCommonSize: bjMockData.incomeStatementCommonSize as TableData,
-        balanceSheetCommonSize: bjMockData.balanceSheetCommonSize as TableData,
-        nopat: bjMockData.nopat as TableData,
-        investedCapital: bjMockData.investedCapital as TableData,
-        roicPerformance: bjMockData.roicPerformance as TableData,
-        financingHealth: bjMockData.financingHealth as TableData,
-        operationalPerformance: bjMockData.operationalPerformance as TableData
-      };
+      console.log(`[ValuationPage] Static data before merge for ${selectedCompany}:`, {
+        incomeStatement: staticData.incomeStatement ? `Has ${Object.keys(staticData.incomeStatement).length} years` : 'empty',
+        balanceSheet: staticData.balanceSheet ? `Has ${Object.keys(staticData.balanceSheet).length} years` : 'empty'
+      });
       
-      setAllData(mergeDataWithContext(bjStaticData, 'BJ'));
-
-    } else if (selectedCompany === 'DG') {
-
-      // Load Dollar General data
-
-      const dgStaticData = {
-        balanceSheet: dgMockData.balanceSheet as TableData,
-        ppeChanges: ppeChangesReal as TableData,
-        freeCashFlow: dgMockData.cashFlow as TableData,
-        cashFlows: dgMockData.cashFlow as TableData,
-        incomeStatement: dgMockData.incomeStatement as TableData,
-        incomeStatementCommonSize: dgMockData.incomeStatementCommonSize as TableData,
-        balanceSheetCommonSize: dgMockData.balanceSheetCommonSize as TableData,
-        nopat: dgMockData.nopat as TableData,
-        investedCapital: dgMockData.investedCapital as TableData,
-        roicPerformance: dgMockData.roicPerformance as TableData,
-        financingHealth: dgMockData.financingHealth as TableData,
-        operationalPerformance: dgMockData.operationalPerformance as TableData
-      };
+      const mergedData = mergeDataWithContext(staticData, selectedCompany);
+      console.log(`[ValuationPage] Merged data for ${selectedCompany}:`, {
+        incomeStatement: mergedData.incomeStatement ? `Has ${Object.keys(mergedData.incomeStatement).length} years` : 'empty',
+        balanceSheet: mergedData.balanceSheet ? `Has ${Object.keys(mergedData.balanceSheet).length} years` : 'empty'
+      });
       
-      setAllData(mergeDataWithContext(dgStaticData, 'DG'));
-
-    } else if (selectedCompany === 'DLTR') {
-
-      // Load Dollar Tree data - Complete dataset with all tables
-
-      const dltrStaticData = {
-        balanceSheet: dltrMockData.balanceSheet as TableData,
-        ppeChanges: dltrMockData.ppeChanges as TableData,
-        freeCashFlow: dltrMockData.freeCashFlow as TableData,
-        cashFlows: dltrMockData.cashFlow as TableData,
-        incomeStatement: dltrMockData.incomeStatement as TableData,
-        incomeStatementCommonSize: dltrMockData.incomeStatementCommonSize as TableData,
-        balanceSheetCommonSize: dltrMockData.balanceSheetCommonSize as TableData,
-        nopat: dltrMockData.nopat as TableData,
-        investedCapital: dltrMockData.investedCapital as TableData,
-        roicPerformance: dltrMockData.roicPerformance as TableData,
-        financingHealth: dltrMockData.financingHealth as TableData,
-        operationalPerformance: dltrMockData.operationalPerformance as TableData
-      };
+      // Log sample income statement data to verify it's from API
+      if (mergedData.incomeStatement && Object.keys(mergedData.incomeStatement).length > 0) {
+        const sampleYear = Object.keys(mergedData.incomeStatement).sort().reverse()[0]; // Get latest year
+        const sampleData = mergedData.incomeStatement[parseInt(sampleYear)];
+        console.log(`[ValuationPage] Sample income statement data for year ${sampleYear}:`, {
+          Revenue: sampleData?.Revenue,
+          CostOfRevenue: sampleData?.CostOfRevenue,
+          SellingGeneralAdministrative: sampleData?.SellingGeneralAdministrative,
+          NetIncome: sampleData?.NetIncome
+        });
+      }
       
-      setAllData(mergeDataWithContext(dltrStaticData, 'DLTR'));
-
-    } else if (selectedCompany === 'TGT') {
-
-      // Load Target data - Complete dataset with all tables
-
-      const tgtStaticData = {
-        balanceSheet: tgtMockData.balanceSheet as TableData,
-        ppeChanges: tgtMockData.ppeChanges as TableData,
-        freeCashFlow: tgtMockData.freeCashFlow as TableData,
-        cashFlows: tgtMockData.cashFlow as TableData,
-        incomeStatement: tgtMockData.incomeStatement as TableData,
-        incomeStatementCommonSize: tgtMockData.incomeStatementCommonSize as TableData,
-        balanceSheetCommonSize: tgtMockData.balanceSheetCommonSize as TableData,
-        nopat: tgtMockData.nopat as TableData,
-        investedCapital: tgtMockData.investedCapital as TableData,
-        roicPerformance: tgtMockData.roicPerformance as TableData,
-        financingHealth: tgtMockData.financingHealth as TableData,
-        operationalPerformance: tgtMockData.operationalPerformance as TableData
-      };
-      
-      setAllData(mergeDataWithContext(tgtStaticData, 'TGT'));
-
-    } else {
-
-      // Load Costco data (default)
-
-      const costcoStaticData = {
-        balanceSheet: balanceSheetReal,
-        ppeChanges: ppeChangesReal,
-        freeCashFlow: freeCashFlowReal,
-        cashFlows: (cashFlowReal as unknown) as TableData,
-        incomeStatement: incomeStatementReal,
-        incomeStatementCommonSize: (incomeStatementCommonReal as unknown) as TableData,
-        balanceSheetCommonSize: (balanceSheetCommonReal as unknown) as TableData,
-        nopat: nopatReal,
-        investedCapital: investedCapitalReal,
-        roicPerformance: (roicReal as unknown) as TableData,
-        financingHealth: (financeHealthReal as unknown) as TableData,
-        operationalPerformance: (operationalPerformanceReal as unknown) as TableData
-      };
-      
-      setAllData(mergeDataWithContext(costcoStaticData, 'COST'));
-
-    }
-
-  }, [selectedCompany, mergeDataWithContext]);
+      setAllData(mergedData);
+      console.log(`[ValuationPage] allData state updated for ${selectedCompany}`);
+    };
+    
+    loadCompanyData();
+  }, [selectedCompany, mergeDataWithContext, fetchIncomeStatementData, fetchBalanceSheetData, fetchCashFlowData]);
 
 
 
@@ -11051,10 +11371,12 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
 
 
-  const handleReset = () => {
-
+  const handleReset = async () => {
     // Reset context for the selected company
     resetCompanyData(selectedCompany);
+
+    // Fetch income statement from API
+    const incomeStatementData = await fetchIncomeStatementData(selectedCompany);
 
     // Reload static data for the selected company (without context merge since we just cleared it)
     if (selectedCompany === 'WMT') {
@@ -11063,7 +11385,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         ppeChanges: ppeChangesReal as TableData,
         freeCashFlow: walmartMockData.cashFlow as TableData,
         cashFlows: walmartMockData.cashFlow as TableData,
-        incomeStatement: walmartMockData.incomeStatement as TableData,
+        incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: walmartMockData.incomeStatementCommonSize as TableData,
         balanceSheetCommonSize: walmartMockData.balanceSheetCommonSize as TableData,
         nopat: walmartMockData.nopat as TableData,
@@ -11078,7 +11400,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         ppeChanges: bjMockData.ppeChanges as TableData,
         freeCashFlow: bjMockData.freeCashFlow as TableData,
         cashFlows: bjMockData.cashFlow as TableData,
-        incomeStatement: bjMockData.incomeStatement as TableData,
+        incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: bjMockData.incomeStatementCommonSize as TableData,
         balanceSheetCommonSize: bjMockData.balanceSheetCommonSize as TableData,
         nopat: bjMockData.nopat as TableData,
@@ -11093,7 +11415,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         ppeChanges: ppeChangesReal as TableData,
         freeCashFlow: dgMockData.cashFlow as TableData,
         cashFlows: dgMockData.cashFlow as TableData,
-        incomeStatement: dgMockData.incomeStatement as TableData,
+        incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: dgMockData.incomeStatementCommonSize as TableData,
         balanceSheetCommonSize: dgMockData.balanceSheetCommonSize as TableData,
         nopat: dgMockData.nopat as TableData,
@@ -11108,7 +11430,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         ppeChanges: dltrMockData.ppeChanges as TableData,
         freeCashFlow: dltrMockData.freeCashFlow as TableData,
         cashFlows: dltrMockData.cashFlow as TableData,
-        incomeStatement: dltrMockData.incomeStatement as TableData,
+        incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: dltrMockData.incomeStatementCommonSize as TableData,
         balanceSheetCommonSize: dltrMockData.balanceSheetCommonSize as TableData,
         nopat: dltrMockData.nopat as TableData,
@@ -11123,7 +11445,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         ppeChanges: tgtMockData.ppeChanges as TableData,
         freeCashFlow: tgtMockData.freeCashFlow as TableData,
         cashFlows: tgtMockData.cashFlow as TableData,
-        incomeStatement: tgtMockData.incomeStatement as TableData,
+        incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: tgtMockData.incomeStatementCommonSize as TableData,
         balanceSheetCommonSize: tgtMockData.balanceSheetCommonSize as TableData,
         nopat: tgtMockData.nopat as TableData,
@@ -11139,7 +11461,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         ppeChanges: ppeChangesReal,
         freeCashFlow: freeCashFlowReal,
         cashFlows: (cashFlowReal as unknown) as TableData,
-        incomeStatement: incomeStatementReal,
+        incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: (incomeStatementCommonReal as unknown) as TableData,
         balanceSheetCommonSize: (balanceSheetCommonReal as unknown) as TableData,
         nopat: nopatReal,
@@ -11266,33 +11588,68 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
                 <label className="text-sm font-medium text-gray-700">Company:</label>
 
-                <select 
+                <div className="relative" ref={companyDropdownRef}>
+                  <input
+                    type="text"
+                    value={
+                      showCompanyDropdown || companyInput
+                        ? companyInput
+                        : (availableCompanies.find(c => c.ticker === selectedCompany)?.display_name || 
+                           availableCompanies.find(c => c.ticker === selectedCompany)?.name || 
+                           selectedCompany)
+                    }
+                    onChange={(e) => {
+                      setCompanyInput(e.target.value);
+                      setShowCompanyDropdown(true);
+                    }}
+                    onFocus={() => {
+                      setShowCompanyDropdown(true);
+                      setCompanyInput('');
+                    }}
+                    placeholder={companiesLoading ? "Loading..." : "Select company..."}
+                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                    disabled={companiesLoading}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
 
-                  value={selectedCompany}
-
-                  onChange={(e) => {
-                    const newCompany = e.target.value;
-                    setSelectedCompany(newCompany);
-                    onCompanyChange?.(newCompany);
-                  }}
-
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-
-                >
-
-                  <option value="COST">Costco (COST)</option>
-
-                  <option value="WMT">Walmart Inc. (WMT)</option>
-
-                  <option value="BJ">BJ's Wholesale Club (BJ)</option>
-
-                  <option value="DG">Dollar General (DG)</option>
-
-                  <option value="DLTR">Dollar Tree (DLTR)</option>
-
-                  <option value="TGT">Target Corporation (TGT)</option>
-
-                </select>
+                  {showCompanyDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-[50vh] overflow-auto">
+                      {companiesLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                      ) : availableCompanies.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                      ) : (
+                        availableCompanies
+                          .filter(company => 
+                            !companyInput || 
+                            company.ticker.toLowerCase().includes(companyInput.toLowerCase()) ||
+                            company.name.toLowerCase().includes(companyInput.toLowerCase()) ||
+                            (company.display_name && company.display_name.toLowerCase().includes(companyInput.toLowerCase()))
+                          )
+                          .map(company => (
+                            <div
+                              key={company.ticker}
+                              onClick={() => {
+                                setSelectedCompany(company.ticker);
+                                setCompanyInput('');
+                                setShowCompanyDropdown(false);
+                                onCompanyChange?.(company.ticker);
+                              }}
+                              className={`px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer ${
+                                selectedCompany === company.ticker ? 'bg-blue-50' : ''
+                              }`}
+                            >
+                              {company.display_name || company.name} ({company.ticker})
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
 
               </div>
 
@@ -11497,6 +11854,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
               isCalculatedField={isNOPATCalculatedField}
 
+              companyTicker={selectedCompany}
+
             />
 
           </TabsContent>
@@ -11512,6 +11871,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
               onDataChange={handleDataChange}
 
               isCalculatedField={() => false}
+
+              companyTicker={selectedCompany}
 
             />
 
@@ -11531,6 +11892,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
               isCalculatedField={isInvestedCapitalCalculatedField}
 
+              companyTicker={selectedCompany}
+
             />
 
           </TabsContent>
@@ -11548,6 +11911,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
               isInputField={isFreeCashFlowInputField}
 
               isCalculatedField={isFreeCashFlowCalculatedField}
+
+              companyTicker={selectedCompany}
 
             />
 
@@ -11752,4 +12117,5 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
 
 export default ValuationPage;
+
 

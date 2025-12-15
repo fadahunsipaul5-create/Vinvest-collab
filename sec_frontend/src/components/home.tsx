@@ -9,7 +9,7 @@ import ValuationPage from './ValuationPage';
 import ValueBuildupChart from './ValueBuildupChart';
 import MultiplesChart from './MultiplesChart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import BoxPlot from './BoxPlot';
+import TopPicks from './TopPicks';
 import { useChat } from './chatbox';
 import { TooltipProps } from 'recharts';
 import { AVAILABLE_METRICS } from '../data/availableMetrics';
@@ -196,6 +196,7 @@ const Dashboard: React.FC = () => {
   const [hasNewChatContent, setHasNewChatContent] = useState(false); // Track if chat has new content
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [availableSectors, setAvailableSectors] = useState<string[]>([]); // Add state for available sectors
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contactFormRef = useRef<HTMLFormElement>(null);
 
@@ -962,7 +963,7 @@ const Dashboard: React.FC = () => {
   // const [selectedIndustryCompanies, setSelectedIndustryCompanies] = useState<CompanyTicker[]>([]);
   const [selectedIndustryMetrics, setSelectedIndustryMetrics] = useState<string[]>([]);
   const [industryMetricInput, setIndustryMetricInput] = useState('');
-  const [industryChartData, setIndustryChartData] = useState<Record<string, (number | null)[]>>({});
+  const [industryChartData, setIndustryChartData] = useState<any[]>([]);
   const [industryLoading, setIndustryLoading] = useState(false);
   const [industryError, setIndustryError] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState('');
@@ -1100,7 +1101,7 @@ const Dashboard: React.FC = () => {
     const fetchCompanies = async () => {
       setCompaniesLoading(true);
       try {
-        const response = await fetch(`${baseUrl}/api/companies/`);
+        const response = await fetch(`${baseUrl}/api/sec/central/companies`);
         if (!response.ok) {
           throw new Error(`Failed to fetch companies: ${response.status}`);
         }
@@ -1114,7 +1115,8 @@ const Dashboard: React.FC = () => {
         
         companiesList.forEach((company: any) => {
           const ticker = company.ticker;
-          const name = company.display_name || company.name || company.ticker;
+          // Central API returns {ticker, name}
+          const name = company.name || company.ticker;
           map[ticker] = name;
           companies.push({ ticker, name });
         });
@@ -1144,28 +1146,32 @@ const Dashboard: React.FC = () => {
 
   const fetchAvailableMetrics = async () => {
     try {
-      // TODO: Replace with API call when database is ready
-      // const response = await fetch(`${baseUrl}/api/available-metrics/`);
-      // if (!response.ok) {
-      //   throw new Error('Failed to fetch metrics');
-      // }
-      // const data = await response.json();
-      // console.log('Fetched metrics:', data);
+      const response = await fetch(`${baseUrl}/api/sec/central/metrics`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch metrics');
+      }
+      const data = await response.json();
+      console.log('Fetched metrics:', data);
       
-      // // Format metric names for display
-      // const formattedMetrics = data.metrics.map((metric: string) => ({
-      //   value: metric,
-      //   label: metric
-      //     .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      //     .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-      //     .trim()
-      // }));
+      // Format metric names for display
+      const formattedMetrics = (data.metrics || []).map((metric: string) => ({
+        value: metric,
+        label: metric
+          .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+          .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+          .trim()
+      }));
       
-      // Use hardcoded metrics for now
-      setAvailableMetrics(AVAILABLE_METRICS);
-      console.log('Using hardcoded metrics:', AVAILABLE_METRICS.length);
+      if (formattedMetrics.length > 0) {
+        setAvailableMetrics(formattedMetrics);
+      } else {
+        // Fallback if empty
+        setAvailableMetrics(AVAILABLE_METRICS);
+      }
     } catch (error) {
       console.error('Error fetching metrics:', error);
+      // Fallback to hardcoded metrics on error
+      setAvailableMetrics(AVAILABLE_METRICS);
     }
   };
 
@@ -1182,16 +1188,17 @@ const Dashboard: React.FC = () => {
       let transformedData: ChartDataPoint[] = [];
 
       if (selectedPeriod === 'Annual') {
-        // For Annual: Fetch data for each metric with period='1Y' (returns all annual years)
+        // For Annual: Fetch all available data (historical and future)
         const yearData: { [year: string]: any } = {};
         
         // Fetch data for each metric
         const promises = selectedSearchMetrics.map(async (metric) => {
-          const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=1Y`;
+          const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=ALL`;
           const response = await fetch(url);
           
           if (!response.ok) {
-            throw new Error(`Failed to fetch ${metric} data: ${response.status}`);
+            console.warn(`Failed to fetch ${metric} data: ${response.status}`);
+            return { metric, data: [] }; // Return empty data on error instead of throwing
           }
           
           const data = await response.json();
@@ -1234,7 +1241,7 @@ const Dashboard: React.FC = () => {
         // Fetch data for each metric and period combination
         const promises = selectedSearchMetrics.flatMap((metric) =>
           periods.map(async (period) => {
-            const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=Average`;
+            const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=Average`;
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -1278,12 +1285,12 @@ const Dashboard: React.FC = () => {
         // Fetch data for each metric and period combination
         const promises = selectedSearchMetrics.flatMap((metric) =>
           periods.map(async (period) => {
-            const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=CAGR`;
+            const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=CAGR`;
             const response = await fetch(url);
             
             if (!response.ok) {
               console.warn(`Failed to fetch ${metric} CAGR data for period ${period}: ${response.status}`);
-              return { metric, period, value: null };
+              return { metric, period, value: null }; // Gracefully handle missing data
             }
             
             const data = await response.json();
@@ -1353,7 +1360,7 @@ const Dashboard: React.FC = () => {
 
       // Determine periodType and period value based on selectedPeriod
       let periodTypeParam = '';
-      let periodValue = selectedPeriod;
+      let periodValue: string = selectedPeriod;
       
       if (selectedPeriod === 'Average') {
         periodTypeParam = '&periodType=Average';
@@ -1362,19 +1369,20 @@ const Dashboard: React.FC = () => {
         periodTypeParam = '&periodType=CAGR';
         periodValue = '1Y'; // Default to 1Y for CAGR mode
       } else if (selectedPeriod === 'Annual') {
-        // Convert 'Annual' to '1Y' for backend API
-        periodValue = '1Y';
+        // Convert 'Annual' to 'ALL' for backend API to get historical data
+        periodValue = 'ALL';
       }
       // For period strings like '1Y', '2Y', etc., use as-is
       
       // Fetch data for each company
       const promises = selectedCompanies.map(async company => {
-        const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(periodValue)}${periodTypeParam}`;
+        const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(periodValue)}${periodTypeParam}`;
         console.log('Fetching from:', url);
         const response = await fetch(url);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch data for ${company.ticker}`);
+           console.warn(`Failed to fetch peer data for ${company.ticker}: ${response.status}`);
+           return { company, data: [] }; // Return empty data on error
         }
         
         const data = await response.json();
@@ -1462,132 +1470,112 @@ const Dashboard: React.FC = () => {
   }, [selectedCompanies, selectedPeerMetric, selectedPeriod, baseUrl]);
 
   const fetchIndustryData = useCallback(async () => {
-    if (selectedIndustryMetrics.length === 0) return;
+    if (selectedIndustryMetrics.length === 0 || !selectedIndustry) return;
     
     setIndustryLoading(true);
     setIndustryError(null);
     
     try {
-      console.log('Fetching industry data from API for metrics:', selectedIndustryMetrics, 'period:', selectedPeriod);
+      console.log('Fetching industry comparison data:', selectedIndustry, selectedIndustryMetrics);
 
-      // Get companies from selected industry
-      const selectedIndustryObj = [...HARDCODED_INDUSTRIES, ...availableIndustries].find(
-        ind => ('id' in ind ? ind.id : (ind as any).value) === selectedIndustry
-      );
-      
-      if (!selectedIndustryObj) {
-        setIndustryError('No industry selected');
-        setIndustryChartData({});
-        return;
-      }
-      
-      const allCompanies = selectedIndustryObj?.companies?.map(c => 
-        typeof c === 'string' ? c : (c as any).ticker
-      ) || [];
-      
-      if (allCompanies.length === 0) {
-        setIndustryError('No companies found in selected industry');
-        setIndustryChartData({});
-        return;
-      }
+      const yearMap: { [year: string]: any } = {};
 
-      // Map period to backend format and determine periodType
-      const periodMap: { [key: string]: string } = {
-        'Last 1Y AVG': '1Y',
-        'Last 2Y AVG': '2Y',
-        'Last 3Y AVG': '3Y',
-        'Last 4Y AVG': '4Y',
-        'Last 5Y AVG': '5Y',
-        'Last 10Y AVG': '10Y',
-        'Last 15Y AVG': '15Y'
-      };
-      const backendPeriod = periodMap[selectedPeriod] || '1Y';
-      
-      // Determine periodType - if selectedPeriod contains 'AVG', use Average
-      let periodTypeParam = '';
-      if (selectedPeriod.includes('AVG') || selectedPeriod === 'Average') {
-        periodTypeParam = '&periodType=Average';
-      } else if (selectedPeriod.includes('CAGR') || selectedPeriod === 'CAGR') {
-        periodTypeParam = '&periodType=CAGR';
-      }
-
-      const industryData: { [key: string]: number[] } = {};
-      const companyNames: { [metric: string]: string[] } = {};
-
-      // Fetch data for each metric and company combination
-      for (const metric of selectedIndustryMetrics) {
-        const metricValues: number[] = [];
-        const metricCompanyNames: string[] = [];
-        
-        const promises = allCompanies.map(async (ticker: string) => {
-          try {
-            const url = `${baseUrl}/api/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(backendPeriod)}${periodTypeParam}`;
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-              console.warn(`Failed to fetch ${metric} for ${ticker}: ${response.status}`);
-              return { ticker, value: null, name: ticker };
-            }
-            
-            const data = await response.json();
-            const value = data.length > 0 ? data[0].value : null;
-            
-            // Get company name from availableCompanies
-            const company = availableCompanies.find(c => c.ticker === ticker);
-            const name = company?.name || ticker;
-            
-            return { ticker, value, name };
-          } catch (error) {
-            console.error(`Error fetching ${metric} for ${ticker}:`, error);
-            return { ticker, value: null, name: ticker };
+      // Fetch data for each metric
+      const promises = selectedIndustryMetrics.map(async (metric) => {
+        try {
+          // Use new industry-comparison endpoint
+          // Note: period=ALL to get historical trend
+          // Important: Use selectedIndustry directly as it matches the API expected format (e.g. "Discount Stores")
+          // Do NOT slugify it or lowercase it unless the API specifically requires it.
+          // Based on availableIndustries, the value is "Discount Stores", "Software - Infrastructure", etc.
+          const url = `${baseUrl}/api/sec/central/industry-comparison?industries=${encodeURIComponent(selectedIndustry)}&metric=${encodeURIComponent(metric)}&period=ALL`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.warn(`Failed to fetch industry comparison for ${metric}: ${response.status}`);
+            return;
           }
-        });
+          
+          const data = await response.json();
+          // Expected format: { industries: [...], comparisons: [{ period: "2023", "Industry_Name_total": 123 }, ...] }
+          
+          if (data.comparisons && Array.isArray(data.comparisons)) {
+            data.comparisons.forEach((item: any) => {
+              const year = item.period;
+              if (!year) return;
 
-        const results = await Promise.all(promises);
-        
-        results.forEach(({ value, name }) => {
-          if (value !== null && value !== undefined) {
-            metricValues.push(value);
-            metricCompanyNames.push(name);
+              if (!yearMap[year]) {
+                yearMap[year] = { 
+                  name: year,
+                  year: parseInt(year) || 0 
+                };
+              }
+              
+              // Find the value key (not 'period')
+              // We assume one industry is selected, so we take the first available value key
+              const valueKey = Object.keys(item).find(k => k !== 'period');
+              if (valueKey && item[valueKey] !== null) {
+                yearMap[year][metric] = item[valueKey];
+              }
+            });
           }
-        });
-
-        if (metricValues.length > 0) {
-          industryData[metric] = metricValues;
-          companyNames[metric] = metricCompanyNames;
+        } catch (error) {
+          console.error(`Error fetching ${metric} for industry:`, error);
         }
-      }
+      });
 
-      console.log('Industry data from API:', industryData);
-      setIndustryChartData(industryData);
-      setIndustryCompanyNames(companyNames);
+      await Promise.all(promises);
+      
+      // Convert map to sorted array
+      const sortedData = Object.values(yearMap).sort((a, b) => a.year - b.year);
+      
+      console.log('Industry comparison data:', sortedData);
+      setIndustryChartData(sortedData);
 
     } catch (error) {
       console.error('Error fetching industry data:', error);
-      setIndustryError('Failed to fetch industry data from database. Please try again.');
-      setIndustryChartData({});
+      setIndustryError('Failed to fetch industry data. Please try again.');
+      setIndustryChartData([]);
     } finally {
       setIndustryLoading(false);
     }
-  }, [selectedIndustryMetrics, selectedPeriod, selectedIndustry, availableIndustries, availableCompanies, baseUrl]);
+  }, [selectedIndustryMetrics, selectedIndustry, baseUrl]);
 
   const fetchAvailableIndustries = async () => {
     try {
-      const response = await fetch(`${baseUrl}/api/industries/`);
+      const response = await fetch(`${baseUrl}/api/sec/central/industries`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch industries: ${response.status}`);
+      }
       const data = await response.json();
       console.log('Raw industries data:', data);
       
+      // Handle response structure { industries: [...] }
+      const industriesList = data.industries || [];
+      
       // Format industries correctly
-      const formattedIndustries = data.industries.map((industry: { name: string, companies: string[] }) => ({
+      const formattedIndustries = industriesList.map((industry: { name: string, companies: string[] }) => ({
         value: industry.name,
         label: industry.name,
-        companies: industry.companies
+        companies: industry.companies || []
       }));
       
       console.log('Formatted industries:', formattedIndustries);
       setAvailableIndustries(formattedIndustries);
     } catch (error) {
       console.error('Error fetching industries:', error);
+      // Fallback to empty or keep existing? Usually better to show empty/error than stale wrong data if API fails consistently
+      // setAvailableIndustries([]); 
+    }
+  };
+
+  const fetchAvailableSectors = async () => {
+    try {
+      const response = await fetch(`${baseUrl}/api/sectors/`);
+      const data = await response.json();
+      setAvailableSectors(data.sectors || []);
+    } catch (error) {
+      console.error('Error fetching sectors:', error);
     }
   };
 
@@ -1600,7 +1588,7 @@ const Dashboard: React.FC = () => {
     if (resetTrigger > 0) { // Only clear if resetTrigger has been set (not initial 0)
       setChartData([]);
       setPeerChartData([]);
-      setIndustryChartData({});
+      setIndustryChartData([]);
       setFixed2024Data(null);
       setError(null);
       setPeerError(null);
@@ -1668,6 +1656,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchAvailableIndustries();
+    fetchAvailableSectors();
   }, []);
 
   useEffect(() => {
@@ -2502,6 +2491,10 @@ const Dashboard: React.FC = () => {
                       setActivePerformanceTab('top-picks');
                       setIsChatbotMinimized(false);
                     }}
+                    onDoubleClick={() => {
+                      setActivePerformanceTab('top-picks');
+                      setIsChatbotMinimized(true);
+                    }}
                     className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       activePerformanceTab === 'top-picks'
                         ? 'bg-[#1B5A7D] text-white'
@@ -2513,7 +2506,11 @@ const Dashboard: React.FC = () => {
                   <button
                     onClick={() => {
                       setActivePerformanceTab('performance');
-                      setIsChatbotMinimized(true);
+                      setIsChatbotMinimized(false); // Default to split view on single click
+                    }}
+                    onDoubleClick={() => {
+                      setActivePerformanceTab('performance');
+                      setIsChatbotMinimized(true); // Expand on double click
                     }}
                     className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       activePerformanceTab === 'performance'
@@ -2531,52 +2528,210 @@ const Dashboard: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Chart Header with Save Button */}
-                <div className="flex justify-between items-center mb-2 xm:mb-3 xs:mb-3.5 sm:mb-4 md:mb-5 lg:mb-5 xl:mb-6">
-                  <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Business Performance</h2>
-                  <button 
-                    onClick={saveChart}
-                    disabled={isSaving || (
-                      (activeChart === 'metrics' && (!searchValue || selectedSearchMetrics.length === 0)) ||
-                      (activeChart === 'peers' && (selectedCompanies.length === 0 || !selectedPeerMetric)) ||
-                      (activeChart === 'industry' && (!selectedIndustry || selectedIndustryMetrics.length === 0))
-                    )}
-                    className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
-                      isSaving 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
-                    }`}
-                    title={
-                      isSaving 
-                        ? 'Saving...' 
-                        : 'Save current chart configuration and data'
-                    }
-                    data-ignore-pdf
-                  >
-                    {isSaving ? 'Saving...' : 'Save chart'}
-                  </button>
-        </div>
-
-        {/* Company Search */}
-        <div className="mb-4">
-          <div className="text-sm xl:text-base text-gray-500">Company</div>
-          {activeChart === 'peers' ? (
-            <div className="relative" ref={companyDropdownRef}>
-              <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
-                {selectedCompanies.map((company, index) => (
-                  <div 
-                    key={index} 
-                    className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
-                  >
-                    {company.name || company.ticker}
-                    <button
-                      onClick={() => setSelectedCompanies(companies => 
-                        companies.filter((_, i) => i !== index)
+                {/* Chart Header with Save Button - Only show when not on Top Picks tab */}
+                {activePerformanceTab !== 'top-picks' && (
+                  <div className="flex justify-between items-center mb-2 xm:mb-3 xs:mb-3.5 sm:mb-4 md:mb-5 lg:mb-5 xl:mb-6">
+                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Business Performance</h2>
+                    <button 
+                      onClick={saveChart}
+                      disabled={isSaving || (
+                        (activeChart === 'metrics' && (!searchValue || selectedSearchMetrics.length === 0)) ||
+                        (activeChart === 'peers' && (selectedCompanies.length === 0 || !selectedPeerMetric)) ||
+                        (activeChart === 'industry' && (!selectedIndustry || selectedIndustryMetrics.length === 0))
                       )}
-                      className="text-gray-400 hover:text-gray-600"
+                      className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
+                        isSaving 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
+                      }`}
+                      title={
+                        isSaving 
+                          ? 'Saving...' 
+                          : 'Save current chart configuration and data'
+                      }
+                      data-ignore-pdf
+                    >
+                      {isSaving ? 'Saving...' : 'Save chart'}
+                    </button>
+                  </div>
+                )}
+
+        {/* Company Search & Metrics Selector - ONLY show when Performance tab is active */}
+        {activePerformanceTab === 'performance' && (
+          <>
+            {/* Company Search */}
+            <div className="mb-4">
+              <div className="text-sm xl:text-base text-gray-500">Company</div>
+              {activeChart === 'peers' ? (
+                <div className="relative" ref={companyDropdownRef}>
+                  {/* ... existing company dropdown code ... */}
+                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
+                    {selectedCompanies.map((company, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                      >
+                        {company.name || company.ticker}
+                        <button
+                          onClick={() => setSelectedCompanies(companies => 
+                            companies.filter((_, i) => i !== index)
+                          )}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                    <input
+                      type="text"
+                      value={companyInput}
+                      onChange={(e) => setCompanyInput(e.target.value)}
+                      onFocus={() => setShowCompanyDropdown(true)}
+                      placeholder="Search companies..."
+                      className="flex-1 min-w-[100px] outline-none text-sm"
+                    />
+                  </div>
+                  
+                  {showCompanyDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                      {companiesLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                      ) : availableCompanies.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                      ) : (
+                        availableCompanies
+                        .filter(company => 
+                          !selectedCompanies.some(c => c.ticker === company.ticker) &&
+                          (company.ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
+                           company.name.toLowerCase().includes(companyInput.toLowerCase()))
+                        )
+                        .map(company => (
+                          <div
+                            key={company.ticker}
+                              onClick={() => {
+                              if (!selectedCompanies.some(c => c.ticker === company.ticker)) {
+                                setSelectedCompanies([...selectedCompanies, company]);
+                                }
+                                setCompanyInput('');
+                                setShowCompanyDropdown(false);
+                              }}
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            >
+                            {company.name} ({company.ticker})
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : activeChart === 'industry' ? (
+                <div className="relative" ref={companyDropdownRef}>
+                  <input
+                    type="text"
+                    placeholder="Search companies..."
+                    value={selectedTicker || companySearch}
+                    onChange={(e) => {
+                      setCompanySearch(e.target.value);
+                      setSelectedTicker(''); // Clear selection when typing
+                      setSelectedIndustry('');
+                      setIndustrySearch('');
+                    }}
+                    onFocus={() => setShowCompanyDropdown(true)}
+                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                  />
+                  {selectedTicker && (
+                    <button
+                      onClick={() => {
+                        setSelectedTicker('');
+                        setCompanySearch('');
+                        setSelectedIndustry('');
+                        setIndustrySearch('');
+                      }}
+                      className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  
+                  {showCompanyDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                      {companiesLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                      ) : availableCompanies.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                      ) : (
+                        availableCompanies
+                        .filter(company => 
+                          company.ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
+                          company.name.toLowerCase().includes(companySearch.toLowerCase())
+                        )
+                        .map(company => (
+                          <div
+                            key={company.ticker}
+                              onClick={() => {
+                              setSelectedTicker(company.ticker);
+                                setCompanySearch('');
+                                setShowCompanyDropdown(false);
+                                
+                                // Auto-select industry based on company
+                                const companyIndustry = [...HARDCODED_INDUSTRIES, ...availableIndustries].find(industry => {
+                                  return industry.companies?.some(c => 
+                                    (typeof c === 'string' ? c : (c as any).ticker) === company.ticker
+                                  );
+                                });
+
+                                if (companyIndustry) {
+                                  const industryId = 'id' in companyIndustry ? companyIndustry.id : (companyIndustry as any).value;
+                                  const industryName = 'name' in companyIndustry ? companyIndustry.name : (companyIndustry as any).label;
+                                  setSelectedIndustry(industryId);
+                                  setIndustrySearch(industryName);
+                                }
+                              }}
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            >
+                            {company.name} ({company.ticker})
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="relative" ref={companyDropdownRef}>
+                  <input
+                    type="text"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onFocus={() => setShowCompanyDropdown(true)}
+                    placeholder="Search company..."
+                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                  />
+                  {searchValue && (
+                    <button
+                      onClick={() => setSearchValue('')}
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       <svg
-                        className="w-3 h-3"
+                        className="w-4 h-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -2589,367 +2744,230 @@ const Dashboard: React.FC = () => {
                         />
                       </svg>
                     </button>
+                  )}
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
-                ))}
-                <input
-                  type="text"
-                  value={companyInput}
-                  onChange={(e) => setCompanyInput(e.target.value)}
-                  onFocus={() => setShowCompanyDropdown(true)}
-                  placeholder="Search companies..."
-                  className="flex-1 min-w-[100px] outline-none text-sm"
-                />
-              </div>
-              
-              {showCompanyDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                  {companiesLoading ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
-                  ) : availableCompanies.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
-                  ) : (
-                    availableCompanies
-                    .filter(company => 
-                      !selectedCompanies.some(c => c.ticker === company.ticker) &&
-                      (company.ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
-                       company.name.toLowerCase().includes(companyInput.toLowerCase()))
-                    )
-                    .map(company => (
-                      <div
-                        key={company.ticker}
-                          onClick={() => {
-                          if (!selectedCompanies.some(c => c.ticker === company.ticker)) {
-                            setSelectedCompanies([...selectedCompanies, company]);
-                            }
-                            setCompanyInput('');
-                            setShowCompanyDropdown(false);
-                          }}
-                        className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                        >
-                        {company.name} ({company.ticker})
-                        </div>
-                      ))
-                  )}
-                </div>
-              )}
-            </div>
-          ) : activeChart === 'industry' ? (
-            <div className="relative" ref={companyDropdownRef}>
-              <input
-                type="text"
-                placeholder="Search companies..."
-                value={selectedTicker || companySearch}
-                onChange={(e) => {
-                  setCompanySearch(e.target.value);
-                  setSelectedTicker(''); // Clear selection when typing
-                  setSelectedIndustry('');
-                  setIndustrySearch('');
-                }}
-                onFocus={() => setShowCompanyDropdown(true)}
-                className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
-              />
-              {selectedTicker && (
-                <button
-                  onClick={() => {
-                    setSelectedTicker('');
-                    setCompanySearch('');
-                    setSelectedIndustry('');
-                    setIndustrySearch('');
-                  }}
-                  className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              
-              {showCompanyDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                  {companiesLoading ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
-                  ) : availableCompanies.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
-                  ) : (
-                    availableCompanies
-                    .filter(company => 
-                      company.ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
-                      company.name.toLowerCase().includes(companySearch.toLowerCase())
-                    )
-                    .map(company => (
-                      <div
-                        key={company.ticker}
-                          onClick={() => {
-                          setSelectedTicker(company.ticker);
-                            setCompanySearch('');
-                            setShowCompanyDropdown(false);
-                            
-                            // Auto-select industry based on company
-                            const companyIndustry = [...HARDCODED_INDUSTRIES, ...availableIndustries].find(industry => {
-                              return industry.companies?.some(c => 
-                                (typeof c === 'string' ? c : (c as any).ticker) === company.ticker
-                              );
-                            });
 
-                            if (companyIndustry) {
-                              const industryId = 'id' in companyIndustry ? companyIndustry.id : (companyIndustry as any).value;
-                              const industryName = 'name' in companyIndustry ? companyIndustry.name : (companyIndustry as any).label;
-                              setSelectedIndustry(industryId);
-                              setIndustrySearch(industryName);
-                            }
-                          }}
-                        className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                        >
-                        {company.name} ({company.ticker})
-                        </div>
-                      ))
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="relative" ref={companyDropdownRef}>
-              <input
-                type="text"
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                onFocus={() => setShowCompanyDropdown(true)}
-                placeholder="Search company..."
-                className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
-              />
-              {searchValue && (
-                <button
-                  onClick={() => setSearchValue('')}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-
-              {showCompanyDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                  {companiesLoading ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
-                  ) : availableCompanies.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
-                  ) : (
-                    availableCompanies
-                    .filter(company => 
-                      company.ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
-                      company.name.toLowerCase().includes(searchValue.toLowerCase())
-                    )
-                    .map(company => (
-                      <div
-                        key={company.ticker}
-                          onClick={() => {
-                          setSearchValue(company.ticker);
-                            setShowCompanyDropdown(false);
-                          }}
-                        className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                        >
-                        {company.name} ({company.ticker})
-                        </div>
-                      ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Metrics Selector */}
-                <div className="-mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
-                  <div className="space-y-1 xm:space-y-1.5 xs:space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 xl:space-y-3 px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
-                     {/* Across tabs - NO scrolling, stays fixed */}
-                     <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
-                      <button 
-                        onClick={() => setActiveChart('valuation')}
-                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
-                          activeChart === 'valuation' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
-                        }`}
-                      >
-                        Valuation
-                      </button>
-                      <button 
-                        onClick={() => setActiveChart('metrics')}
-                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
-                          activeChart === 'metrics' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
-                        }`}
-                      >
-                        Across Metrics
-                      </button>
-                      <button 
-                        onClick={() => setActiveChart('peers')}
-                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
-                          activeChart === 'peers' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
-                        }`}
-                      >
-                        Across Peers
-                      </button>
-                      <button 
-                        onClick={() => setActiveChart('industry')}
-                         className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
-                          activeChart === 'industry' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
-                        }`}
-                      >
-                        Across Industry
-                      </button>
-          </div>
-                     
-                     {/* Period buttons - conditionally scrollable */}
-{activeChart === 'industry' ? (
-              <div className="overflow-x-auto -mx-1 px-1">
-                <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3 min-w-max">
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 1Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 1Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 1Y AVG
-                      </button>
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 2Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 2Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 2Y AVG
-                      </button>
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 3Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 3Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 3Y AVG
-                      </button>
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 4Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 4Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 4Y AVG
-                      </button>
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 5Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 5Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 5Y AVG
-                      </button>
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 10Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 10Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 10Y AVG
-                      </button>
-                      <button 
-                  onClick={() => setSelectedPeriod('Last 15Y AVG')}
-                  className={`flex-1 px-2 py-2 rounded text-xs ${
-                    selectedPeriod === 'Last 15Y AVG' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Last 15Y AVG
-                      </button>
-                </div>
-              </div>
-            ) : activeChart === 'valuation' ? null : (
-              <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
-                      <button 
-                  onClick={() => setSelectedPeriod('Annual')}
-                   className={`flex-1 px-4 py-2 rounded text-sm ${
-                    selectedPeriod === 'Annual' 
-                            ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                            : 'text-gray-600'
-                        }`}
-                      >
-                  Annual
-                </button>
-                <button 
-                  onClick={() => setSelectedPeriod('Average')}
-                   className={`flex-1 px-4 py-2 rounded text-sm ${
-                    selectedPeriod === 'Average' 
-                      ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                      : 'text-gray-600'
-                  }`}
-                >
-                  Average
-                </button>
-                <button 
-                  onClick={() => setSelectedPeriod('CAGR')}
-                   className={`flex-1 px-4 py-2 rounded text-sm ${
-                    selectedPeriod === 'CAGR' 
-                      ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                      : 'text-gray-600'
-                  }`}
-                >
-                  CAGR
-                      </button>
+                  {showCompanyDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                      {companiesLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                      ) : availableCompanies.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                      ) : (
+                        availableCompanies
+                        .filter(company => 
+                          company.ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
+                          company.name.toLowerCase().includes(searchValue.toLowerCase())
+                        )
+                        .map(company => (
+                          <div
+                            key={company.ticker}
+                              onClick={() => {
+                              setSearchValue(company.ticker);
+                                setShowCompanyDropdown(false);
+                              }}
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            >
+                            {company.name} ({company.ticker})
+                            </div>
+                          ))
+                      )}
                     </div>
-            )}
-          </div>
-        </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Metrics Selector */}
+            <div className="-mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
+              {/* ... existing metrics selector code ... */}
+              <div className="space-y-1 xm:space-y-1.5 xs:space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 xl:space-y-3 px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
+                 {/* Across tabs - NO scrolling, stays fixed */}
+                 <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
+                  <button 
+                    onClick={() => setActiveChart('valuation')}
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
+                      activeChart === 'valuation' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                    }`}
+                  >
+                    Valuation
+                  </button>
+                  <button 
+                    onClick={() => setActiveChart('metrics')}
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
+                      activeChart === 'metrics' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                    }`}
+                  >
+                    Across Metrics
+                  </button>
+                  <button 
+                    onClick={() => setActiveChart('peers')}
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
+                      activeChart === 'peers' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                    }`}
+                  >
+                    Across Peers
+                  </button>
+                  <button 
+                    onClick={() => setActiveChart('industry')}
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
+                      activeChart === 'industry' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                    }`}
+                  >
+                    Across Industry
+                  </button>
+                </div>
+                 
+                 {/* Period buttons - conditionally scrollable */}
+                {activeChart === 'industry' ? (
+                  <div className="overflow-x-auto -mx-1 px-1">
+                    <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3 min-w-max">
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 1Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 1Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 1Y AVG
+                          </button>
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 2Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 2Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 2Y AVG
+                          </button>
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 3Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 3Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 3Y AVG
+                          </button>
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 4Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 4Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 4Y AVG
+                          </button>
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 5Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 5Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 5Y AVG
+                          </button>
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 10Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 10Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 10Y AVG
+                          </button>
+                          <button 
+                      onClick={() => setSelectedPeriod('Last 15Y AVG')}
+                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                        selectedPeriod === 'Last 15Y AVG' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Last 15Y AVG
+                          </button>
+                    </div>
+                  </div>
+                ) : activeChart === 'valuation' ? null : (
+                  <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
+                          <button 
+                      onClick={() => setSelectedPeriod('Annual')}
+                       className={`flex-1 px-4 py-2 rounded text-sm ${
+                        selectedPeriod === 'Annual' 
+                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                                : 'text-gray-600'
+                            }`}
+                          >
+                      Annual
+                    </button>
+                    <button 
+                      onClick={() => setSelectedPeriod('Average')}
+                       className={`flex-1 px-4 py-2 rounded text-sm ${
+                        selectedPeriod === 'Average' 
+                          ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Average
+                    </button>
+                    <button 
+                      onClick={() => setSelectedPeriod('CAGR')}
+                       className={`flex-1 px-4 py-2 rounded text-sm ${
+                        selectedPeriod === 'CAGR' 
+                          ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      CAGR
+                          </button>
+                        </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
                 {/* Chart Content */}
                 <div className="mt-4 xl:mt-6">
                   <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-1 gap-2 sm:gap-3 xl:gap-4 mb-3 sm:mb-4">
-            {/* Industry selection - moved to top */}
+            {/* Industry selection - restored */}
             {activeChart === 'industry' && (
-              <div className="col-span-full">
+              <div>
                 <div className="text-sm xl:text-base text-gray-500">Industry</div>
                 <div className="relative" ref={industryDropdownRef}>
                   <input
                     type="text"
-                    placeholder="Search industries..."
-                    value={industrySearch}
-                    onChange={(e) => setIndustrySearch(e.target.value)}
-                    onFocus={() => setShowIndustryDropdown(true)}
+                    placeholder="Select Industry..."
+                    value={selectedIndustry || industrySearch}
+                    onChange={(e) => {
+                      setIndustrySearch(e.target.value);
+                      if (e.target.value === '') {
+                        setSelectedIndustry('');
+                      }
+                      setShowIndustryDropdown(true);
+                    }}
+                    onFocus={() => {
+                        setShowIndustryDropdown(true);
+                    }}
                     className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
                   />
-                  {industrySearch && (
+                  {(selectedIndustry || industrySearch) && (
                     <button
-                      onClick={() => setIndustrySearch('')}
+                      onClick={() => {
+                        setSelectedIndustry('');
+                        setIndustrySearch('');
+                        setShowIndustryDropdown(false);
+                      }}
                       className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       <svg
@@ -2975,30 +2993,30 @@ const Dashboard: React.FC = () => {
                   
                   {showIndustryDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                      {[...HARDCODED_INDUSTRIES, ...availableIndustries]
-                        .filter(industry => {
-                          const name = 'name' in industry ? industry.name : (industry as any).label;
-                          const value = 'id' in industry ? industry.id : (industry as any).value;
-                          return name.toLowerCase().includes(industrySearch.toLowerCase()) ||
-                                 value.toLowerCase().includes(industrySearch.toLowerCase());
-                        })
-                        .map(industry => {
-                          const name = 'name' in industry ? industry.name : (industry as any).label;
-                          const value = 'id' in industry ? industry.id : (industry as any).value;
-                          return (
+                      {availableIndustries.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">No industries available</div>
+                      ) : (
+                        availableIndustries
+                          .filter(ind => 
+                            !industrySearch || 
+                            (selectedIndustry && ind.label === selectedIndustry) || 
+                            ind.label.toLowerCase().includes(industrySearch.toLowerCase())
+                          )
+                          .map(ind => (
                             <div
-                              key={value}
-                            onClick={() => {
-                                setSelectedIndustry(value);
-                                setIndustrySearch(name);
-                              setShowIndustryDropdown(false);
-                            }}
+                              key={ind.value}
+                              onClick={() => {
+                                console.log('Selected industry:', ind.value, ind.label);
+                                setSelectedIndustry(ind.label); // Use label (e.g. "Discount Stores") not value if they differ
+                                setIndustrySearch(ind.label);
+                                setShowIndustryDropdown(false);
+                              }}
                               className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
-                          >
-                              {name.replace(/  +/g, ' ')}
-                          </div>
-                          );
-                        })}
+                            >
+                              {ind.label}
+                            </div>
+                          ))
+                      )}
                     </div>
                   )}
                 </div>
@@ -3007,7 +3025,7 @@ const Dashboard: React.FC = () => {
 
 
             {/* Metric Search */}
-            {activeChart !== 'valuation' && (
+            {activePerformanceTab === 'performance' && activeChart !== 'valuation' && (
             <div>
               <div className="text-sm xl:text-base text-gray-500">Metric</div>
               {activeChart === 'peers' ? (
@@ -3266,7 +3284,13 @@ const Dashboard: React.FC = () => {
           </div>
 
                 <div className="h-[180px] xs:h-[200px] sm:h-[300px] md:h-[350px] xl:h-[400px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4 bp-scroll">
-                  {activeChart === 'metrics' ? (
+          {activePerformanceTab === 'top-picks' ? (
+            <TopPicks 
+              companies={availableCompanies}
+              industries={[...HARDCODED_INDUSTRIES, ...availableIndustries]}
+              sectors={availableSectors}
+            />
+          ) : activeChart === 'metrics' ? (
                     // Metrics Chart
                     isLoading ? (
                       <div className="flex items-center justify-center h-full">
@@ -3755,15 +3779,37 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center justify-center h-full text-red-500">
                         {industryError}
                       </div>
-                    ) : industryChartData && Object.keys(industryChartData).length > 0 ? (
-                      <BoxPlot
-                        data={industryChartData}
-                        title={selectedIndustryMetrics.map(metric => 
-                          availableMetrics.find(m => m.value === metric)?.label || metric
-                        ).join(' vs ')}
-                        companyNames={industryCompanyNames}
-                        selectedTicker={selectedTicker}
-                      />
+                    ) : industryChartData && industryChartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={industryChartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                          <XAxis dataKey="name" />
+                          <YAxis 
+                            tickFormatter={(value) => new Intl.NumberFormat('en-US', {
+                              notation: 'compact',
+                              maximumFractionDigits: 1
+                            }).format(value)}
+                          />
+                          <Tooltip 
+                            formatter={(value: number) => new Intl.NumberFormat('en-US', {
+                                notation: 'compact',
+                                maximumFractionDigits: 1
+                            }).format(value)}
+                          />
+                          <Legend />
+                          {selectedIndustryMetrics.map((metric, idx) => (
+                            <Line
+                              key={metric}
+                              type="monotone"
+                              dataKey={metric}
+                              stroke={generateColorPalette(selectedIndustryMetrics.length)[idx]}
+                              name={availableMetrics.find(m => m.value === metric)?.label || metric}
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         No data available

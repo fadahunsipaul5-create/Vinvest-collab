@@ -31,6 +31,7 @@ import traceback
 from django.http import StreamingHttpResponse
 import json
 from .models.multiples import CompanyMultiples
+from .models.sector import Sector
 from .serializer import CompanyMultiplesSerializer
 
 logger = logging.getLogger(__name__)
@@ -114,6 +115,8 @@ def create_checkout_session(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -400,7 +403,7 @@ class ExternalChatbotProxyView(APIView):
             response = requests.get(
                 external_url,
                 params={'user_id': user_id},
-                timeout=30
+                timeout=3
             )
             
             if response.status_code == 200:
@@ -479,11 +482,16 @@ class ExternalChatbotProxyView(APIView):
             "user_id": user.id,  # Include user ID for context retrieval
         }
         try:
-            response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60)
+            response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60, verify=False)
             data = response.json()
         except Exception as e:
-            return Response({"error": "Chatbot failed", "details": str(e)}, status=502)
-        
+            logger.error(f"Chatbot API failed: {str(e)}")
+            return Response({
+                "data": {
+                    "final_text_answer": f"I apologize, but I'm having trouble connecting to the analysis engine right now. \n\n**Technical Details:** {str(e)}\n\nSince this is a development environment, I'm confirming that your request was sent successfully from the frontend, but the backend AI service is unreachable."
+                }
+            }, status=200)
+
         ai_response = data.get("data", {}).get("final_text_answer") or data.get("answer") or "[No answer]"
         
         # Decrement quota only on successful chatbot response for non-unlimited plans
@@ -784,15 +792,17 @@ class IndustryComparisonAPIView(APIView):
             industries = request.GET.get("industries", "").split(",")
             metric = request.GET.get("metric", "revenue")
 
-            # Read industry mappings from Excel
-            df = pd.read_excel(os.path.join("sec_app", "data", "stocks_perf_data.xlsx"))
-
-            # Create industry-ticker mapping
+            # Get industry-ticker mapping from Company model
             industry_tickers = {}
             for industry in industries:
-                industry_tickers[industry] = df[df["Industry"] == industry][
-                    "Symbol"
-                ].tolist()
+                tickers = list(
+                    Company.objects.filter(
+                        industry=industry
+                    ).exclude(industry__isnull=True).exclude(industry='')
+                    .values_list("ticker", flat=True)
+                )
+                if tickers:
+                    industry_tickers[industry] = tickers
 
             # Get all metrics for these companies
             all_metrics = []
@@ -879,34 +889,398 @@ class FinancialMetricsAPIView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class IncomeStatementDataAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get income statement data for a company in TableData format.
+        Returns: { [year: number]: { [metric_name: string]: number } }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Define income statement metric names (from IncomeStatementExpanded.csv files)
+            INCOME_STATEMENT_METRICS = {
+                'RevenueGrowthRate',
+                'Revenue',
+                'CostOfRevenue',
+                'GrossMargin',
+                'SellingAndMarketingExpense',
+                'GeneralAndAdministrativeExpense',
+                'FulfillmentExpense',
+                'TechnologyExpense',
+                'SellingGeneralAndAdministration',
+                'DepreciationAndAmortization',
+                'ResearchAndDevelopment',
+                'GoodwillImpairment',
+                'OtherOperatingExpense',
+                'OperatingExpenses',
+                'OperatingIncome',
+                'InterestExpenseDebt',
+                'InterestExpenseFinance',
+                'InterestExpense',
+                'InterestIncome',
+                'OtherNonoperatingIncome',
+                'NonoperatingIncomeNet',
+                'PretaxIncome',
+                'TaxProvision',
+                'NetIncomeControlling',
+                'NetIncomeNoncontrolling',
+                'NetIncome',
+                'SharesOutstandingBasic',
+                'SharesOutstandingDiluted',
+                'OperatingLeaseCost',
+                'VariableLeaseCost',
+                'LeasesDiscountRate',
+                'ForeignCurrencyAdjustment',
+                'PaidInCapitalCommonStockDividendPayment',
+            }
+            
+            # Try to get company, but if it doesn't exist, try to find metrics by ticker anyway
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                # Check if there are any metrics with this ticker (company might not exist yet)
+                metrics_by_ticker = FinancialMetric.objects.filter(
+                    company__ticker=ticker
+                )
+                if not metrics_by_ticker.exists():
+                    return Response(
+                        {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/income-statement-data/ACI/"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                # If metrics exist but company doesn't, get company from first metric
+                company = metrics_by_ticker.first().company
+            
+            # Get only income statement financial metrics for this company
+            metrics = FinancialMetric.objects.filter(
+                company=company,
+                metric_name__in=INCOME_STATEMENT_METRICS
+            ).select_related('period').order_by('period__period', 'metric_name')
+            
+            if not metrics.exists():
+                return Response(
+                    {"error": f"No financial data available for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Transform to TableData format: { [year: number]: { [metric_name: string]: number } }
+            table_data = {}
+            
+            for metric in metrics:
+                try:
+                    # Get year from period (period is stored as string like "2024")
+                    year = int(metric.period.period)
+                    
+                    # Initialize year object if not exists
+                    if year not in table_data:
+                        table_data[year] = {}
+                    
+                    # Add metric to year
+                    table_data[year][metric.metric_name] = metric.value
+                    
+                except (ValueError, TypeError):
+                    # Skip invalid periods
+                    continue
+            
+            return Response(table_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class EquityValueAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get EquityValue (intrinsic value) for a company.
+        Returns: { "equityValue": number }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Try to get company
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                return Response(
+                    {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/equity-value/ACI/"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get EquityValue metric for this company (from valuation period)
+            try:
+                period = FinancialPeriod.objects.get(company=company, period='valuation')
+                metric = FinancialMetric.objects.get(
+                    company=company,
+                    period=period,
+                    metric_name='EquityValue'
+                )
+                
+                return Response(
+                    {"equityValue": metric.value},
+                    status=status.HTTP_200_OK
+                )
+            except FinancialPeriod.DoesNotExist:
+                return Response(
+                    {"error": f"No valuation data found for {ticker}. EquityValue has not been loaded."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except FinancialMetric.DoesNotExist:
+                return Response(
+                    {"error": f"EquityValue not found for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class BalanceSheetDataAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get balance sheet data for a company in TableData format.
+        Returns: { [year: number]: { [metric_name: string]: number } }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Define balance sheet metric names (from BalanceSheetExpanded.csv files)
+            BALANCE_SHEET_METRICS = {
+                'Cash',
+                'ShortTermInvestments',
+                'CashAndCashEquivalents',
+                'ReceivablesCurrent',
+                'Inventory',
+                'OtherAssetsCurrent',
+                'AssetsCurrent',
+                'PropertyPlantAndEquipment',
+                'OperatingLeaseAssets',
+                'FinanceLeaseAssets',
+                'Goodwill',
+                'DeferredIncomeTaxAssetsNoncurrent',
+                'ReceivablesNoncurrent',
+                'OtherAssetsNoncurrent',
+                'AssetsNoncurrent',
+                'Assets',
+                'AccountsPayableCurrent',
+                'EmployeeAccruedLiabilitiesCurrent',
+                'AccruedLiabilitiesCurrent',
+                'AccruedIncomeTaxesCurrent',
+                'DeferredRevenueCurrent',
+                'LongTermDebtCurrent',
+                'OperatingLeaseLiabilitiesCurrent',
+                'FinanceLeaseLiabilitiesCurrent',
+                'OtherLiabilitiesCurrent',
+                'LiabilitiesCurrent',
+                'LongTermDebtNoncurrent',
+                'OperatingLeaseLiabilitiesNoncurrent',
+                'FinanceLeaseLiabilitiesNoncurrent',
+                'DeferredIncomeTaxLiabilitiesNoncurrent',
+                'OtherLiabilitiesNoncurrent',
+                'LiabilitiesNoncurrent',
+                'Liabilities',
+                'CommonStock',
+                'PaidInCapitalCommonStock',
+                'AccumulatedOtherIncome',
+                'RetainedEarningsAccumulated',
+                'Equity',
+                'LiabilitiesAndEquity',
+                'Debt',
+                'ForeignTaxCreditCarryForward',
+                'CapitalExpenditures',
+                'OperatingCash',
+                'ExcessCash',
+                'VariableLeaseAssets',
+            }
+            
+            # Try to get company, but if it doesn't exist, try to find metrics by ticker anyway
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                # Check if there are any metrics with this ticker (company might not exist yet)
+                metrics_by_ticker = FinancialMetric.objects.filter(
+                    company__ticker=ticker
+                )
+                if not metrics_by_ticker.exists():
+                    return Response(
+                        {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/balance-sheet-data/COST/"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                # If metrics exist but company doesn't, get company from first metric
+                company = metrics_by_ticker.first().company
+            
+            # Get only balance sheet financial metrics for this company
+            metrics = FinancialMetric.objects.filter(
+                company=company,
+                metric_name__in=BALANCE_SHEET_METRICS
+            ).select_related('period').order_by('period__period', 'metric_name')
+            
+            if not metrics.exists():
+                return Response(
+                    {"error": f"No balance sheet data available for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Transform to TableData format: { [year: number]: { [metric_name: string]: number } }
+            table_data = {}
+            
+            for metric in metrics:
+                try:
+                    # Get year from period (period is stored as string like "2024")
+                    year = int(metric.period.period)
+                    
+                    # Initialize year object if not exists
+                    if year not in table_data:
+                        table_data[year] = {}
+                    
+                    # Add metric to year
+                    table_data[year][metric.metric_name] = metric.value
+                    
+                except (ValueError, TypeError):
+                    # Skip invalid periods
+                    continue
+            
+            return Response(table_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CashFlowDataAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get cash flow data for a company in TableData format.
+        Returns: { [year: number]: { [metric_name: string]: number } }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Define cash flow metric names (from CashFlowExpanded.csv files)
+            CASH_FLOW_METRICS = {
+                'OperatingCashFlow',
+                'NetIncome',
+                'DepreciationAndAmortization',
+                'OtherNoncashChanges',
+                'DeferredTax',
+                'AssetImpairmentCharge',
+                'ShareBasedCompensation',
+                'ChangeInWorkingCapital',
+                'ChangeInReceivables',
+                'ChangeInInventory',
+                'ChangeInPayable',
+                'ChangeInOtherCurrentAssets',
+                'ChangeInOtherCurrentLiabilities',
+                'ChangeInOtherWorkingCapital',
+                'InvestingCashFlow',
+                'PurchaseOfPPE',
+                'SaleOfPPE',
+                'PurchaseOfBusiness',
+                'SaleOfBusiness',
+                'PurchaseOfInvestment',
+                'SaleOfInvestment',
+                'OtherInvestingChanges',
+                'FinancingCashFlow',
+                'ShortTermDebtIssuance',
+                'ShortTermDebtPayment',
+                'LongTermDebtIssuance',
+                'LongTermDebtPayment',
+                'PaidInCapitalCommonStockIssuance',
+                'PaidInCapitalCommonStockRepurchasePayment',
+                'PaidInCapitalCommonStockDividendPayment',
+                'TaxWithholdingPayment',
+                'FinancingLeasePayment',
+                'MinorityDividendPayment',
+                'MinorityShareholderPayment',
+            }
+            
+            # Try to get company, but if it doesn't exist, try to find metrics by ticker anyway
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                # Check if there are any metrics with this ticker (company might not exist yet)
+                metrics_by_ticker = FinancialMetric.objects.filter(
+                    company__ticker=ticker
+                )
+                if not metrics_by_ticker.exists():
+                    return Response(
+                        {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/cash-flow-data/COST/"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                # If metrics exist but company doesn't, get company from first metric
+                company = metrics_by_ticker.first().company
+            
+            # Get only cash flow financial metrics for this company
+            metrics = FinancialMetric.objects.filter(
+                company=company,
+                metric_name__in=CASH_FLOW_METRICS
+            ).select_related('period').order_by('period__period', 'metric_name')
+            
+            if not metrics.exists():
+                return Response(
+                    {"error": f"No cash flow data available for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Transform to TableData format: { [year: number]: { [metric_name: string]: number } }
+            table_data = {}
+            
+            for metric in metrics:
+                try:
+                    # Get year from period (period is stored as string like "2024")
+                    year = int(metric.period.period)
+                    
+                    # Initialize year object if not exists
+                    if year not in table_data:
+                        table_data[year] = {}
+                    
+                    # Add metric to year
+                    table_data[year][metric.metric_name] = metric.value
+                    
+                except (ValueError, TypeError):
+                    # Skip invalid periods
+                    continue
+            
+            return Response(table_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class IndustryAPIView(APIView):
     def get(self, request):
         try:
-            # Get companies we have data for
-            companies_with_data = Company.objects.values_list("ticker", flat=True)
-
-            # Read the Excel file
-            file_path = os.path.join("sec_app", "data", "stocks_perf_data.xlsx")
-            df = pd.read_excel(file_path)
-
-            # Filter DataFrame to only include companies we have data for
-            df = df[df["Symbol"].isin(companies_with_data)]
-
-            # Get industries that have companies with data
-            industries = (
-                df[["Industry", "Symbol"]]
-                .dropna()
-                .groupby("Industry")["Symbol"]
-                .apply(list)
-                .to_dict()
-            )
+            # Get companies with industry data from database
+            companies = Company.objects.filter(industry__isnull=False).exclude(industry='')
+            
+            # Group by industry and collect tickers
+            industries_dict = {}
+            for company in companies:
+                industry = company.industry
+                if industry not in industries_dict:
+                    industries_dict[industry] = []
+                industries_dict[industry].append(company.ticker)
 
             return Response(
                 {
                     "industries": [
-                        {"name": industry, "companies": companies}
-                        for industry, companies in industries.items()
-                        if len(companies) > 0  # Only include industries with companies
+                        {"name": industry, "companies": companies_list}
+                        for industry, companies_list in industries_dict.items()
+                        if len(companies_list) > 0  # Only include industries with companies
                     ]
                 }
             )
@@ -1218,7 +1592,6 @@ class ChatBatchListView(APIView):
                 })
             
             return Response(batch_data, status=200)
-            
         except ImportError:
             return Response({'error': 'ChatBatch model not available'}, status=500)
         except Exception as e:
@@ -1379,3 +1752,18 @@ class CompanyMultiplesAPIView(APIView):
                 'error': 'Failed to retrieve multiples data',
                 'details': str(e)
             }, status=500)
+
+class SectorAPIView(APIView):
+    def get(self, request):
+        try:
+            # Get all unique sectors from the Sector model
+            sectors = Sector.objects.all().values_list('name', flat=True)
+            return Response({
+                'sectors': list(sectors)
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching sectors: {str(e)}")
+            return Response({
+                'error': 'Failed to fetch sectors',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

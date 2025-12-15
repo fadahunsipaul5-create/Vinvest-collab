@@ -9,52 +9,122 @@ interface ValueBuildupChartProps {
 
 const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", initialCompany }) => {
   const [equityValue, setEquityValue] = useState<number | null>(null);
+  const [marketCap, setMarketCap] = useState<number | null>(null);
+  const [intrinsicToMc, setIntrinsicToMc] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Extract ticker from initialCompany prop (format: "TICKER" or "TICKER: Company Name")
   const ticker = initialCompany ? initialCompany.split(':')[0].trim().toUpperCase() : null;
 
-  // Fetch EquityValue from API
+  // Fetch EquityValue, Market Cap, and Intrinsic to MC from API
   useEffect(() => {
     if (!ticker) {
       setEquityValue(null);
+      setMarketCap(null);
+      setIntrinsicToMc(null);
       return;
     }
 
     setIsLoading(true);
     setError(null);
 
-    fetch(`${baseUrl}/api/sec/valuation-summary/${ticker}/`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch valuation summary: ${response.status}`);
-        }
-        return response.json();
+    Promise.all([
+      fetch(`${baseUrl}/api/equity-value/${ticker}/`),
+      fetch(`${baseUrl}/api/sec/special_metrics/market_cap`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ticker: ticker }),
+      }),
+      fetch(`${baseUrl}/api/sec/special_metrics/intrinsic_to_mc`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ticker: ticker }),
       })
-      .then(data => {
-        // Backend handles infinity by returning 1000B and isInfinity flag
-        const value = data.equityValueInBillions;
-        if (data.isInfinity || value === null || value === undefined || isNaN(value)) {
-          // For infinity or invalid values, use a very large number for display (e.g., 1000B)
-          setEquityValue(1000);
-        } else {
-          setEquityValue(Number(value));
+    ])
+      .then(async ([equityResponse, marketCapResponse, intrinsicToMcResponse]) => {
+        // Handle Equity Value response
+        let equityVal = null;
+        if (equityResponse.ok) {
+          const equityData = await equityResponse.json();
+          if (equityData && equityData.equityValue !== undefined && equityData.equityValue !== null) {
+            // Convert from raw value to billions for display
+            const valueInBillions = Number(equityData.equityValue) / 1000000000;
+            if (!isNaN(valueInBillions) && isFinite(valueInBillions)) {
+              equityVal = valueInBillions;
+            }
+          }
         }
+
+        // Handle Market Cap response
+        let marketCapVal = null;
+        if (marketCapResponse.ok) {
+          const marketCapData = await marketCapResponse.json();
+          if (marketCapData && marketCapData.market_cap !== undefined && marketCapData.market_cap !== null) {
+            // Convert from raw value to billions for display
+            const valueInBillions = Number(marketCapData.market_cap) / 1000000000;
+            if (!isNaN(valueInBillions) && isFinite(valueInBillions)) {
+              marketCapVal = valueInBillions;
+            }
+          }
+        }
+
+        // Handle Intrinsic to MC response
+        let intrinsicToMcVal = null;
+        if (intrinsicToMcResponse.ok) {
+            const intrinsicToMcData = await intrinsicToMcResponse.json();
+            if (intrinsicToMcData && intrinsicToMcData.intrinsic_to_mc !== undefined && intrinsicToMcData.intrinsic_to_mc !== null) {
+                const val = Number(intrinsicToMcData.intrinsic_to_mc);
+                if (!isNaN(val) && isFinite(val)) {
+                    intrinsicToMcVal = val;
+                }
+            }
+        }
+
+        setEquityValue(equityVal);
+        setMarketCap(marketCapVal);
+        setIntrinsicToMc(intrinsicToMcVal);
         setIsLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching EquityValue:', err);
+        console.error('Error fetching valuation data:', err);
         setError(err.message);
         setIsLoading(false);
-        // Keep default value on error
+        // Keep default values on error
         setEquityValue(null);
+        setMarketCap(null);
+        setIntrinsicToMc(null);
       });
   }, [ticker]);
 
   // Chart data with real EquityValue or default
-  const intrinsicValue = equityValue !== null ? equityValue : 10; // Default to 10 if not loaded
-  const marketCapValue = 20; // Keep Market Cap as is for now
+  const intrinsicValue = equityValue !== null ? equityValue : 0; 
+  const marketCapValue = marketCap !== null ? marketCap : 0;
+  
+  // Calculate or use fetched Intrinsic to MC ratio
+  // If we have direct API data, use it. Otherwise, calculate on frontend if possible.
+  let ratio = 0;
+  if (intrinsicToMc !== null) {
+      ratio = intrinsicToMc;
+  } else if (intrinsicValue !== 0 && marketCapValue !== 0) {
+      ratio = intrinsicValue / marketCapValue;
+  }
+
+  // Only render chart if at least one value is non-zero (or both loaded)
+  // If no company selected (ticker is null), we return null early above, but double check data here.
+  const hasData = intrinsicValue !== 0 || marketCapValue !== 0;
+
+  if (!ticker) {
+    return (
+      <div className={`w-full h-full ${className} flex items-center justify-center`}>
+        <div className="text-gray-400 text-sm">Select a company to view valuation</div>
+      </div>
+    );
+  }
 
   const chartData = [
     { 
@@ -101,7 +171,7 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
         </div>
       )}
       
-      {!isLoading && !error && (
+      {!isLoading && !error && hasData && (
         <div className="h-[300px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -156,8 +226,14 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
               <div className="w-px h-4 bg-gray-400"></div>
               <div className="w-8 h-px bg-gray-400"></div>
             </div>
-            <span className="text-sm font-medium text-gray-700">0.5x</span>
+            <span className="text-sm font-medium text-gray-700">{ratio.toFixed(2)}x</span>
           </div>
+        </div>
+      )}
+      
+      {!isLoading && !error && !hasData && (
+        <div className="h-[300px] flex items-center justify-center">
+            <div className="text-sm text-gray-500">No data available for this company</div>
         </div>
       )}
       

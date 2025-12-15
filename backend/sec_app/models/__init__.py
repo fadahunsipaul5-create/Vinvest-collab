@@ -13,6 +13,7 @@ from .chat_history import ChatHistory
 from .chat_batch import ChatBatch
 from .stripe_event import StripeEvent
 from .multiples import CompanyMultiples
+from .sector import Sector
 
 __all__ = [
     'Company',
@@ -29,5 +30,6 @@ __all__ = [
     'ChatHistory',
     'ChatBatch',
     'StripeEvent',
-    'CompanyMultiples'
+    'CompanyMultiples',
+    'Sector'
 ] 

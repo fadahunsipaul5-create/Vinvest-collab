@@ -41,24 +41,38 @@ interface OverviewProps {
   selectedTicker: string;
 }
 
-// Define available metrics
-const METRICS = {
-  revenue: { label: "Revenue", color: "hsl(240 50% 50%)" },
-  netIncome: { label: "Net Income", color: "hsl(10 80% 50%)" },
-  operatingCashFlow: { label: "Operating Cash Flow", color: "hsl(150 50% 50%)" },
-  freeCashFlow: { label: "Free Cash Flow", color: "hsl(280 50% 50%)" },
-  totalAssets: { label: "Total Assets", color: "hsl(200 50% 50%)" },
-  TotalLiabilities: { label: "Total Liabilities", color: "hsl(170 50% 50%)" },
-  currentAssets: { label: "Current Assets", color: "hsl(320 50% 50%)" },
-  currentLiabilities: { label: "Current Liabilities", color: "hsl(90 50% 50%)" },
-  cash: { label: "Cash", color: "hsl(45 50% 50%)" },
-  inventory: { label: "Inventory", color: "hsl(120 50% 50%)" },
-  receivables: { label: "Receivables", color: "hsl(200 50% 50%)" },
-  grossMargin: { label: "Gross Margin", color: "hsl(250 50% 50%)" },
-  operatingMargin: { label: "Operating Margin", color: "hsl(300 50% 50%)" },
-  returnOnEquity: { label: "Return on Equity", color: "hsl(350 50% 50%)" },
-  returnOnAssets: { label: "Return on Assets", color: "hsl(30 50% 50%)" }
-} as const;
+// Fallback/Initial metrics with colors
+const INITIAL_METRICS = {
+  "Revenue": { label: "Revenue", color: "hsl(240 50% 50%)" },
+  "Net Income": { label: "Net Income", color: "hsl(10 80% 50%)" },
+  "Operating Cash Flow": { label: "Operating Cash Flow", color: "hsl(150 50% 50%)" },
+  "Free Cash Flow": { label: "Free Cash Flow", color: "hsl(280 50% 50%)" },
+  "Total Assets": { label: "Total Assets", color: "hsl(200 50% 50%)" },
+  "Total Liabilities": { label: "Total Liabilities", color: "hsl(170 50% 50%)" },
+  "Current Assets": { label: "Current Assets", color: "hsl(320 50% 50%)" },
+  "Current Liabilities": { label: "Current Liabilities", color: "hsl(90 50% 50%)" },
+  "Cash": { label: "Cash", color: "hsl(45 50% 50%)" },
+  "Inventory": { label: "Inventory", color: "hsl(120 50% 50%)" },
+  "Receivables": { label: "Receivables", color: "hsl(200 50% 50%)" },
+  "Gross Margin": { label: "Gross Margin", color: "hsl(250 50% 50%)" },
+  "Operating Margin": { label: "Operating Margin", color: "hsl(300 50% 50%)" },
+  "Return on Equity": { label: "Return on Equity", color: "hsl(350 50% 50%)" },
+  "Return on Assets": { label: "Return on Assets", color: "hsl(30 50% 50%)" }
+};
+
+// Helper to generate consistent colors for new metrics
+const getColorForMetric = (metric: string): string => {
+  if (metric in INITIAL_METRICS) {
+      return (INITIAL_METRICS as any)[metric].color;
+  }
+  // Simple hash for color generation
+  let hash = 0;
+  for (let i = 0; i < metric.length; i++) {
+    hash = metric.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash % 360);
+  return `hsl(${h} 70% 50%)`;
+};
 
 // Define ticker colors
 const TICKER_COLORS = {
@@ -72,16 +86,16 @@ const TICKER_COLORS = {
   'AAPG': "hsl(100 50% 80%)",
 } as const;
 
-type MetricKey = keyof typeof METRICS;
 type TickerKey = keyof typeof TICKER_COLORS;
 
-// Define available metrics and periods
-const AVAILABLE_METRICS = ['revenue', 'netIncome', 'operatingCashFlow'];
+// Define available metrics and periods (Initial list, will be updated from API)
+let AVAILABLE_METRICS = ['Revenue', 'Net Income', 'Operating Cash Flow'];
 
 const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey>("revenue");
+  const [selectedMetric, setSelectedMetric] = useState<string>("Revenue");
+  const [metricsList, setMetricsList] = useState<string[]>(AVAILABLE_METRICS);
   const [tickers, setTickers] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("metrics");
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
@@ -90,6 +104,27 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('1Y');
   const [searchQueries, setSearchQueries] = useState<string[]>([]);
   const [industryCompanyNames, setIndustryCompanyNames] = useState<Record<string, string[]>>({});
+
+  // Fetch metrics from backend
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/central/metrics?display_names=true`);
+        if (!response.ok) {
+           console.warn('Failed to fetch metrics list, using defaults');
+           return;
+        }
+        const data = await response.json();
+        if (data.metrics && Array.isArray(data.metrics)) {
+             setMetricsList(data.metrics);
+             AVAILABLE_METRICS = data.metrics; // Update global for BoxPlot initial state if needed
+        }
+      } catch (err) {
+        console.error("Error fetching metrics:", err);
+      }
+    };
+    fetchMetrics();
+  }, []);
 
   // Optional: Add sample data initialization
   useEffect(() => {
@@ -461,15 +496,15 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
               <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Select Metric:</span>
               <Select
                 value={selectedMetric}
-                onValueChange={(value: MetricKey) => setSelectedMetric(value)}
+                onValueChange={(value: string) => setSelectedMetric(value)}
               >
                 <SelectTrigger className="w-full sm:w-[150px] lg:w-[180px] text-xs sm:text-sm">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(METRICS).map(([key, { label }]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
+                  {metricsList.map((metric) => (
+                    <SelectItem key={metric} value={metric}>
+                      {metric}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -513,7 +548,7 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
                 ...Object.fromEntries(
                   selectedIndustries.map(industry => [
                     industry,
-                    { label: `${industry} Average`, color: METRICS[selectedMetric].color }
+                    { label: `${industry} Average`, color: getColorForMetric(selectedMetric) }
                   ])
                 )
               }}
@@ -555,7 +590,7 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
                       key={industry}
                       type="monotone"
                       dataKey={`${industry}_total`}  // Use the exact key from the API response
-                      stroke={METRICS[selectedMetric].color}
+                      stroke={getColorForMetric(selectedMetric)}
                       name={`${industry} Average`}
                       strokeWidth={3}
                       strokeDasharray="5 5"
@@ -612,7 +647,7 @@ const Overview: React.FC<OverviewProps> = ({ selectedTicker: ticker }) => {
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_METRICS.map((metric) => (
+                  {metricsList.map((metric) => (
                     <SelectItem key={metric} value={metric}>
                       {metric}
                     </SelectItem>

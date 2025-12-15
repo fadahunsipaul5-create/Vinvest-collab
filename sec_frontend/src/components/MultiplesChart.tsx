@@ -23,6 +23,7 @@ interface MultiplesChartProps {
 interface CompanyTicker {
   ticker: string;
   name: string;
+  display_name?: string;
 }
 
 const YEAR_PERIODS = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
@@ -102,8 +103,8 @@ const MultiplesSelectors: React.FC<MultiplesSelectorsProps> = ({
 };
 
 const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initialCompany }) => {
-  // Hide company selector for presentation
-  const SHOW_COMPANY_SELECTOR = false;
+  // Show company selector
+  const SHOW_COMPANY_SELECTOR = true;
   
   const [viewMode, setViewMode] = useState<'holistic' | 'simple'>('simple');
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
@@ -128,11 +129,53 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
   const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   
+  // Real Market Cap Data (fetched from external API)
+  const [realMarketCaps, setRealMarketCaps] = useState<Record<string, number>>({});
+
+  // Fetch real market cap for selected companies
+  useEffect(() => {
+    // Only fetch if numerator is Market Cap and we have selected companies
+    if (numerator !== 'Market Cap' || selectedCompanies.length === 0) return;
+
+    const fetchMarketCaps = async () => {
+      const newMarketCaps: Record<string, number> = { ...realMarketCaps };
+      let hasUpdates = false;
+
+      await Promise.all(selectedCompanies.map(async (company) => {
+        // Skip if we already have it (optional optimization, maybe we want to refresh?)
+        // For now, let's fetch to ensure freshness
+        try {
+            const response = await fetch(`${baseUrl}/api/sec/special_metrics/market_cap`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: company.ticker }),
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.market_cap) {
+                    newMarketCaps[company.ticker] = data.market_cap;
+                    hasUpdates = true;
+                }
+            }
+        } catch (err) {
+            console.error(`Failed to fetch market cap for ${company.ticker}`, err);
+        }
+      }));
+
+      if (hasUpdates) {
+          setRealMarketCaps(newMarketCaps);
+      }
+    };
+
+    fetchMarketCaps();
+  }, [selectedCompanies, numerator]);
+  
   // Fetch companies from API
   const fetchCompanies = async () => {
     setCompaniesLoading(true);
     try {
-      const response = await fetch(`${baseUrl}/api/companies/`);
+      const response = await fetch(`${baseUrl}/api/sec/central/companies`);
       if (!response.ok) {
         throw new Error(`Failed to fetch companies: ${response.status}`);
       }
@@ -144,8 +187,10 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
       const companies: CompanyTicker[] = [];
       companiesList.forEach((company: any) => {
         const ticker = company.ticker;
-        const name = company.display_name || company.name || company.ticker;
-        companies.push({ ticker, name });
+        // Central API returns {ticker, name}
+        const display_name = company.display_name || company.name || company.ticker;
+        const name = company.name || company.ticker;
+        companies.push({ ticker, name, display_name });
       });
       
       setAvailableCompanies(companies);
@@ -198,18 +243,11 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
     if (initialCompany && multiplesData && availableCompanies.length > 0) {
       const company = availableCompanies.find(c => c.ticker.toUpperCase() === initialCompany.toUpperCase());
       if (company) {
-        // Add the company to selection
-        setSelectedCompanies(prev => {
-          // Only add if not already selected
-          const alreadySelected = prev.some(c => c.ticker.toUpperCase() === initialCompany.toUpperCase());
-          if (!alreadySelected) {
-            return [...prev, company];
-          }
-          return prev;
-        });
+        // Set the company as the selection (replacing previous)
+        setSelectedCompanies([company]);
       }
     }
-  }, [initialCompany, multiplesData, availableCompanies]); // Note: selectedCompanies NOT in deps to allow deletion
+  }, [initialCompany, multiplesData, availableCompanies]);
   
   // Helper function to get denominator key
   const getDenominatorKey = (denominator: string): string => {
@@ -230,12 +268,19 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
     
     return selectedCompanies.map(company => {
       const data = multiplesData[company.ticker];
+      // Even if internal data is missing, we might have real market cap, but we still need denominator from internal data.
+      // So if no internal data, we can't calculate multiple (denominator missing).
       if (!data) return { ticker: company.ticker, value: 0 };
       
       // Get numerator
-      const numValue = numerator === 'EV foundational' 
+      let numValue = numerator === 'EV foundational' 
         ? data.numerators.enterpriseValue_Fundamental 
         : data.numerators.marketCap_Fundamental;
+      
+      // Override with real market cap if available and selected
+      if (numerator === 'Market Cap' && realMarketCaps[company.ticker]) {
+          numValue = realMarketCaps[company.ticker];
+      }
       
       // Get denominator
       const denKey = getDenominatorKey(denominator);
@@ -269,7 +314,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         value: Math.round(multiple * 100) / 100
       };
     });
-  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears]);
+  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears, realMarketCaps]);
   
   // Calculate data for holistic chart with useMemo
   const holisticData = useMemo(() => {
@@ -287,9 +332,15 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         const roic = getNumericValue(data.roicMetrics[selectedYears]?.excludingGoodwill);
         
         // Calculate multiple
-        const numValue = numerator === 'EV foundational' 
+        let numValue = numerator === 'EV foundational' 
           ? data.numerators.enterpriseValue_Fundamental 
           : data.numerators.marketCap_Fundamental;
+        
+        // Override with real market cap if available and selected
+        if (numerator === 'Market Cap' && realMarketCaps[company.ticker]) {
+            numValue = realMarketCaps[company.ticker];
+        }
+
         const denKey = getDenominatorKey(denominator);
         const denValue = (data.denominators[selectedYears] as any)?.[denKey];
         const multiple = calculateMultiple(numValue, denValue);
@@ -330,7 +381,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         };
       })
       .filter(item => item !== null); // Remove invalid data points
-  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears]);
+  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears, realMarketCaps]);
 
   return (
     <div className={`bg-white rounded-lg border shadow-sm p-3 sm:p-4 ${className}`}>
@@ -379,7 +430,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                   key={index} 
                   className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
                 >
-                  {company.name || company.ticker}
+                  {company.display_name || company.name || company.ticker}
                   <button
                     onClick={() => setSelectedCompanies(companies => 
                       companies.filter((_, i) => i !== index)

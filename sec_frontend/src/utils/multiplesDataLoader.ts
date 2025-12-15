@@ -198,7 +198,7 @@ function getEmptyData(ticker: string): MultiplesData {
 // Fetch available companies from API
 async function fetchAvailableCompanies(): Promise<string[]> {
   try {
-    const response = await fetch(`${baseUrl}/api/companies/`);
+    const response = await fetch(`${baseUrl}/api/sec/central/companies`);
     if (!response.ok) {
       throw new Error(`Failed to fetch companies: ${response.status}`);
     }
