@@ -42,28 +42,28 @@ if IS_PROD_ENV and SECRET_KEY == 'django-insecure-development-key-change-in-prod
 DEBUG = not IS_PROD_ENV
 
 # --- Allowed Hosts ---
-# Simplified and safer ALLOWED_HOSTS handling
-ALLOWED_HOSTS = []
-if IS_PROD_ENV:
-    # This automatically gets the Cloud Run URL
-    ALLOWED_HOSTS = [
-        'sec-insights-backend-791634680391.us-central1.run.app',
-        'sec-frontend-791634680391.us-central1.run.app',
-        'sec-insights-app-d9wp.vercel.app',
-        "api.getdeep.ai",
-        "getdeep.ai",
-        "get-deep-ai.vercel.app",
-        "sec-insights-app.onrender.com"
-    ]
-    cloud_run_url = os.environ.get('K_SERVICE_URL')
-    if cloud_run_url:
-        ALLOWED_HOSTS.append(cloud_run_url.split("://")[1])
-    else:
-        # Fallback for the migrate step where K_SERVICE_URL might not be set
-        ALLOWED_HOSTS.append('sec-insights-backend-791634680391.us-central1.run.app')
-else:
-    # For local development
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', 'localhost:5173', 'localhost:3000']
+# Include both production and development hosts
+ALLOWED_HOSTS = [
+    # Local development
+    'localhost',
+    '127.0.0.1',
+    '[::1]',
+    'localhost:5173',
+    'localhost:3000',
+    # Production domains
+    'sec-insights-backend-791634680391.us-central1.run.app',
+    'sec-frontend-791634680391.us-central1.run.app',
+    'sec-insights-app-d9wp.vercel.app',
+    'api.getdeep.ai',
+    'getdeep.ai',
+    'get-deep-ai.vercel.app',
+    'sec-insights-app.onrender.com',
+]
+
+# Add Cloud Run URL if available
+cloud_run_url = os.environ.get('K_SERVICE_URL')
+if cloud_run_url:
+    ALLOWED_HOSTS.append(cloud_run_url.split("://")[1])
 
 # --- Database Configuration ---
 # This is the corrected logic that will fix your migration errors.
