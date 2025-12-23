@@ -66,8 +66,21 @@ if cloud_run_url:
     ALLOWED_HOSTS.append(cloud_run_url.split("://")[1])
 
 # --- Database Configuration ---
-# This is the corrected logic that will fix your migration errors.
-if IS_PROD_ENV:
+# Priority: DATABASE_URL (Render) > Cloud SQL (GCP) > SQLite (local)
+# Neo4j is used separately for company/financial data (not Django models)
+
+# Check for DATABASE_URL first (Render PostgreSQL)
+if os.environ.get('DATABASE_URL'):
+    print("INFO: Using DATABASE_URL (Render PostgreSQL)")
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+elif IS_PROD_ENV:
     # Production database configuration for Cloud Run and Cloud Build
     print("INFO: Using Cloud SQL PostgreSQL config.")
     DATABASES = {
