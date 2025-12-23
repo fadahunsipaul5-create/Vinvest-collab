@@ -17,7 +17,7 @@ const Approach: React.FC<ApproachProps> = ({ onClose }) => {
             ✕
           </button>
           
-          {/* Main Title */}
+          {/* Main Titles */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-[#4A90A4] mb-4 leading-tight">
               OUR APPROACH TO OPTIMAL DECISION-MAKING AND<br />
