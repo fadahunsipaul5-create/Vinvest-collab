@@ -22,25 +22,51 @@ class Util:
                 print(f"Attempting to send email to: {data['to_email']}")
                 print(f"Email subject: {data['Subject']}")
                 
+                # Try SendGrid Web API first (uses HTTPS, not blocked by cloud platforms)
+                sendgrid_api_key = settings.SENDGRID_API_KEY if hasattr(settings, 'SENDGRID_API_KEY') else None
+                
+                if sendgrid_api_key:
+                    try:
+                        from sendgrid import SendGridAPIClient
+                        from sendgrid.helpers.mail import Mail
+                        
+                        print("Using SendGrid Web API")
+                        message = Mail(
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            to_emails=data['to_email'],
+                            subject=data['Subject'],
+                            plain_text_content=data['email_body']
+                        )
+                        sg = SendGridAPIClient(sendgrid_api_key)
+                        response = sg.send(message)
+                        print(f"Email sent successfully via SendGrid API to {data['to_email']}")
+                        print(f"SendGrid response status: {response.status_code}")
+                        return
+                    except Exception as sg_error:
+                        print(f"SendGrid API error: {sg_error}")
+                        print("Falling back to SMTP...")
+                
+                # Fallback to SMTP if SendGrid API fails
                 email = EmailMessage(
                     subject=data["Subject"],
                     body=data["email_body"],
                     to=[data["to_email"]],
                 )
                 email.send(fail_silently=False)
-                print(f"Email sent successfully to {data['to_email']}")
+                print(f"Email sent successfully via SMTP to {data['to_email']}")
             except Exception as e:
                 print(f"Email send error: {e}")
-                print(f"Email settings - HOST: {settings.EMAIL_HOST}, PORT: {settings.EMAIL_PORT}")
+                if hasattr(settings, 'EMAIL_HOST'):
+                    print(f"Email settings - HOST: {settings.EMAIL_HOST}, PORT: {settings.EMAIL_PORT}")
         
-        # Run email sending in a separate thread with 10 second timeout
+        # Run email sending in a separate thread with 15 second timeout
         thread = threading.Thread(target=send_with_timeout)
         thread.daemon = True  # Don't block app shutdown
         thread.start()
-        thread.join(timeout=10)  # Wait max 10 seconds
+        thread.join(timeout=15)  # Wait max 15 seconds
         
         if thread.is_alive():
-            print(f"Email sending timed out after 10 seconds for {data['to_email']}")
+            print(f"Email sending timed out after 15 seconds for {data['to_email']}")
             # Thread continues in background, but we return immediately
 
 
@@ -94,14 +120,17 @@ def send_reset_code(user, code):
     try:
         subject = "Reset Password Code"
         message = f"Use this code {code} to reset your password"
-        email_sender = settings.EMAIL_HOST_USER
-        email_reciever = [user.email]
         
         print(f"Attempting to send reset code email to: {user.email}")
-        print(f"Email settings - HOST: {settings.EMAIL_HOST}, USER: {settings.EMAIL_HOST_USER}")
         
-        send_mail(subject, message, email_sender, email_reciever)
-        print(f"Reset code email sent successfully to {user.email}")
+        # Use the Util class which handles SendGrid API and SMTP fallback
+        data = {
+            "email_body": message,
+            "to_email": user.email,
+            "Subject": subject,
+        }
+        Util.send_email(data)
+        print(f"Reset code email process completed for {user.email}")
     except Exception as e:
         print(f"Failed to send reset code email: {e}")
         # Don't raise the exception to prevent 500 errors

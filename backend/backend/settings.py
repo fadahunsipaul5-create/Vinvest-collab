@@ -243,26 +243,27 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
 }
-# Email Configuration - SendGrid via SMTP
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-
+# Email Configuration
+# SendGrid API Key (uses Web API via HTTPS, more reliable on cloud platforms)
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'info@valueaccel.com')
 
+# Fallback SMTP configuration (if SendGrid API fails)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 if SENDGRID_API_KEY:
-    # Use SendGrid SMTP
+    # SendGrid SMTP fallback
     EMAIL_HOST = "smtp.sendgrid.net"
     EMAIL_PORT = 587
     EMAIL_USE_TLS = True
     EMAIL_USE_SSL = False
-    EMAIL_HOST_USER = "apikey"  # Always "apikey" for SendGrid
+    EMAIL_HOST_USER = "apikey"
     EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
-    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'admin@nanikworkforce.com')
 else:
-    # Fallback to Gmail (for local development)
+    # Gmail SMTP fallback (for local development)
     EMAIL_HOST = "smtp.gmail.com"
     EMAIL_PORT = 465
     EMAIL_USE_TLS = False
-    EMAIL_USE_SSL = True  # Use SSL for port 465
+    EMAIL_USE_SSL = True
     EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'info@valueaccel.com')
