@@ -19,7 +19,7 @@ const EmailVerification = () => {
     // Call the backend verification endpoint
     const verifyEmail = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/account/verify-email/?token=${token}`);
+        const response = await fetch(`https://sec-insights-app.onrender.com/users/verify-email/?token=${token}`);
         
         if (response.ok) {
           setVerificationStatus('success');

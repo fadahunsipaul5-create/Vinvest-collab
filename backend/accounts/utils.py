@@ -44,7 +44,8 @@ def user_email(request, user):
             settings.SECRET_KEY,
             algorithm="HS256",
         )
-        absurl = f"http://localhost:5173/email-verification?token={token}" 
+        # Use production frontend URL for email verification
+        absurl = f"https://get-deep-ai.vercel.app/email-verification?token={token}" 
         
         print(f"Generated verification URL: {absurl}")
 

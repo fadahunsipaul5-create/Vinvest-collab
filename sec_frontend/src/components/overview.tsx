@@ -17,7 +17,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL + 'api';
 
 const API_URL = (tickers: string[], metric: string, period: string) => 
   `${BASE_URL}/aggregated-data/?tickers=${tickers.join(',')}&metric=${metric}&period=${period}`;
-const WS_URL = "ws://127.0.0.1:8000/ws/revenue/";
+const WS_URL = "wss://sec-insights-app.onrender.com/ws/revenue/";
 const INDUSTRY_API_URL = `${BASE_URL}/industry-comparison`;
 
 interface MetricItem {
