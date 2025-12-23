@@ -18,7 +18,7 @@ interface Sector {
 }
 
 interface TopPicksProps {
-  companies: CompanyTicker[]; // Still kept for other uses if needed, but TopPicks will fetch its own now
+  companies: CompanyTicker[]; // Stills kept for other uses if needed, but TopPicks will fetch its own now
   industries: any[]; // Kept for prop compatibility but we'll fetch our own
   sectors: string[]; // Kept for prop compatibility
 }
