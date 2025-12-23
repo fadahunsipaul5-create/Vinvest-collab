@@ -202,6 +202,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://sec-insights-app-d9wp.vercel.app",
     "https://getdeep.ai",
     "https://api.getdeep.ai",
+    "https://get-deep-ai.vercel.app",
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
