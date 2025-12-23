@@ -15,22 +15,33 @@ import jwt
 class Util:
     @staticmethod
     def send_email(data):
-        try:
-            print(f"Attempting to send email to: {data['to_email']}")
-            print(f"Email subject: {data['Subject']}")
-            print(f"Email body: {data['email_body']}")
-            
-            email = EmailMessage(
-                subject=data["Subject"],
-                body=data["email_body"],
-                to=[data["to_email"]],
-            )
-            email.send()
-            print(f"Email sent successfully to {data['to_email']}")
-        except Exception as e:
-            print(f"Email send error: {e}")
-            print(f"Email settings - HOST: {settings.EMAIL_HOST}, PORT: {settings.EMAIL_PORT}")
-            print(f"Email settings - USER: {settings.EMAIL_HOST_USER}, FROM: {settings.DEFAULT_FROM_EMAIL}")
+        import threading
+        
+        def send_with_timeout():
+            try:
+                print(f"Attempting to send email to: {data['to_email']}")
+                print(f"Email subject: {data['Subject']}")
+                
+                email = EmailMessage(
+                    subject=data["Subject"],
+                    body=data["email_body"],
+                    to=[data["to_email"]],
+                )
+                email.send(fail_silently=False)
+                print(f"Email sent successfully to {data['to_email']}")
+            except Exception as e:
+                print(f"Email send error: {e}")
+                print(f"Email settings - HOST: {settings.EMAIL_HOST}, PORT: {settings.EMAIL_PORT}")
+        
+        # Run email sending in a separate thread with 10 second timeout
+        thread = threading.Thread(target=send_with_timeout)
+        thread.daemon = True  # Don't block app shutdown
+        thread.start()
+        thread.join(timeout=10)  # Wait max 10 seconds
+        
+        if thread.is_alive():
+            print(f"Email sending timed out after 10 seconds for {data['to_email']}")
+            # Thread continues in background, but we return immediately
 
 
 def user_email(request, user):
