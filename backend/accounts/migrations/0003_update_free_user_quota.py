@@ -2,7 +2,7 @@
 from django.db import migrations
 
 def update_free_user_quota(apps, schema_editor):
-    User = apps.get_model('account', 'User')
+    User = apps.get_model('accounts', 'User')
     # Update free plan users who have 0 questions to have 10 questions
     User.objects.filter(
         subscription_plan='free', 
@@ -16,7 +16,7 @@ def reverse_update_free_user_quota(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('account', '0002_user_questions_remaining_user_stripe_customer_id_and_more'),
+        ('accounts', '0002_user_questions_remaining_user_stripe_customer_id_and_more'),
     ]
 
     operations = [

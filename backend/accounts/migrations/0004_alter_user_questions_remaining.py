@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("account", "0003_update_free_user_quota"),
+        ("accounts", "0003_update_free_user_quota"),
     ]
 
     operations = [

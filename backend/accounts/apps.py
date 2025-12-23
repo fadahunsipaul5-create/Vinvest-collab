@@ -1,10 +1,10 @@
 from django.apps import AppConfig
 
 
-class AccountConfig(AppConfig):
+class AccountsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'account'
-    label = 'account'
+    name = 'accounts'
+    label = 'accounts'  # Now unique since folder is 'accounts' not 'account'
 
     def ready(self):
         # Import for side-effects to register signal handlers

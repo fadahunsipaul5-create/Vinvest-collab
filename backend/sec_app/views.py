@@ -47,7 +47,7 @@ from datetime import datetime
 from django.utils import timezone
 import stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
-from account.models import User
+from accounts.models import User
 from .models.stripe_event import StripeEvent
 from datetime import timedelta
 #stripe webhook

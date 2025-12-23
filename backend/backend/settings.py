@@ -52,6 +52,8 @@ if IS_PROD_ENV:
         'sec-insights-app-d9wp.vercel.app',
         "api.getdeep.ai",
         "getdeep.ai",
+        "get-deep-ai.vercel.app",
+        "sec-insights-app.onrender.com"
     ]
     cloud_run_url = os.environ.get('K_SERVICE_URL')
     if cloud_run_url:
@@ -97,7 +99,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Your apps
-    "account",
+    "accounts",
     'sec_app',
     'sec_app_2',
     # 3rd Party Apps
@@ -203,10 +205,11 @@ CORS_ALLOWED_ORIGINS = [
     "https://getdeep.ai",
     "https://api.getdeep.ai",
     "https://get-deep-ai.vercel.app",
+    "https://sec-insights-app.onrender.com",
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-AUTH_USER_MODEL = "account.User"
+AUTH_USER_MODEL = "accounts.User"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
