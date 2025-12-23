@@ -13,6 +13,7 @@ interface ChatboxProps {
   uploadedFiles?: File[];
   onClearFiles?: () => void;
   onAuthError?: () => void;
+  onNewContent?: () => void; // Callback when new content is added
 }
 
 interface Message {
@@ -32,6 +33,7 @@ export const useChat = ({
   uploadedFiles,
   onClearFiles,
   onAuthError,
+  onNewContent,
 }: ChatboxProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -80,7 +82,8 @@ export const useChat = ({
       const token = localStorage.getItem('access');
       if (!token) return;
 
-      const response = await fetch(`${baseUrl}/api/chat/sessions/${currentChatSession}/messages/`, {
+      // Debounce this call to avoid too many requests
+      const response = await fetch(`${baseUrl}/api/chat/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -93,7 +96,10 @@ export const useChat = ({
       });
 
       if (response.ok && onSessionUpdate) {
-        onSessionUpdate();
+        // Debounce session updates to avoid excessive API calls
+        setTimeout(() => {
+          onSessionUpdate();
+        }, 500);
       }
     } catch (error) {
       console.error('Error saving message to session:', error);
@@ -114,123 +120,127 @@ export const useChat = ({
     if (!message.trim()) return;
 
     setIsChatLoading(true);
+    const userMessage: Message = { role: 'user', content: message };
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Mark that new content has been added
+    if (onNewContent) {
+      onNewContent();
+    }
+
+    // Add thinking message
+    setMessages(prev => [...prev, { role: 'assistant', content: 'Thinking...' }]);
 
     try {
-      // Add user message with file information
-      let messageContent = message;
-      if (uploadedFiles && uploadedFiles.length > 0) {
-        const fileNames = uploadedFiles.map(file => file.name).join(', ');
-        messageContent = `${message}\n\n📎 Attached files: ${fileNames}`;
-      }
-      
-    const userMessage: Message = {
-      role: 'user',
-        content: messageContent
-    };
-    setMessages(prev => [...prev, userMessage]);
-
-      // Add thinking message after user message
-    const thinkingMessage: Message = {
-      role: 'assistant',
-      content: 'Thinking...'
-    };
-    setMessages(prev => [...prev, thinkingMessage]);
-
-      const company = searchValue.includes(':') 
-        ? searchValue.split(':')[1].trim().toUpperCase()
-        : searchValue.split(':')[0].trim().toUpperCase();
-
-      const allChartData = chartData;
-
-      const formattedChartData = allChartData
-        .filter(point =>
-          selectedMetrics.some(metric =>
-            point[metric] !== null && point[metric] !== undefined
-          )
-        )
-        .map(point => {
-          const formattedPoint: Record<string, any> = { name: point.date || point.name };
-          selectedMetrics.forEach(metric => {
-            if (point[metric] !== null && point[metric] !== undefined) {
-              formattedPoint[metric] = point[metric];
-            }
-          });
-          return formattedPoint;
-        });
-
-      const getLatestYear = () => {
-        const years = chartData
-          .map(point => {
-            if (point.date) return parseInt(point.date);
-            if (point.name) return parseInt(point.name);
-            return null;
-          })
-          .filter((y): y is number => y !== null && !isNaN(y));
-        return years.length ? Math.max(...years) : new Date().getFullYear();
-      };
-
-      const getYearFromPeriod = (period: string) => {
-        const latestYear = getLatestYear();
-        if (!period) return null;
-        const mapping: { [key: string]: number } = {
-          '1Y': 0, '2Y': 1, '3Y': 2, '4Y': 3, '5Y': 4, '10Y': 9, '15Y': 14, '20Y': 19
-        };
-        return mapping[period] !== undefined ? latestYear - mapping[period] : null;
-      };
-
-      const payload = {
-        company: company,
-        metric_name: selectedMetrics,
-        year: getYearFromPeriod(selectedPeriod),
-        companies: selectedCompanies.map(c => c.ticker)
-      };
-
-      // Get authorization token
       const token = localStorage.getItem('access');
       if (!token) {
         throw new Error('No authorization token found. Please log in again.');
       }
 
-      // Prepare form data if files are uploaded
-      let requestBody: string | FormData;
-      let headers: Record<string, string>;
+      // Extract company from searchValue
+      const company = searchValue.includes(':') 
+        ? searchValue.split(':')[1].trim().toUpperCase()
+        : searchValue.split(':')[0].trim().toUpperCase();
 
+      // If files are uploaded, first upload them to the file upload endpoint
       if (uploadedFiles && uploadedFiles.length > 0) {
-        // Use FormData for file uploads
-        const formData = new FormData();
-        formData.append('question', message);
-        formData.append('payload', JSON.stringify(payload));
-        formData.append('company', company);
-        formData.append('period', selectedPeriod || 'ALL');
-        formData.append('metrics', JSON.stringify(selectedMetrics || []));
-        formData.append('chartType', activeChart || 'line');
-        formData.append('chartData', JSON.stringify(formattedChartData));
-        
-        // Add uploaded files
-        uploadedFiles.forEach((file, index) => {
-          formData.append(`file_${index}`, file);
-        });
-        
-        requestBody = formData;
-        headers = {
-          'Authorization': `Bearer ${token}`,
-        }; // Don't set Content-Type for FormData, but include Authorization
-      } else {
-        // Use JSON for text-only requests
-        requestBody = JSON.stringify({
+        try {
+          const formData = new FormData();
+          
+          // Add files
+          uploadedFiles.forEach((file) => {
+            formData.append('files', file);
+          });
+      
+          // Only allowed field besides 'files'
+          const sessionId = `user_${currentChatSession ?? 'anonymous'}_session`;
+          formData.append('session_id', sessionId);
+      
+          console.log('Uploading files with session_id:', sessionId);
+      
+          const uploadResponse = await fetch(`${baseUrl}/api/file-upload/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,  // Your backend will proxy this to external API
+            },
+            body: formData,
+          });
+      
+          if (!uploadResponse.ok) {
+            const uploadError = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }));
+            console.warn(`File upload failed (${uploadResponse.status}):`, uploadError);
+            
+            setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+            setMessages(prev => [...prev, { 
+              role: 'assistant', 
+              content: `📎 **File Upload Failed**: ${uploadError.error || 'Unknown error.'} \n\nI'll continue based on available data.` 
+            }]);
+          } else {
+            const uploadResult = await uploadResponse.json();
+            console.log('Files uploaded successfully:', uploadResult);
+            
+            setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+            setMessages(prev => [...prev, { 
+              role: 'assistant', 
+              content: `📎 **File Upload Successful**: Your files have been processed.` 
+            }]);
+          }
+      
+          if (onClearFiles) {
+            console.log('Clearing uploaded files from UI...');
+            onClearFiles();
+          }
+      
+        } catch (uploadError) {
+          console.error('File upload error:', uploadError);
+      
+          if (onClearFiles) {
+            console.log('Clearing uploaded files from UI after upload error...');
+            onClearFiles();
+          }
+      
+          setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `📎 **File Upload Failed**: Unexpected error.\n\nContinuing without file context.` 
+          }]);
+        }
+      }
+      
+
+      // Prepare chat request payload
+      const payload = {
+        companies: selectedCompanies.map(company => company.ticker),
+        chartData: chartData,
+        searchValue: searchValue,
+        selectedPeriod: selectedPeriod,
+        selectedMetrics: selectedMetrics,
+        activeChart: activeChart
+      };
+
+      const formattedChartData = chartData.map(item => ({
+        name: item.name,
+        ticker: item.ticker,
+        value: item.value
+      }));
+
+      // Use JSON for chat request (files are now uploaded separately)
+      const requestBody = JSON.stringify({
           question: message,
           payload: payload,
           company,
           period: selectedPeriod || 'ALL',
           metrics: selectedMetrics || [],
           chartType: activeChart || 'line',
-          chartData: formattedChartData
-        });
-        headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        };
-      }
+          chartData: formattedChartData,
+          // Include session ID for chat history
+          session_id: currentChatSession || null
+      });
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
 
       const response = await fetch(`${baseUrl}/api/chat/`, {
         method: 'POST',
@@ -262,6 +272,9 @@ export const useChat = ({
               data.data?.final_text_answer || data.answer || data.data || data.result || data.message || data.error ||
               "Sorry, I didn't get a proper response from the server.";
 
+            // Check if this is a quota exceeded response
+            const isQuotaExceeded = data.quota_exceeded === true;
+
             // Remove the thinking message and add the AI response
             setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
             
@@ -271,6 +284,16 @@ export const useChat = ({
             };
 
             setMessages(prev => [...prev, aiMessage]);
+            
+            // If quota exceeded, log for debugging
+            if (isQuotaExceeded) {
+              console.log('Quota exceeded for user plan:', data.plan);
+            }
+            
+            // Update current session ID if provided in response
+            if (data.session_id && onSessionUpdate) {
+              onSessionUpdate();
+            }
             
             // Save the conversation to the current session
             await saveMessageToSession(message, aiMessageContent);
@@ -308,6 +331,9 @@ export const useChat = ({
         data.data?.final_text_answer || data.answer || data.data || data.result || data.message || data.error ||
         "Sorry, I didn't get a proper response from the server.";
 
+      // Check if this is a quota exceeded response
+      const isQuotaExceeded = data.quota_exceeded === true;
+      
       // Remove the thinking message and add the AI response
       setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
       
@@ -317,6 +343,22 @@ export const useChat = ({
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // If quota exceeded, disable input temporarily to show the message clearly
+      if (isQuotaExceeded) {
+        console.log('Quota exceeded for user plan:', data.plan);
+        // You could add additional UI handling here if needed
+      }
+      
+      // Mark that new content has been added (AI response)
+      if (onNewContent) {
+        onNewContent();
+      }
+      
+      // Update current session ID if provided in response
+      if (data.session_id && onSessionUpdate) {
+        onSessionUpdate();
+      }
       
       // Save the conversation to the current session
       await saveMessageToSession(message, aiMessageContent);
@@ -333,6 +375,12 @@ export const useChat = ({
       console.error('Error sending message:', error);
       // Remove the thinking message
       setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+      
+      // Clear uploaded files even on error
+      if (onClearFiles) {
+        console.log('Clearing uploaded files due to error...');
+        onClearFiles();
+      }
       
       const errorMessage: Message = {
         role: 'assistant',

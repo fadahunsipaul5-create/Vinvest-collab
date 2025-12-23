@@ -15,6 +15,8 @@ from django.db.models import Avg, Sum
 from .models.query import Query
 from .serializer import * 
 from rest_framework.decorators import api_view,permission_classes
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.permissions import IsAuthenticated
 from .api_client import fetch_financial_data
 from .utility.utils import *
 from django.http import JsonResponse
@@ -28,33 +30,335 @@ from .utility.chatbox import answer_question
 import traceback
 from django.http import StreamingHttpResponse
 import json
+from .models.multiples import CompanyMultiples
+from .models.sector import Sector
+from .serializer import CompanyMultiplesSerializer
 
 logger = logging.getLogger(__name__)
 from .utility.bot import *
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 from django.core.management import call_command
 from django.views.decorators.csrf import csrf_exempt
 from .utility.bot import fetch_google_news
-from .models.chat_session import ChatSession
-from .models.chat_history import ChatHistory
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from datetime import datetime
+from django.utils import timezone
+import stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
+from account.models import User
+from .models.stripe_event import StripeEvent
+from datetime import timedelta
+#stripe webhook
+@csrf_exempt
+def create_checkout_session(request):
+    if request.method == 'GET':
+        return JsonResponse({"message": "Stripe checkout endpoint is working"}, status=200)
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        tier = data.get('tier')  # "pro" or "pro_plus"
 
-class ChatSessionListView(APIView):
-    permission_classes = [IsAuthenticated]
-    def get(self, request):
-        sessions = ChatSession.objects.filter(user=request.user).order_by('-created_at')
-        serializer = ChatSessionSerializer(sessions, many=True)
-        return Response(serializer.data)
+        if tier not in settings.SUBSCRIPTION_PLAN_QUOTAS:
+            return JsonResponse({"error": "Invalid tier"}, status=400)
 
-class ChatSessionDetailView(APIView):
+        price_id = settings.STRIPE_PRICE_PRO if tier == 'pro' else settings.STRIPE_PRICE_PRO_PLUS
+
+        if not price_id:
+            return JsonResponse({"error": f"Stripe price ID not configured for {tier} plan"}, status=500)
+
+        client_reference_id = None
+        customer = None
+        customer_email = None
+
+        if getattr(request.user, 'is_authenticated', False):
+            client_reference_id = str(request.user.id)
+            stripe_customer_id = getattr(request.user, 'stripe_customer_id', None)
+            if stripe_customer_id:
+                customer = stripe_customer_id
+            if not customer:
+                customer_email = getattr(request.user, 'email', None)
+        else:
+            customer_email = data.get('email')
+
+        session_params = {
+            'payment_method_types': ['card'],
+            'mode': 'subscription',
+            'line_items': [{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            'success_url': 'https://sec-frontend-791634680391.us-central1.run.app/success?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url': 'https://sec-frontend-791634680391.us-central1.run.app/cancel',
+            'metadata': {
+                'tier': tier,
+                'user_id': client_reference_id or '',
+                'email': customer_email or '',
+            }
+        }
+
+        if customer:
+            session_params['customer'] = customer
+        elif customer_email:
+            session_params['customer_email'] = customer_email
+
+        if client_reference_id:
+            session_params['client_reference_id'] = client_reference_id
+
+        session = stripe.checkout.Session.create(**session_params)
+        
+        return JsonResponse({'sessionId': session.id})
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    if not webhook_secret:
+        # Misconfiguration safeguard
+        return HttpResponse(status=500)
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return HttpResponse(status=400)
+
+    # Idempotency: prevent duplicate handling
+    event_id = event.get('id')
+    if event_id and StripeEvent.objects.filter(event_id=event_id).exists():
+        return HttpResponse(status=200)
+
+    # Persist event for auditing and idempotency
+    StripeEvent.objects.create(
+        event_id=event_id or '',
+        type=event.get('type', ''),
+        payload=event
+    )
+
+    event_type = event.get('type')
+
+    if event_type == 'checkout.session.completed':
+        session = event['data']['object']
+        user_id = session.get("metadata", {}).get("user_id")
+        tier = session.get("metadata", {}).get("tier")
+
+        if user_id and tier:
+            try:
+                user = User.objects.get(id=user_id)
+                quota = settings.SUBSCRIPTION_PLAN_QUOTAS.get(tier)
+                user.stripe_customer_id = session.get('customer')
+                user.stripe_subscription_id = session.get('subscription')
+                user.subscription_status = 'active'
+                user.set_plan(tier, quota)
+            except User.DoesNotExist:
+                pass
+
+    elif event_type == 'invoice.paid':
+        invoice = event['data']['object']
+        customer_id = invoice.get('customer')
+        subscription_id = invoice.get('subscription')
+        billing_reason = invoice.get('billing_reason')  # e.g., subscription_cycle
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if not user and subscription_id:
+            user = User.objects.filter(stripe_subscription_id=subscription_id).first()
+        if user:
+            user.subscription_status = 'active'
+            # Derive period end from invoice lines if available
+            try:
+                lines = invoice.get('lines', {}).get('data', [])
+                if lines:
+                    period_end_ts = lines[0].get('period', {}).get('end')
+                    if period_end_ts:
+                        user.subscription_period_end = timezone.make_aware(
+                            datetime.utcfromtimestamp(int(period_end_ts))
+                        )
+            except Exception:
+                pass
+            # Determine plan from price id on the invoice to keep in sync
+            plan_tier = None
+            try:
+                lines = invoice.get('lines', {}).get('data', [])
+                if lines:
+                    price_id = lines[0].get('price', {}).get('id')
+                    if price_id == settings.STRIPE_PRICE_PRO:
+                        plan_tier = 'pro'
+                    elif price_id == settings.STRIPE_PRICE_PRO_PLUS:
+                        plan_tier = 'pro_plus'
+            except Exception:
+                pass
+            if subscription_id:
+                user.stripe_subscription_id = subscription_id
+            if customer_id and not user.stripe_customer_id:
+                user.stripe_customer_id = customer_id
+            # Reset monthly quota on billing cycle invoices
+            try:
+                if billing_reason in ('subscription_cycle', 'subscription_create'):
+                    if plan_tier:
+                        user.set_plan(plan_tier)
+                    else:
+                        # Fall back to current plan reset
+                        user.set_plan(user.subscription_plan)
+            except Exception:
+                pass
+            user.save(update_fields=[
+                'subscription_status', 'subscription_period_end',
+                'stripe_subscription_id', 'stripe_customer_id'
+            ])
+
+    elif event_type == 'customer.subscription.updated':
+        sub = event['data']['object']
+        customer_id = sub.get('customer')
+        subscription_id = sub.get('id')
+        status = sub.get('status')
+        period_end_ts = sub.get('current_period_end')
+        # Determine plan from price id
+        plan_tier = None
+        try:
+            items = sub.get('items', {}).get('data', [])
+            if items:
+                price_id = items[0].get('price', {}).get('id')
+                if price_id == settings.STRIPE_PRICE_PRO:
+                    plan_tier = 'pro'
+                elif price_id == settings.STRIPE_PRICE_PRO_PLUS:
+                    plan_tier = 'pro_plus'
+        except Exception:
+            pass
+
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if not user and subscription_id:
+            user = User.objects.filter(stripe_subscription_id=subscription_id).first()
+        if user:
+            if status:
+                user.subscription_status = status
+            if period_end_ts:
+                try:
+                    user.subscription_period_end = timezone.make_aware(
+                        datetime.utcfromtimestamp(int(period_end_ts))
+                    )
+                except Exception:
+                    pass
+            if plan_tier:
+                user.set_plan(plan_tier)
+            if subscription_id:
+                user.stripe_subscription_id = subscription_id
+            if customer_id and not user.stripe_customer_id:
+                user.stripe_customer_id = customer_id
+            user.save(update_fields=[
+                'subscription_status', 'subscription_period_end',
+                'stripe_subscription_id', 'stripe_customer_id'
+            ])
+
+    elif event_type == 'customer.subscription.deleted':
+        sub = event['data']['object']
+        customer_id = sub.get('customer')
+        subscription_id = sub.get('id')
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if not user and subscription_id:
+            user = User.objects.filter(stripe_subscription_id=subscription_id).first()
+        if user:
+            user.subscription_status = 'canceled'
+            # Optionally downgrade to free plan
+            try:
+                user.set_plan('free')
+            except Exception:
+                pass
+            user.save(update_fields=['subscription_status'])
+
+    elif event_type == 'invoice.payment_failed':
+        # Optional: mark user as past_due
+        invoice = event['data']['object']
+        customer_id = invoice.get('customer')
+        user = None
+        if customer_id:
+            user = User.objects.filter(stripe_customer_id=customer_id).first()
+        if user:
+            user.subscription_status = 'past_due'
+            user.save(update_fields=['subscription_status'])
+
+    return HttpResponse(status=200)
+
+
+class FileUploadView(APIView):
     permission_classes = [IsAuthenticated]
-    def get(self, request, session_id):
-        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
-        messages = session.messages.all().order_by("timestamp")
-        serializer = ChatHistorySerializer(messages, many=True)
-        return Response(serializer.data)
+    def post(self, request):
+        try:
+            if 'files' not in request.FILES:
+                return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)
+            files = request.FILES.getlist('files')
+            if not files:
+                return Response({'error': 'No files selected'}, status=status.HTTP_400_BAD_REQUEST)
+            # Validate and prepare files
+            files_data = []
+            allowed_extensions = ['.pdf', '.txt', '.csv']
+            for file in files:
+                file_extension = os.path.splitext(file.name)[1].lower()
+                if file_extension not in allowed_extensions:
+                    return Response({
+                        'error': f'File type {file_extension} not supported. Allowed: {", ".join(allowed_extensions)}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                files_data.append(('files', (file.name, file.read(), file.content_type)))
+            # Required session ID for the external API
+            session_id = request.data.get('session_id')
+            if not session_id:
+                return Response({'error': 'session_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            # Add session_id as a regular form field
+            files_data.append(('session_id', (None, session_id, 'text/plain')))
+            # POST to external API
+            external_url = "http://34.68.84.147:8080/api/user_data_upload"
+            logger.info(f"Uploading {len(files)} files to external service with session_id {session_id}")
+            response = requests.post(
+                external_url,
+                files=files_data,
+                timeout=120
+            )
+            if response.status_code == 200:
+                return Response({
+                    'message': 'Files uploaded and processed successfully',
+                    'details': response.json(),
+                    'files_processed': len(files)
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'External file processing service returned an error',
+                    'details': response.json() if response.headers.get('Content-Type') == 'application/json' else response.text,
+                    'files_received': len(files)
+                }, status=status.HTTP_502_BAD_GATEWAY)
+        except requests.exceptions.Timeout:
+            return Response({
+                'error': 'File processing timeout. Please try again later.',
+                'files_received': len(files)
+            }, status=status.HTTP_504_GATEWAY_TIMEOUT)
+        except requests.exceptions.ConnectionError:
+            return Response({
+                'error': 'Unable to connect to file processing service.',
+                'files_received': len(files)
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception as e:
+            logger.error(f"Unexpected file upload error: {str(e)}")
+            return Response({
+                'error': 'Internal server error during file upload.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ContactView(APIView):
     def post(self, request):
@@ -89,17 +393,68 @@ def load_data(request):
 
 class ExternalChatbotProxyView(APIView):
     permission_classes = [IsAuthenticated]
+    
+    def get_user_file_context(self, user_id):
+        """
+        Fetch context from user's uploaded files via external endpoint
+        """
+        try:
+            external_url = "http://34.68.84.147:8080/api/user_data_context"
+            response = requests.get(
+                external_url,
+                params={'user_id': user_id},
+                timeout=3
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('context', '')
+            else:
+                logger.warning(f"Failed to fetch user file context: {response.status_code}")
+                return ''
+                
+        except Exception as e:
+            logger.error(f"Error fetching user file context: {str(e)}")
+            return ''
+    
     def post(self, request):
         user = request.user
         question = request.data.get("question", "").strip()
         if not question:
             return Response({"error": "Question cannot be empty"}, status=400)
+        
+        # Enforce quotas: allow unlimited for pro_plus, otherwise require remaining > 0
+        user_plan = getattr(user, 'subscription_plan', 'free') or 'free'
+        is_unlimited = user_plan == 'pro_plus'
+        questions_remaining = getattr(user, 'questions_remaining', 0)
+        
+        if not is_unlimited and questions_remaining <= 0:
+            # Return a user-friendly message for the chatbot to display
+            quota_message = (
+                "🚀 Free Plan Limit Reached\n\n"
+                "You've used all 10 questions per day from your free plan! To continue asking questions, "
+                "please upgrade to one of our premium plans:\n\n"
+                "• Pro Plan: 50 questions/month\n"
+                "• Pro Plus Plan: Unlimited questions\n\n"
+                "Click the upgrade button on your profile or GoPro to continue!"
+                "You can also wait till next day to ask more questions."
+            )
+            return Response({
+                "data": {
+                    "final_text_answer": quota_message
+                },
+                "quota_exceeded": True,
+                "plan": user_plan,
+                "questions_remaining": 0
+            }, status=200)  # Return 200 so the frontend handles it as a normal chat response
+        
         # Optional contextual filtering
         company_id = request.data.get("company", "").strip()
         metric_list = request.data.get("metrics", [])
         payload = request.data.get("payload", {})
         selected_peers = payload.get("companies", [])
         sector, industry = "", ""
+        
         try:
             company = Company.objects.get(ticker__iexact=company_id)
         except Company.DoesNotExist:
@@ -107,36 +462,133 @@ class ExternalChatbotProxyView(APIView):
         if company:
             sector = company.sector or ""
             industry = company.industry or ""
+        
+        # Get user's uploaded file context
+        user_file_context = self.get_user_file_context(user.id)
+        
         filtered_context = request.data.get("filtered_context", {
             "company": company_id,
             "metric": metric_list[0] if metric_list else "",
             "sector": sector,
             "industry": industry,
             "selected_peers": selected_peers,
+            "user_uploaded_files_context": user_file_context,  # Add file context
         })
-        # Create or retrieve session
-        session_id = request.data.get("session_id")
-        chat_session = (
-            get_object_or_404(ChatSession, id=session_id, user=user)
-            if session_id
-            else ChatSession.objects.create(user=user, title=question[:50] or "New Chat"))
+        
         chatbot_payload = {
             "question": question,
             "chat_history": request.data.get("chat_history", []),
-            "filtered_context": filtered_context,}
+            "filtered_context": filtered_context,
+            "user_id": user.id,  # Include user ID for context retrieval
+        }
         try:
-            response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60)
+            response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60, verify=False)
             data = response.json()
         except Exception as e:
-            return Response({"error": "Chatbot failed", "details": str(e)}, status=502)
-        # Save chat
-        ChatHistory.objects.create(
-            session=chat_session,
-            user=user,
-            question=question,
-            answer=data.get("answer", "[No answer]")
-        )
-        return Response({**data, "session_id": chat_session.id}, status=200)
+            logger.error(f"Chatbot API failed: {str(e)}")
+            return Response({
+                "data": {
+                    "final_text_answer": f"I apologize, but I'm having trouble connecting to the analysis engine right now. \n\n**Technical Details:** {str(e)}\n\nSince this is a development environment, I'm confirming that your request was sent successfully from the frontend, but the backend AI service is unreachable."
+                }
+            }, status=200)
+
+        ai_response = data.get("data", {}).get("final_text_answer") or data.get("answer") or "[No answer]"
+        
+        # Decrement quota only on successful chatbot response for non-unlimited plans
+        if not is_unlimited:
+            try:
+                user.consume_question()
+            except Exception:
+                pass
+        
+        return Response(data, status=200)
+
+
+class ChatSessionListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all chat sessions for the current user"""
+        try:
+            from .models.chat_session import ChatSession
+            
+            sessions = ChatSession.objects.filter(user=request.user, is_active=True)
+            session_data = []
+            for session in sessions:
+                session_data.append({
+                    'id': session.id,
+                    'title': session.title,
+                    'created_at': session.created_at.isoformat(),
+                    'updated_at': session.updated_at.isoformat(),
+                    'message_count': session.message_count
+                })
+            return Response(session_data, status=200)
+        except ImportError:
+            return Response([], status=200)
+        except Exception as e:
+            logger.error(f"Error fetching chat sessions: {str(e)}")
+            return Response({'error': 'Failed to fetch chat sessions'}, status=500)
+
+
+class ChatSessionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, session_id):
+        """Get all messages for a specific chat session"""
+        try:
+            from .models import ChatSession, ChatHistory
+            
+            session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+            messages = ChatHistory.objects.filter(session=session)
+            
+            formatted_messages = []
+            for msg in messages:
+                # Add user message
+                if msg.question:
+                    formatted_messages.append({
+                        'id': f"{msg.id}_user",
+                        'role': 'user',
+                        'content': msg.question,
+                        'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                    })
+                
+                # Add assistant message
+                if msg.answer:
+                    formatted_messages.append({
+                        'id': f"{msg.id}_assistant",
+                        'role': 'assistant',
+                        'content': msg.answer,
+                        'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                    })
+            
+            return Response({
+                'session_id': session.id,
+                'title': session.title,
+                'messages': formatted_messages
+            }, status=200)
+            
+        except ImportError:
+            return Response({'error': 'Chat models not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error fetching chat session {session_id}: {str(e)}")
+            return Response({'error': 'Failed to fetch chat session'}, status=500)
+
+    def delete(self, request, session_id):
+        """Delete a chat session"""
+        try:
+            from .models import ChatSession
+            
+            session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+            session.is_active = False
+            session.save()
+            
+            return Response({'message': 'Chat session deleted successfully'}, status=200)
+            
+        except ImportError:
+            return Response({'error': 'Chat models not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error deleting chat session {session_id}: {str(e)}")
+            return Response({'error': 'Failed to delete chat session'}, status=500)
 
 
 @api_view(["GET"])
@@ -226,7 +678,7 @@ class ChartDataAPIView(APIView):
                 company = Company.objects.filter(ticker=ticker).first()
                 if company:
                     metrics = FinancialMetric.objects.filter(
-                        company=company, metric_name=metric
+                        company=company, metric_name__iexact=metric
                     ).select_related("period")
 
                     # Log the number of metrics found
@@ -292,7 +744,7 @@ class InsightsAPIView(APIView):
 
         insights = []
         revenue_trend = FinancialMetric.objects.filter(
-            period__company=company,metric_name="Revenue"
+            period__company=company, metric_name__iexact="Revenue"
         ).order_by("period__year")
 
         if revenue_trend.count() >= 5:
@@ -327,7 +779,7 @@ class CustomQueryAPIView(APIView):
             data[metric] = {}
             for period in periods:
                 fm = FinancialMetric.objects.filter(
-                    period__company=company, metric_name=metric, period__year=period
+                    period__company=company, metric_name__iexact=metric, period__year=period
                 ).first()
                 data[metric][period] = fm.value if fm else None
 
@@ -340,22 +792,24 @@ class IndustryComparisonAPIView(APIView):
             industries = request.GET.get("industries", "").split(",")
             metric = request.GET.get("metric", "revenue")
 
-            # Read industry mappings from Excel
-            df = pd.read_excel(os.path.join("sec_app", "data", "stocks_perf_data.xlsx"))
-
-            # Create industry-ticker mapping
+            # Get industry-ticker mapping from Company model
             industry_tickers = {}
             for industry in industries:
-                industry_tickers[industry] = df[df["Industry"] == industry][
-                    "Symbol"
-                ].tolist()
+                tickers = list(
+                    Company.objects.filter(
+                        industry=industry
+                    ).exclude(industry__isnull=True).exclude(industry='')
+                    .values_list("ticker", flat=True)
+                )
+                if tickers:
+                    industry_tickers[industry] = tickers
 
             # Get all metrics for these companies
             all_metrics = []
             for industry, tickers in industry_tickers.items():
                 metrics = (
                     FinancialMetric.objects.filter(
-                        company__ticker__in=tickers, metric_name=metric
+                        company__ticker__in=tickers, metric_name__iexact=metric
                     )
                     .values("period__period")
                     .annotate(
@@ -435,34 +889,398 @@ class FinancialMetricsAPIView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class IncomeStatementDataAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get income statement data for a company in TableData format.
+        Returns: { [year: number]: { [metric_name: string]: number } }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Define income statement metric names (from IncomeStatementExpanded.csv files)
+            INCOME_STATEMENT_METRICS = {
+                'RevenueGrowthRate',
+                'Revenue',
+                'CostOfRevenue',
+                'GrossMargin',
+                'SellingAndMarketingExpense',
+                'GeneralAndAdministrativeExpense',
+                'FulfillmentExpense',
+                'TechnologyExpense',
+                'SellingGeneralAndAdministration',
+                'DepreciationAndAmortization',
+                'ResearchAndDevelopment',
+                'GoodwillImpairment',
+                'OtherOperatingExpense',
+                'OperatingExpenses',
+                'OperatingIncome',
+                'InterestExpenseDebt',
+                'InterestExpenseFinance',
+                'InterestExpense',
+                'InterestIncome',
+                'OtherNonoperatingIncome',
+                'NonoperatingIncomeNet',
+                'PretaxIncome',
+                'TaxProvision',
+                'NetIncomeControlling',
+                'NetIncomeNoncontrolling',
+                'NetIncome',
+                'SharesOutstandingBasic',
+                'SharesOutstandingDiluted',
+                'OperatingLeaseCost',
+                'VariableLeaseCost',
+                'LeasesDiscountRate',
+                'ForeignCurrencyAdjustment',
+                'PaidInCapitalCommonStockDividendPayment',
+            }
+            
+            # Try to get company, but if it doesn't exist, try to find metrics by ticker anyway
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                # Check if there are any metrics with this ticker (company might not exist yet)
+                metrics_by_ticker = FinancialMetric.objects.filter(
+                    company__ticker=ticker
+                )
+                if not metrics_by_ticker.exists():
+                    return Response(
+                        {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/income-statement-data/ACI/"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                # If metrics exist but company doesn't, get company from first metric
+                company = metrics_by_ticker.first().company
+            
+            # Get only income statement financial metrics for this company
+            metrics = FinancialMetric.objects.filter(
+                company=company,
+                metric_name__in=INCOME_STATEMENT_METRICS
+            ).select_related('period').order_by('period__period', 'metric_name')
+            
+            if not metrics.exists():
+                return Response(
+                    {"error": f"No financial data available for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Transform to TableData format: { [year: number]: { [metric_name: string]: number } }
+            table_data = {}
+            
+            for metric in metrics:
+                try:
+                    # Get year from period (period is stored as string like "2024")
+                    year = int(metric.period.period)
+                    
+                    # Initialize year object if not exists
+                    if year not in table_data:
+                        table_data[year] = {}
+                    
+                    # Add metric to year
+                    table_data[year][metric.metric_name] = metric.value
+                    
+                except (ValueError, TypeError):
+                    # Skip invalid periods
+                    continue
+            
+            return Response(table_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class EquityValueAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get EquityValue (intrinsic value) for a company.
+        Returns: { "equityValue": number }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Try to get company
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                return Response(
+                    {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/equity-value/ACI/"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get EquityValue metric for this company (from valuation period)
+            try:
+                period = FinancialPeriod.objects.get(company=company, period='valuation')
+                metric = FinancialMetric.objects.get(
+                    company=company,
+                    period=period,
+                    metric_name='EquityValue'
+                )
+                
+                return Response(
+                    {"equityValue": metric.value},
+                    status=status.HTTP_200_OK
+                )
+            except FinancialPeriod.DoesNotExist:
+                return Response(
+                    {"error": f"No valuation data found for {ticker}. EquityValue has not been loaded."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except FinancialMetric.DoesNotExist:
+                return Response(
+                    {"error": f"EquityValue not found for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class BalanceSheetDataAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get balance sheet data for a company in TableData format.
+        Returns: { [year: number]: { [metric_name: string]: number } }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Define balance sheet metric names (from BalanceSheetExpanded.csv files)
+            BALANCE_SHEET_METRICS = {
+                'Cash',
+                'ShortTermInvestments',
+                'CashAndCashEquivalents',
+                'ReceivablesCurrent',
+                'Inventory',
+                'OtherAssetsCurrent',
+                'AssetsCurrent',
+                'PropertyPlantAndEquipment',
+                'OperatingLeaseAssets',
+                'FinanceLeaseAssets',
+                'Goodwill',
+                'DeferredIncomeTaxAssetsNoncurrent',
+                'ReceivablesNoncurrent',
+                'OtherAssetsNoncurrent',
+                'AssetsNoncurrent',
+                'Assets',
+                'AccountsPayableCurrent',
+                'EmployeeAccruedLiabilitiesCurrent',
+                'AccruedLiabilitiesCurrent',
+                'AccruedIncomeTaxesCurrent',
+                'DeferredRevenueCurrent',
+                'LongTermDebtCurrent',
+                'OperatingLeaseLiabilitiesCurrent',
+                'FinanceLeaseLiabilitiesCurrent',
+                'OtherLiabilitiesCurrent',
+                'LiabilitiesCurrent',
+                'LongTermDebtNoncurrent',
+                'OperatingLeaseLiabilitiesNoncurrent',
+                'FinanceLeaseLiabilitiesNoncurrent',
+                'DeferredIncomeTaxLiabilitiesNoncurrent',
+                'OtherLiabilitiesNoncurrent',
+                'LiabilitiesNoncurrent',
+                'Liabilities',
+                'CommonStock',
+                'PaidInCapitalCommonStock',
+                'AccumulatedOtherIncome',
+                'RetainedEarningsAccumulated',
+                'Equity',
+                'LiabilitiesAndEquity',
+                'Debt',
+                'ForeignTaxCreditCarryForward',
+                'CapitalExpenditures',
+                'OperatingCash',
+                'ExcessCash',
+                'VariableLeaseAssets',
+            }
+            
+            # Try to get company, but if it doesn't exist, try to find metrics by ticker anyway
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                # Check if there are any metrics with this ticker (company might not exist yet)
+                metrics_by_ticker = FinancialMetric.objects.filter(
+                    company__ticker=ticker
+                )
+                if not metrics_by_ticker.exists():
+                    return Response(
+                        {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/balance-sheet-data/COST/"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                # If metrics exist but company doesn't, get company from first metric
+                company = metrics_by_ticker.first().company
+            
+            # Get only balance sheet financial metrics for this company
+            metrics = FinancialMetric.objects.filter(
+                company=company,
+                metric_name__in=BALANCE_SHEET_METRICS
+            ).select_related('period').order_by('period__period', 'metric_name')
+            
+            if not metrics.exists():
+                return Response(
+                    {"error": f"No balance sheet data available for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Transform to TableData format: { [year: number]: { [metric_name: string]: number } }
+            table_data = {}
+            
+            for metric in metrics:
+                try:
+                    # Get year from period (period is stored as string like "2024")
+                    year = int(metric.period.period)
+                    
+                    # Initialize year object if not exists
+                    if year not in table_data:
+                        table_data[year] = {}
+                    
+                    # Add metric to year
+                    table_data[year][metric.metric_name] = metric.value
+                    
+                except (ValueError, TypeError):
+                    # Skip invalid periods
+                    continue
+            
+            return Response(table_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CashFlowDataAPIView(APIView):
+    def get(self, request, ticker):
+        """
+        Get cash flow data for a company in TableData format.
+        Returns: { [year: number]: { [metric_name: string]: number } }
+        """
+        try:
+            # Normalize ticker (remove any URL encoding issues)
+            ticker = ticker.upper().strip()
+            
+            # Define cash flow metric names (from CashFlowExpanded.csv files)
+            CASH_FLOW_METRICS = {
+                'OperatingCashFlow',
+                'NetIncome',
+                'DepreciationAndAmortization',
+                'OtherNoncashChanges',
+                'DeferredTax',
+                'AssetImpairmentCharge',
+                'ShareBasedCompensation',
+                'ChangeInWorkingCapital',
+                'ChangeInReceivables',
+                'ChangeInInventory',
+                'ChangeInPayable',
+                'ChangeInOtherCurrentAssets',
+                'ChangeInOtherCurrentLiabilities',
+                'ChangeInOtherWorkingCapital',
+                'InvestingCashFlow',
+                'PurchaseOfPPE',
+                'SaleOfPPE',
+                'PurchaseOfBusiness',
+                'SaleOfBusiness',
+                'PurchaseOfInvestment',
+                'SaleOfInvestment',
+                'OtherInvestingChanges',
+                'FinancingCashFlow',
+                'ShortTermDebtIssuance',
+                'ShortTermDebtPayment',
+                'LongTermDebtIssuance',
+                'LongTermDebtPayment',
+                'PaidInCapitalCommonStockIssuance',
+                'PaidInCapitalCommonStockRepurchasePayment',
+                'PaidInCapitalCommonStockDividendPayment',
+                'TaxWithholdingPayment',
+                'FinancingLeasePayment',
+                'MinorityDividendPayment',
+                'MinorityShareholderPayment',
+            }
+            
+            # Try to get company, but if it doesn't exist, try to find metrics by ticker anyway
+            try:
+                company = Company.objects.get(ticker=ticker)
+            except Company.DoesNotExist:
+                # Check if there are any metrics with this ticker (company might not exist yet)
+                metrics_by_ticker = FinancialMetric.objects.filter(
+                    company__ticker=ticker
+                )
+                if not metrics_by_ticker.exists():
+                    return Response(
+                        {"error": f"Company with ticker {ticker} not found. Make sure to use the ticker directly, e.g., /api/cash-flow-data/COST/"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                # If metrics exist but company doesn't, get company from first metric
+                company = metrics_by_ticker.first().company
+            
+            # Get only cash flow financial metrics for this company
+            metrics = FinancialMetric.objects.filter(
+                company=company,
+                metric_name__in=CASH_FLOW_METRICS
+            ).select_related('period').order_by('period__period', 'metric_name')
+            
+            if not metrics.exists():
+                return Response(
+                    {"error": f"No cash flow data available for {ticker}."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Transform to TableData format: { [year: number]: { [metric_name: string]: number } }
+            table_data = {}
+            
+            for metric in metrics:
+                try:
+                    # Get year from period (period is stored as string like "2024")
+                    year = int(metric.period.period)
+                    
+                    # Initialize year object if not exists
+                    if year not in table_data:
+                        table_data[year] = {}
+                    
+                    # Add metric to year
+                    table_data[year][metric.metric_name] = metric.value
+                    
+                except (ValueError, TypeError):
+                    # Skip invalid periods
+                    continue
+            
+            return Response(table_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class IndustryAPIView(APIView):
     def get(self, request):
         try:
-            # Get companies we have data for
-            companies_with_data = Company.objects.values_list("ticker", flat=True)
-
-            # Read the Excel file
-            file_path = os.path.join("sec_app", "data", "stocks_perf_data.xlsx")
-            df = pd.read_excel(file_path)
-
-            # Filter DataFrame to only include companies we have data for
-            df = df[df["Symbol"].isin(companies_with_data)]
-
-            # Get industries that have companies with data
-            industries = (
-                df[["Industry", "Symbol"]]
-                .dropna()
-                .groupby("Industry")["Symbol"]
-                .apply(list)
-                .to_dict()
-            )
+            # Get companies with industry data from database
+            companies = Company.objects.filter(industry__isnull=False).exclude(industry='')
+            
+            # Group by industry and collect tickers
+            industries_dict = {}
+            for company in companies:
+                industry = company.industry
+                if industry not in industries_dict:
+                    industries_dict[industry] = []
+                industries_dict[industry].append(company.ticker)
 
             return Response(
                 {
                     "industries": [
-                        {"name": industry, "companies": companies}
-                        for industry, companies in industries.items()
-                        if len(companies) > 0  # Only include industries with companies
+                        {"name": industry, "companies": companies_list}
+                        for industry, companies_list in industries_dict.items()
+                        if len(companies_list) > 0  # Only include industries with companies
                     ]
                 }
             )
@@ -517,7 +1335,7 @@ class BoxPlotDataAPIView(APIView):
                     for metric in metrics:
                         metrics_query = (
                             FinancialMetric.objects.filter(
-                                metric_name=metric,
+                                metric_name__iexact=metric,
                                 period__period__contains=period_str,
                                 company__ticker__in=industry_companies,
                             )
@@ -575,31 +1393,69 @@ class AggregatedDataAPIView(APIView):
             "metric", "Revenue"
         )  
         period = request.GET.get("period", "1Y").strip('"')
+        periodType = request.GET.get("periodType", "").strip()  # "Average", "CAGR", or empty for Annual
+        
         if not tickers or not tickers[0]:
             return Response({"error": "Tickers are required."}, status=400)
         print(
-            f"Fetching data for tickers: {tickers}, metric: {metric}, period: {period}"
+            f"Fetching data for tickers: {tickers}, metric: {metric}, period: {period}, periodType: {periodType}"
         )
-        # Capitalize first letter of metric to match database
-        metric = metric[0].upper() + metric[1:] if metric else ""
+        # Use case-insensitive matching for metric names
+        # Frontend sends PascalCase (e.g., "Revenue", "CostOfRevenue") which matches database
+        # But we use case-insensitive matching to be robust against any case variations
         # Check if companies exist
         companies = Company.objects.filter(ticker__in=tickers)
         print(f"Found companies in DB: {list(companies.values_list('ticker', flat=True))}")
-        # Get metrics based on period type
+        # Get metrics based on period type with case-insensitive metric name matching
         metrics = FinancialMetric.objects.filter(
-            company__ticker__in=tickers, metric_name=metric
+            company__ticker__in=tickers, metric_name__iexact=metric
         ).select_related("period")
         print(f"Found {metrics.count()} total metrics")
         print(f"SQL Query: {metrics.query}")
-        # Filter metrics based on period type
-        if period == "1Y":
-            metrics = metrics.filter(period__period__regex=r"^\d{4}$")
+        
+        # Filter metrics based on period type and periodType
+        if periodType == "Average":
+            # Map period to AVG format: "1Y" -> "Last1Y_AVG", "2Y" -> "Last2Y_AVG", etc.
+            period_mapping = {
+                "1Y": "Last1Y_AVG",
+                "2Y": "Last2Y_AVG",
+                "3Y": "Last3Y_AVG",
+                "4Y": "Last4Y_AVG",
+                "5Y": "Last5Y_AVG",
+                "10Y": "Last10Y_AVG",
+                "15Y": "Last15Y_AVG"
+            }
+            mapped_period = period_mapping.get(period)
+            if mapped_period:
+                metrics = metrics.filter(period__period=mapped_period)
+            else:
+                # If period not in mapping, try to match pattern
+                metrics = metrics.filter(period__period__endswith="_AVG")
+        elif periodType == "CAGR":
+            # Map period to CAGR format: "1Y" -> "Last1Y_CAGR", "2Y" -> "Last2Y_CAGR", etc.
+            period_mapping = {
+                "1Y": "Last1Y_CAGR",
+                "2Y": "Last2Y_CAGR",
+                "3Y": "Last3Y_CAGR",
+                "4Y": "Last4Y_CAGR",
+                "5Y": "Last5Y_CAGR",
+                "10Y": "Last10Y_CAGR",
+                "15Y": "Last15Y_CAGR"
+            }
+            mapped_period = period_mapping.get(period)
+            if mapped_period:
+                metrics = metrics.filter(period__period=mapped_period)
+            else:
+                # If period not in mapping, try to match pattern
+                metrics = metrics.filter(period__period__endswith="_CAGR")
         else:
-            year_span = int(period.replace("Y", ""))
-            metrics = metrics.filter(
-                period__period__regex=rf"^\d{{4}}-\d{{2}}$",
-                period__period__contains="-",
-            )
+            # Annual mode: use existing logic
+            if period == "1Y":
+                metrics = metrics.filter(period__period__regex=r"^\d{4}$")
+            else:
+                # Filter by exact period type (2Y, 3Y, 4Y, etc.) - old format
+                metrics = metrics.filter(period__period__startswith=f"{period}: ")
+            
 
         print(f"After period filtering: {metrics.count()} metrics")
 
@@ -633,8 +1489,21 @@ class AggregatedDataAPIView(APIView):
                     period_str = metric_obj.period.period
                     print(f"Adding data point: {ticker}, {period_str}, {value}")
 
+                    # For frontend compatibility, extract display name from period names
+                    display_name = period_str
+                    if ": " in period_str:
+                        # Old format: "2Y: 2023-24" -> "2023-24"
+                        display_name = period_str.split(": ")[1]
+                    elif period_str.startswith("Last") and ("_AVG" in period_str or "_CAGR" in period_str):
+                        # New format: "Last1Y_AVG" -> "1Y", "Last2Y_CAGR" -> "2Y"
+                        # Extract the period part (e.g., "1Y" from "Last1Y_AVG")
+                        if "_AVG" in period_str:
+                            display_name = period_str.replace("Last", "").replace("_AVG", "")
+                        elif "_CAGR" in period_str:
+                            display_name = period_str.replace("Last", "").replace("_CAGR", "")
+                    
                     aggregated_data.append(
-                        {"name": period_str, "ticker": ticker, "value": value}
+                        {"name": display_name, "ticker": ticker, "value": value}
                     )
                 except Exception as e:
                     print(f"Error processing metric: {str(e)}")
@@ -700,3 +1569,201 @@ def check_company(request, ticker):
         )
     except Company.DoesNotExist:
         return Response({"error": f"Company {ticker} not found"}, status=404)
+
+
+class ChatBatchListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all chat batches for the current user"""
+        try:
+            from .models import ChatBatch
+            
+            batches = ChatBatch.objects.filter(user=request.user)[:10]  # Get latest 10
+            
+            batch_data = []
+            for batch in batches:
+                batch_data.append({
+                    'id': batch.id,
+                    'title': batch.title,
+                    'message_count': batch.message_count,
+                    'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                    'updated_at': batch.updated_at.isoformat() if batch.updated_at else None
+                })
+            
+            return Response(batch_data, status=200)
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error fetching chat batches: {str(e)}")
+            return Response({'error': 'Failed to fetch chat batches'}, status=500)
+
+    def post(self, request):
+        """Save a new chat batch"""
+        try:
+            from .models import ChatBatch
+            
+            messages = request.data.get('messages', [])
+            title = request.data.get('title', 'New Chat')
+            
+            if not messages:
+                return Response({'error': 'Messages cannot be empty'}, status=400)
+            
+            # Create new chat batch
+            batch = ChatBatch.objects.create(
+                user=request.user,
+                title=title,
+                messages=messages
+            )
+            
+            # Update title from first message if title is default
+            if title == 'New Chat':
+                batch.update_title_from_first_message()
+            
+            return Response({
+                'id': batch.id,
+                'title': batch.title,
+                'message_count': batch.message_count,
+                'created_at': batch.created_at.isoformat(),
+                'updated_at': batch.updated_at.isoformat()
+            }, status=201)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error saving chat batch: {str(e)}")
+            return Response({'error': 'Failed to save chat batch'}, status=500)
+
+
+class ChatBatchDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, batch_id):
+        """Get messages for a specific chat batch"""
+        try:
+            from .models import ChatBatch
+            
+            batch = get_object_or_404(ChatBatch, id=batch_id, user=request.user)
+            
+            return Response({
+                'batch_id': batch.id,
+                'title': batch.title,
+                'messages': batch.messages,
+                'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                'updated_at': batch.updated_at.isoformat() if batch.updated_at else None
+            }, status=200)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error fetching chat batch {batch_id}: {str(e)}")
+            return Response({'error': 'Failed to fetch chat batch'}, status=500)
+
+    def delete(self, request, batch_id):
+        """Delete a chat batch"""
+        try:
+            from .models import ChatBatch
+            
+            batch = get_object_or_404(ChatBatch, id=batch_id, user=request.user)
+            batch.delete()
+            
+            return Response({'message': 'Chat batch deleted successfully'}, status=200)
+            
+        except ImportError:
+            return Response({'error': 'ChatBatch model not available'}, status=500)
+        except Exception as e:
+            logger.error(f"Error deleting chat batch {batch_id}: {str(e)}")
+            return Response({'error': 'Failed to delete chat batch'}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def activate_free_plan(request):
+    try:
+        user = request.user
+        
+        if user.subscription_plan in ['pro', 'pro_plus']:
+            return Response({
+                'message': 'User already has an active paid plan',
+                'current_plan': user.subscription_plan
+            }, status=200)
+        
+        # Check if 24 hours have passed since registration
+        hours_since_registration = (timezone.now() - user.date_joined).total_seconds() / 3600
+        
+        # For development/testing: allow activation after 1 minute if DEBUG is True
+        min_hours_required = 1/60 if settings.DEBUG else 24  # 1 minute vs 24 hours
+        
+        if hours_since_registration < min_hours_required:
+            return Response({
+                'message': 'User not eligible for auto-activation yet',
+                'hours_remaining': min_hours_required - hours_since_registration,
+                'current_plan': user.subscription_plan,
+                'min_hours_required': min_hours_required
+            }, status=400)
+        
+        # Activate free plan
+        user.set_plan('free', quota=10)
+        user.subscription_status = 'active'
+        user.save(update_fields=['subscription_status'])
+        
+        logger.info(f"Auto-activated free plan for user {user.email} after {hours_since_registration:.2f} hours")
+        
+        return Response({
+            'message': 'Free plan activated successfully',
+            'plan': 'free',
+            'questions_remaining': user.questions_remaining,
+            'activation_time': timezone.now().isoformat(),
+            'hours_since_registration': hours_since_registration
+        }, status=200)
+        
+    except Exception as e:
+        logger.error(f"Error activating free plan for user {request.user.email}: {str(e)}")
+        return Response({
+            'error': 'Failed to activate free plan',
+            'details': str(e)
+        }, status=500)
+
+
+class CompanyMultiplesAPIView(APIView):
+    permission_classes = []  # Allow any, adjust as needed
+    
+    def get(self, request, ticker=None):         
+        try:
+            if ticker:
+                # Get specific company
+                try:
+                    multiples = CompanyMultiples.objects.get(ticker=ticker.upper())
+                    serializer = CompanyMultiplesSerializer(multiples)
+                    return Response(serializer.data, status=200)
+                except CompanyMultiples.DoesNotExist:
+                    return Response({
+                        'error': f'Multiples data not found for ticker: {ticker}'
+                    }, status=404)
+            else:
+                # List all companies
+                multiples = CompanyMultiples.objects.all()
+                serializer = CompanyMultiplesSerializer(multiples, many=True)
+                return Response(serializer.data, status=200)
+                
+        except Exception as e:
+            logger.error(f"Error retrieving multiples data: {str(e)}")
+            return Response({
+                'error': 'Failed to retrieve multiples data',
+                'details': str(e)
+            }, status=500)
+
+class SectorAPIView(APIView):
+    def get(self, request):
+        try:
+            # Get all unique sectors from the Sector model
+            sectors = Sector.objects.all().values_list('name', flat=True)
+            return Response({
+                'sectors': list(sectors)
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching sectors: {str(e)}")
+            return Response({
+                'error': 'Failed to fetch sectors',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -32,10 +32,10 @@ export default function DashboardPage() {
             <TabsTrigger value="insights">Insights</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total Revenue</CardTitle>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -51,13 +51,13 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$45,231.89</div>
+                  <div className="text-lg sm:text-2xl font-bold">$45,231.89</div>
                   <p className="text-xs text-muted-foreground">+20.1% from last month</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
+                  <CardTitle className="text-xs sm:text-sm font-medium">Profit Margin</CardTitle>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -74,13 +74,13 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">23.4%</div>
+                  <div className="text-lg sm:text-2xl font-bold">23.4%</div>
                   <p className="text-xs text-muted-foreground">+1.2% from last month</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Market Share</CardTitle>
+                  <CardTitle className="text-xs sm:text-sm font-medium">Market Share</CardTitle>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -96,13 +96,13 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12.5%</div>
+                  <div className="text-lg sm:text-2xl font-bold">12.5%</div>
                   <p className="text-xs text-muted-foreground">+2.1% from last year</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Investments</CardTitle>
+                  <CardTitle className="text-xs sm:text-sm font-medium">Active Investments</CardTitle>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -117,26 +117,26 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">+573</div>
+                  <div className="text-lg sm:text-2xl font-bold">+573</div>
                   <p className="text-xs text-muted-foreground">+201 since last month</p>
                 </CardContent>
               </Card>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
+              <Card className="lg:col-span-4">
                 <CardHeader>
-                  <CardTitle>Revenue Overview</CardTitle>
+                  <CardTitle className="text-sm sm:text-base lg:text-lg">Revenue Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="pl-2">
+                <CardContent className="pl-1 sm:pl-2">
                   <Overview 
                     selectedTicker={ticker}
                   />
                 </CardContent>
               </Card>
-              <Card className="col-span-3">
+              <Card className="lg:col-span-3">
                 <CardHeader>
-                  <CardTitle>Recent Queries</CardTitle>
-                  <CardDescription>You made 10 queries this month.</CardDescription>
+                  <CardTitle className="text-sm sm:text-base lg:text-lg">Recent Queries</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">You made 10 queries this month.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <RecentQueries />
@@ -150,43 +150,43 @@ export default function DashboardPage() {
                 <CardTitle>Financial Analytics</CardTitle>
                 <CardDescription>Explore standard financial charts and metrics.</CardDescription>
               </CardHeader>
-              <CardContent className="pl-2">
+              <CardContent className="pl-1 sm:pl-2">
                 <div className="flex flex-col space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button variant="outline" className="h-20 justify-start">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <Button variant="outline" className="h-16 sm:h-20 justify-start text-left p-3">
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">Revenue Analysis</span>
-                        <span className="text-sm text-muted-foreground">Historical revenue trends</span>
+                        <span className="text-sm sm:text-base font-medium">Revenue Analysis</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">Historical revenue trends</span>
                       </div>
                     </Button>
-                    <Button variant="outline" className="h-20 justify-start">
+                    <Button variant="outline" className="h-16 sm:h-20 justify-start text-left p-3">
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">Profit Margins</span>
-                        <span className="text-sm text-muted-foreground">Gross and net profit margins</span>
+                        <span className="text-sm sm:text-base font-medium">Profit Margins</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">Gross and net profit margins</span>
                       </div>
                     </Button>
-                    <Button variant="outline" className="h-20 justify-start">
+                    <Button variant="outline" className="h-16 sm:h-20 justify-start text-left p-3">
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">Cash Flow</span>
-                        <span className="text-sm text-muted-foreground">Operating and free cash flow</span>
+                        <span className="text-sm sm:text-base font-medium">Cash Flow</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">Operating and free cash flow</span>
                       </div>
                     </Button>
-                    <Button variant="outline" className="h-20 justify-start">
+                    <Button variant="outline" className="h-16 sm:h-20 justify-start text-left p-3 sm:col-span-2 lg:col-span-1">
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">Balance Sheet</span>
-                        <span className="text-sm text-muted-foreground">Assets, liabilities, equity</span>
+                        <span className="text-sm sm:text-base font-medium">Balance Sheet</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">Assets, liabilities, equity</span>
                       </div>
                     </Button>
-                    <Button variant="outline" className="h-20 justify-start">
+                    <Button variant="outline" className="h-16 sm:h-20 justify-start text-left p-3">
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">Market Comparison</span>
-                        <span className="text-sm text-muted-foreground">Benchmark against competitors</span>
+                        <span className="text-sm sm:text-base font-medium">Market Comparison</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">Benchmark against competitors</span>
                       </div>
                     </Button>
-                    <Button variant="outline" className="h-20 justify-start">
+                    <Button variant="outline" className="h-16 sm:h-20 justify-start text-left p-3">
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">Financial Ratios</span>
-                        <span className="text-sm text-muted-foreground">Key performance indicators</span>
+                        <span className="text-sm sm:text-base font-medium">Financial Ratios</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">Key performance indicators</span>
                       </div>
                     </Button>
                   </div>
@@ -202,10 +202,10 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Data Source</label>
-                      <select className="w-full p-2 border rounded-md">
+                      <label className="text-xs sm:text-sm font-medium">Data Source</label>
+                      <select className="w-full p-2 border rounded-md text-sm">
                         <option>Revenue Data</option>
                         <option>Profit Data</option>
                         <option>Market Share Data</option>
@@ -214,8 +214,8 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Chart Type</label>
-                      <select className="w-full p-2 border rounded-md">
+                      <label className="text-xs sm:text-sm font-medium">Chart Type</label>
+                      <select className="w-full p-2 border rounded-md text-sm">
                         <option>Line Chart</option>
                         <option>Bar Chart</option>
                         <option>Pie Chart</option>
@@ -224,8 +224,8 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Time Period</label>
-                      <select className="w-full p-2 border rounded-md">
+                      <label className="text-xs sm:text-sm font-medium">Time Period</label>
+                      <select className="w-full p-2 border rounded-md text-sm">
                         <option>Last 30 Days</option>
                         <option>Last Quarter</option>
                         <option>Last Year</option>
@@ -234,8 +234,8 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Comparison</label>
-                      <select className="w-full p-2 border rounded-md">
+                      <label className="text-xs sm:text-sm font-medium">Comparison</label>
+                      <select className="w-full p-2 border rounded-md text-sm">
                         <option>None</option>
                         <option>Previous Period</option>
                         <option>Industry Average</option>
@@ -244,8 +244,8 @@ export default function DashboardPage() {
                       </select>
                     </div>
                   </div>
-                  <Button className="w-full">Generate Custom Chart</Button>
-                  <div className="h-64 border rounded-md flex items-center justify-center text-muted-foreground">
+                  <Button className="w-full text-sm sm:text-base">Generate Custom Chart</Button>
+                  <div className="h-48 sm:h-64 border rounded-md flex items-center justify-center text-muted-foreground text-sm sm:text-base">
                     Custom chart preview will appear here
                   </div>
                 </div>

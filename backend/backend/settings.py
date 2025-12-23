@@ -2,37 +2,57 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
-#comment
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
+# Basic Settings
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-change-in-production')
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
+# Stripe Configuration
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+DOMAIN = os.getenv('DOMAIN')
+STRIPE_PRICE_PRO_PLUS = os.getenv('STRIPE_PRICE_PRO_PLUS')
+STRIPE_PRICE_PRO = os.getenv('STRIPE_PRICE_PRO')
+
+# Centralized plan to quota mapping
+SUBSCRIPTION_PLAN_QUOTAS = {
+    "free": 10,
+    "pro": 50,
+    "pro_plus": 9999,
+}
 
 # --- Environment Detection ---
 # This is the single source of truth. It's True in Cloud Build and Cloud Run.
 IS_PROD_ENV = os.environ.get('IS_CLOUD_ENV', 'False') == 'True'
 
-
 # --- Secret Key ---
 # Simplified and safer secret key handling
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-change-in-production')
 if IS_PROD_ENV and SECRET_KEY == 'django-insecure-development-key-change-in-production':
     raise ValueError("ERROR: A real SECRET_KEY must be set in production environments.")
 
-
 # --- Debug ---
 DEBUG = not IS_PROD_ENV
-
 
 # --- Allowed Hosts ---
 # Simplified and safer ALLOWED_HOSTS handling
 ALLOWED_HOSTS = []
 if IS_PROD_ENV:
     # This automatically gets the Cloud Run URL
-    ALLOWED_HOSTS = ['sec-insights-backend-791634680391.us-central1.run.app','sec-frontend-791634680391.us-central1.run.app','sec-insights-app-d9wp.vercel.app',]
+    ALLOWED_HOSTS = [
+        'sec-insights-backend-791634680391.us-central1.run.app',
+        'sec-frontend-791634680391.us-central1.run.app',
+        'sec-insights-app-d9wp.vercel.app',
+        "api.getdeep.ai",
+        "getdeep.ai",
+    ]
     cloud_run_url = os.environ.get('K_SERVICE_URL')
     if cloud_run_url:
         ALLOWED_HOSTS.append(cloud_run_url.split("://")[1])
@@ -41,8 +61,7 @@ if IS_PROD_ENV:
         ALLOWED_HOSTS.append('sec-insights-backend-791634680391.us-central1.run.app')
 else:
     # For local development
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1','localhost:5173','localhost:3000',]
-
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', 'localhost:5173', 'localhost:3000']
 
 # --- Database Configuration ---
 # This is the corrected logic that will fix your migration errors.
@@ -59,7 +78,6 @@ if IS_PROD_ENV:
             'PORT': '5432',
         }
     }
-
 else:
     # Local development database configuration
     DATABASES = {
@@ -68,7 +86,6 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-
 
 # --- Application definition ---
 INSTALLED_APPS = [
@@ -82,6 +99,7 @@ INSTALLED_APPS = [
     # Your apps
     "users",  # Changed from "account" to fix naming conflict
     'sec_app',
+    'sec_app_2',
     # 3rd Party Apps
     'rest_framework',
     'rest_framework_simplejwt',
@@ -90,6 +108,8 @@ INSTALLED_APPS = [
     'channels_redis',
     'drf_yasg',
     'django_filters',
+    'whitenoise',
+    'django_extensions',
 
     # Google Auth
     'django.contrib.sites',
@@ -163,6 +183,12 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# --- Your existing SEC API Settings ---
+SEC_API_KEY = os.getenv('SEC_API_KEY')
+SEC_API_BASE_URL = os.getenv('SEC_API_BASE_URL', 'https://api.sec-api.io')
+SEC_USER_AGENT = os.getenv('SEC_USER_AGENT', 'ValueAccel info@valueaccel.com')
+
+# CORS Headers configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization', 'content-type', 'dnt',
@@ -174,10 +200,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://sec-frontend-791634680391.us-central1.run.app",
     "https://sec-insights-app-d9wp.vercel.app",
+    "https://getdeep.ai",
+    "https://api.getdeep.ai",
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-AUTH_USER_MODEL = "users.User" # Changed from "account.User"
+AUTH_USER_MODEL = "users.User"  # Changed from "account.User"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
@@ -191,17 +219,20 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'rest_framework.filters.SearchFilter',
-    ]
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True  # Use SSL for port 465
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'info@valueaccel.com')
 
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
@@ -224,9 +255,16 @@ LOGGING = {
     },
 }
 
-
 if DEBUG:
     SITE_URL = "http://127.0.0.1:8000"
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     SITE_URL = "https://sec-insights-backend-791634680391.us-central1.run.app"
+
+PLAN_QUOTAS = {
+    "pro": 100,
+    "pro_plus": 200,
+}
+
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None

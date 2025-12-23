@@ -47,97 +47,43 @@ const AIOTPlatformSolutions: React.FC<AIOTPlatformSolutionsProps> = ({ onContact
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* AIOT Platform Diagram */}
               <div className="flex justify-center">
-                <div className="relative w-80 h-80">
-                  {/* Central Circle */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-[#1B5A7D] rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-xl">M</span>
-                  </div>
-                  
-                  {/* Platform Title */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-16 text-center">
-                    <p className="text-sm font-semibold text-[#1B5A7D]">AIOT Platform: an end-to-end integrated</p>
-                    <p className="text-sm font-semibold text-[#1B5A7D]">platform for global AIOT ecosystem</p>
-                  </div>
-
-                  {/* Compute Nodes */}
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">☀️</span>
-                  </div>
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">Compute Nodes</p>
-                  </div>
-
-                  {/* AI & ML Integrations */}
-                  <div className="absolute top-1/4 right-0 transform translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">🔧</span>
-                  </div>
-                  <div className="absolute top-1/4 right-0 transform translate-x-1/2 -translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">AI & ML Integrations</p>
-                  </div>
-
-                  {/* Edge Computing */}
-                  <div className="absolute bottom-1/4 right-0 transform translate-x-1/2 translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">🏭</span>
-                  </div>
-                  <div className="absolute bottom-1/4 right-0 transform translate-x-1/2 translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">Edge Computing</p>
-                  </div>
-
-                  {/* Data Management */}
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">🖥️</span>
-                  </div>
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">Data Management</p>
-                  </div>
-
-                  {/* IoT Integration */}
-                  <div className="absolute bottom-1/4 left-0 transform -translate-x-1/2 translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">🌐</span>
-                  </div>
-                  <div className="absolute bottom-1/4 left-0 transform -translate-x-1/2 translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">IoT Integration</p>
-                  </div>
-
-                  {/* Network & Connectivity */}
-                  <div className="absolute top-1/4 left-0 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">🔗</span>
-                  </div>
-                  <div className="absolute top-1/4 left-0 transform -translate-x-1/2 -translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">Network & Connectivity</p>
-                  </div>
-
-                  {/* Security & Governance */}
-                  <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">🛡️</span>
-                  </div>
-                  <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">Security & Governance</p>
-                  </div>
-
-                  {/* Cloud Integration */}
-                  <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-[#1B5A7D]">
-                    <span className="text-[#1B5A7D] text-lg">☁️</span>
-                  </div>
-                  <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 mt-8 text-center">
-                    <p className="text-xs font-medium text-[#1B5A7D]">Cloud Integration</p>
-                  </div>
-                </div>
+                <img 
+                  src="/tools.PNG" 
+                  alt="AIOT Platform: an end-to-end integrated platform for global AIOT ecosystem" 
+                  className="w-96 h-96 object-contain"
+                />
               </div>
 
               {/* Platform Features */}
               <div className="space-y-6">
-                <div className="bg-[#1B5A7D] text-white p-4 rounded-lg">
-                  <h4 className="font-semibold text-lg mb-2">Platform</h4>
-                  <p className="text-sm">Cost-effective, scalable AIoT platform with a pre-configured IoT stack for communication, AI/ML, and real-time events.</p>
+                {/* Platform */}
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-600 text-white p-6 rounded-lg min-w-[140px] flex items-center justify-center">
+                    <h4 className="font-bold text-lg text-center">Platform</h4>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-700 text-base">Cost-effective, scalable ALoT platform with a pre-configured IoT stack for communication, AI/ML, and real-time events</p>
+                  </div>
                 </div>
-                <div className="bg-[#1B5A7D] text-white p-4 rounded-lg">
-                  <h4 className="font-semibold text-lg mb-2">Integration</h4>
-                  <p className="text-sm">Seamlessly integrates across technologies and systems, empowering developers to create comprehensive, data-driven solutions.</p>
+
+                {/* Integration */}
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-600 text-white p-6 rounded-lg min-w-[140px] flex items-center justify-center">
+                    <h4 className="font-bold text-lg text-center">Integration</h4>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-700 text-base">Seamlessly integrates across technologies and systems, empowering developers to create comprehensive, data-driven solutions</p>
+                  </div>
                 </div>
-                <div className="bg-[#1B5A7D] text-white p-4 rounded-lg">
-                  <h4 className="font-semibold text-lg mb-2">Optimization</h4>
-                  <p className="text-sm">Uncovers and analyzes data from connected devices across all systems to optimize processes and drive innovation.</p>
+
+                {/* Optimization */}
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-600 text-white p-6 rounded-lg min-w-[140px] flex items-center justify-center">
+                    <h4 className="font-bold text-lg text-center">Optimization</h4>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-700 text-base">Uncovers and analyzes data from connected devices across all systems to optimize processes and drive innovation</p>
+                  </div>
                 </div>
               </div>
             </div>

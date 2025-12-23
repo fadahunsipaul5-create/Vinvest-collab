@@ -15,7 +15,7 @@ COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 
 # Headers for SEC API requests
 HEADERS = {
-    'User-Agent': 'Nanik paul@nanikworkforce.com',  # Make sure this is a valid email
+    'User-Agent': 'ValueAccel info@valueaccel.com',  # Make sure this is a valid email
     'Accept-Encoding': 'gzip, deflate',
     'Host': 'data.sec.gov'
 }
@@ -44,7 +44,7 @@ def get_cik_from_ticker(ticker):
     try:
         direct_url = f"https://www.sec.gov/cgi-bin/browse-edgar?CIK={ticker}&owner=exclude&action=getcompany&Find=Search"
         response = requests.get(direct_url, headers={
-            'User-Agent': 'Nanik paul@nanikworkforce.com',
+            'User-Agent': 'ValueAccel info@valueaccel.com',
         })
         
         if response.status_code == 200:
@@ -126,7 +126,7 @@ def fetch_financial_data(ticker, verbose=False):
     ]
     
     headers = {
-        'User-Agent': 'Nanik paul@nanikworkforce.com',
+        'User-Agent': 'ValueAccel info@valueaccel.com',
         'Accept-Encoding': 'gzip, deflate',
         'Host': 'data.sec.gov'
     }
@@ -146,7 +146,7 @@ def fetch_financial_data(ticker, verbose=False):
             # Adjust headers based on the URL
             if 'www.sec.gov' in url:
                 current_headers = {
-                    'User-Agent': 'Nanik paul@nanikworkforce.com',
+                    'User-Agent': 'ValueAccel info@valueaccel.com',
                     'Accept-Encoding': 'gzip, deflate',
                     'Host': 'www.sec.gov'
                 }
@@ -382,7 +382,7 @@ def fetch_filing_details(cik, accession_number):
     url = f"https://www.sec.gov/Archives/edgar/data/{cik_int}/{formatted_accession}/index.json"
     
     headers = {
-        'User-Agent': 'Nanik paul@nanikworkforce.com',
+        'User-Agent': 'ValueAccel info@valueaccel.com',
         'Accept-Encoding': 'gzip, deflate',
         'Host': 'www.sec.gov'
     }
