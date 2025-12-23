@@ -97,7 +97,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Your apps
-    "users",  # Changed from "account" to fix naming conflict
+    "account",
     'sec_app',
     'sec_app_2',
     # 3rd Party Apps
@@ -206,7 +206,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-AUTH_USER_MODEL = "users.User"  # Changed from "account.User"
+AUTH_USER_MODEL = "account.User"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
