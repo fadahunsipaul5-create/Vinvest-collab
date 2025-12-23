@@ -82,6 +82,7 @@ export const balanceSheetStructure = {
       'AccountsPayableCurrent': 'Accounts Payable Current',
       'EmployeeLiabilitiesCurrent': 'Employee Liabilities Current',
       'AccruedLiabilitiesCurrent': 'Accrued Liabilities Current',
+      'AccruedIncomeTaxesCurrent': 'Accrued Income Taxes Current',
       'DeferredRevenueCurrent': 'Deferred Revenue Current',
       'LongTermDebtCurrent': 'Long Term Debt Current',
       'OperatingLeaseLiabilitiesCurrent': 'Operating Lease Liabilities Current',
@@ -98,6 +99,7 @@ export const balanceSheetStructure = {
   },
   'Equity': {
     'CommonStockEquity': 'Common Stock Equity',
+    'PaidInCapitalCommonStock': 'Paid In Capital Common Stock',
     'AccumulatedOtherComprehensiveIncomeLossNetOfTax': 'Accumulated Other Comprehensive Income',
     'NoncontrollingInterest': 'Noncontrolling Interest',
     'NoncontrollingInterests': 'Noncontrolling Interests',
@@ -133,6 +135,11 @@ export const incomeStatementStructure = {
   },
   'OperatingExpenses': {
     'SGAExpense': 'SGA Expense',
+    'SellingAndMarketingExpense': 'Selling And Marketing Expense',
+    'GeneralAndAdministrativeExpense': 'General And Administrative Expense',
+    'ResearchAndDevelopment': 'Research And Development',
+    'FulfillmentExpense': 'Fulfillment Expense',
+    'TechnologyExpense': 'Technology Expense',
     'DepreciationAmortization': 'Depreciation And Amortization',
     'OtherOperatingExpense': 'Other Operating Expense'
   },

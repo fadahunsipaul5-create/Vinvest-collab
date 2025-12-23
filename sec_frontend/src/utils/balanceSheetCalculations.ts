@@ -77,15 +77,16 @@ export const calculateCurrentLiabilities = (data: BalanceSheetData, year: number
   try {
     const yearData = data[year] || {};
     const accountsPayable = toNumber(yearData.AccountsPayableCurrent);
-    const employeeRelated = toNumber(yearData.EmployeeRelatedLiabilitiesCurrent);
+    const employeeRelated = toNumber(yearData.EmployeeRelatedLiabilitiesCurrent); // Maps to EmployeeLiabilitiesCurrent in frontend
     const accruedLiabilities = toNumber(yearData.AccruedLiabilitiesCurrent);
+    const accruedIncomeTaxes = toNumber(yearData.AccruedIncomeTaxesCurrent);
     const deferredRevenue = toNumber(yearData.DeferredRevenueCurrent);
     const longTermDebtCurrent = toNumber(yearData.LongTermDebtCurrent);
     const operatingLeaseCurrent = toNumber(yearData.OperatingLeaseLiabilitiesCurrent);
     const financeLeaseCurrent = toNumber(yearData.FinanceLeaseLiabilitiesCurrent);
     const otherLiabilitiesCurrent = toNumber(yearData.OtherLiabilitiesCurrent);
     
-    return accountsPayable + employeeRelated + accruedLiabilities + deferredRevenue + 
+    return accountsPayable + employeeRelated + accruedLiabilities + accruedIncomeTaxes + deferredRevenue + 
            longTermDebtCurrent + operatingLeaseCurrent + financeLeaseCurrent + otherLiabilitiesCurrent;
   } catch (error) {
     console.error(`Error calculating Current Liabilities for year ${year}:`, error);
@@ -193,6 +194,7 @@ export const dependencies = {
   AccountsPayableCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   EmployeeRelatedLiabilitiesCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   AccruedLiabilitiesCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  AccruedIncomeTaxesCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   DeferredRevenueCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   LongTermDebtCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   OperatingLeaseLiabilitiesCurrent: ['LiabilitiesCurrent', 'TotalLiabilities', 'Liabilities', 'StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
@@ -213,6 +215,12 @@ export const dependencies = {
   Liabilities: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   StockholdersEquity: ['LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
   Equity: ['LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  CommonStockEquity: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  PaidInCapitalCommonStock: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  RetainedEarningsAccumulated: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  AccumulatedOtherComprehensiveIncomeLossNetOfTax: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  NoncontrollingInterest: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
+  NoncontrollingInterests: ['StockholdersEquity', 'Equity', 'LiabilitiesAndStockholdersEquity', 'LiabilitiesAndEquity'],
 };
 
 // Calculate all fields for a given year

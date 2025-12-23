@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
+import ReactMarkdown from 'react-markdown';
 import InsightsGenerators from './InsightsGenerators';
 import AIOTPlatformSolutions from './AIOTPlatformSolutions';
 import OperationsVirtualization from './OperationsVirtualization';
@@ -14,6 +15,7 @@ import { useChat } from './chatbox';
 import { TooltipProps } from 'recharts';
 import { AVAILABLE_METRICS } from '../data/availableMetrics';
 import { useCompanyData } from '../contexts/CompanyDataContext';
+import ReportGenerationForm from './ReportGenerationForm';
 // const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // import {baseUrl} from '../api';
 import baseUrl from './api';
@@ -165,6 +167,15 @@ const Dashboard: React.FC = () => {
   // Add save chart functionality
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingConversation, setIsSavingConversation] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportMessages, setReportMessages] = useState<Message[]>([]);
+  const [reportFormKey, setReportFormKey] = useState(0); // Key to force reset of ReportGenerationForm
+  
+  // Report Chat History State
+  const [reportChatHistory, setReportChatHistory] = useState<any[]>([]);
+  const [showReportHistoryDropdown, setShowReportHistoryDropdown] = useState(false);
+  const [isLoadingReportHistory, setIsLoadingReportHistory] = useState(false);
+  const [currentReportSessionId, setCurrentReportSessionId] = useState<string | null>(null);
 
   // Add subscription/pricing functionality
   const [showPricingModal, setShowPricingModal] = useState(false);
@@ -187,8 +198,10 @@ const Dashboard: React.FC = () => {
   const [showValuationModal, setShowValuationModal] = useState(false);
   const [showCapabilitiesDropdown, setShowCapabilitiesDropdown] = useState(false);
   const [isChatbotMinimized, setIsChatbotMinimized] = useState(false);
+  const [isPerformanceMinimized, setIsPerformanceMinimized] = useState(false);
   const [showAIOTModal, setShowAIOTModal] = useState(false);
   const [showOperationsModal, setShowOperationsModal] = useState(false);
+  const [chatMode, setChatMode] = useState<'insights' | 'report'>('insights');
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(false);
@@ -611,81 +624,20 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Token refresh function
-  const refreshToken = async (): Promise<string | null> => {
-    try {
-      const refreshToken = localStorage.getItem('refresh');
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
-      }
-
-      const response = await fetch(`${baseUrl}/account/token/refresh/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          refresh: refreshToken
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('access', data.access);
-        return data.access;
-      } else {
-        throw new Error('Token refresh failed');
-      }
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return null;
-    }
-  };
-
   const fetchChatHistory = async () => {
+    setIsLoadingChatHistory(true);
     try {
-      setIsLoadingChatHistory(true);
-      let token = localStorage.getItem('access');
-      if (!token) {
-        setIsLoadingChatHistory(false);
-        return;
-      }
+      const token = localStorage.getItem('access');
+      if (!token) return;
 
-      let response = await fetch(`${baseUrl}/api/chat/batches/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch(`${baseUrl}/api/sec/sessions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      // If token expired, try to refresh and retry
-      if (response.status === 401) {
-        console.log('Token expired, attempting refresh...');
-        const newToken = await refreshToken();
-        if (newToken) {
-          response = await fetch(`${baseUrl}/api/chat/batches/`, {
-            headers: {
-              'Authorization': `Bearer ${newToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
-        } else {
-          // Refresh failed, redirect to login
-          console.error('Token refresh failed, redirecting to login');
-          localStorage.removeItem('access');
-          localStorage.removeItem('refresh');
-          localStorage.removeItem('user_info');
-          window.location.href = '/login';
-          return;
-        }
-      }
 
       if (response.ok) {
         const data = await response.json();
-        setChatHistory(data.slice(0, 10)); // Get latest 10 chat batches
-        console.log('Fetched chat history:', data);
-      } else {
-        console.error('Failed to fetch chat history:', response.status);
+        // Sample: { "sessions": [{ "session_id": "...", "message_count": 5 }], "total_count": 1 }
+        setChatHistory(data.sessions || []);
       }
     } catch (error) {
       console.error('Error fetching chat history:', error);
@@ -694,102 +646,135 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadChatBatch = async (batchId: number) => {
+  const loadChatBatch = async (sessionId: string) => {
     try {
-      let token = localStorage.getItem('access');
-      console.log('Loading chat batch:', batchId);
-      console.log('Token available:', !!token);
-      
-      if (!token) {
-        console.error('No access token found');
-        return;
-      }
+      const token = localStorage.getItem('access');
+      if (!token) return;
 
-      let response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch(`${baseUrl}/api/sec/sessions/${sessionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      console.log('Response status:', response.status);
-      
-      // If token expired, try to refresh and retry
-      if (response.status === 401) {
-        console.log('Token expired, attempting refresh...');
-        const newToken = await refreshToken();
-        if (newToken) {
-          response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
-            headers: {
-              'Authorization': `Bearer ${newToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
-        } else {
-          // Refresh failed, redirect to login
-          console.error('Token refresh failed, redirecting to login');
-          localStorage.removeItem('access');
-          localStorage.removeItem('refresh');
-          localStorage.removeItem('user_info');
-          window.location.href = '/login';
-          return;
-        }
-      }
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Chat batch data:', data);
-        
-        // Messages are already in the correct format from the batch
-        const formattedMessages = data.messages.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content
-        }));
-        
-        console.log('Formatted messages:', formattedMessages);
-        
-        // Use the setMessages from useChat hook to properly update the chat
-        setMessages(formattedMessages);
-        setCurrentChatSession(batchId);
-        setShowChatHistoryDropdown(false);
-        setHasNewChatContent(false); // Reset flag since we're loading existing content
-        
-        // Clear any uploaded files when loading a session
-        setUploadedFiles([]);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+        // Sample: { "session_id": "...", "history": { "messages": [...] }, "message_count": 1 }
+        if (data.history && Array.isArray(data.history.messages)) {
+          setMessages(data.history.messages);
+          setCurrentChatSession(data.session_id);
+          setShowChatHistoryDropdown(false);
+          setHasNewChatContent(false);
         }
-        
-        // Save the loaded chat state immediately
-        const chatState = {
-          messages: formattedMessages,
-          currentChatSession: batchId,
-          hasNewChatContent: false,
-          timestamp: Date.now()
-        };
-        
-        try {
-          localStorage.setItem('current_chat_state', JSON.stringify(chatState));
-          console.log('Loaded chat state saved to localStorage');
-        } catch (error) {
-          console.error('Error saving loaded chat state:', error);
-        }
-      } else {
-        console.error('Failed to load chat batch:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
       }
     } catch (error) {
-      console.error('Error loading chat batch:', error);
+      console.error('Error loading chat session:', error);
     }
   };
 
-  const startNewChat = async () => {
-    // Save current chat before starting new one (if it has meaningful content)
-    if (messages.length > 1) { // More than just the initial message
-      await saveChatBatch(messages);
+  // Report Chat History Functions
+  const fetchReportSessions = async () => {
+    setIsLoadingReportHistory(true);
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      const response = await fetch(`${baseUrl}/api/sec/sessions_report`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Sample: { "sessions": [{ "session_id": "...", "message_count": 5 }], "total_count": 1 }
+        setReportChatHistory(data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching report sessions:', error);
+    } finally {
+      setIsLoadingReportHistory(false);
     }
-    
+  };
+
+  const loadReportSession = async (sessionId: string) => {
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      const response = await fetch(`${baseUrl}/api/sec/sessions_report/${sessionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Sample: { "session_id": "...", "history": { "messages": [...] } }
+        if (data.history && Array.isArray(data.history.messages)) {
+          setReportMessages(data.history.messages);
+          setCurrentReportSessionId(data.session_id);
+          setShowReportHistoryDropdown(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading report session:', error);
+    }
+  };
+
+  const deleteReportSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      const response = await fetch(`${baseUrl}/api/sec/sessions_report/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        setReportChatHistory(prev => prev.filter(s => s.session_id !== sessionId));
+        if (currentReportSessionId === sessionId) {
+          startNewReportChat();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting report session:', error);
+    }
+  };
+
+  const startNewReportChat = () => {
+    setReportMessages([]);
+    setCurrentReportSessionId(null);
+    setReportFormKey(prev => prev + 1); // Reset form
+    setShowReportHistoryDropdown(false);
+  };
+
+  const deleteChatBatch = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('access');
+      if (!token) return;
+
+      const response = await fetch(`${baseUrl}/api/sec/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        setChatHistory(prev => prev.filter(s => s.session_id !== sessionId));
+        if (currentChatSession === sessionId) {
+          startNewChat();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting chat session:', error);
+    }
+  };
+
+  // Fetch report history when entering report mode
+  useEffect(() => {
+    if (chatMode === 'report') {
+      fetchReportSessions();
+    }
+  }, [chatMode]);
+
+  const startNewChat = () => {
     // Reset to initial state
     const initialMessages: Message[] = [
       {
@@ -801,50 +786,174 @@ const Dashboard: React.FC = () => {
     setMessages(initialMessages);
     setCurrentChatSession(null);
     setShowChatHistoryDropdown(false);
-    setHasNewChatContent(false); // Reset flag for new chat
+    setHasNewChatContent(false);
     
     // Clear any uploaded files
     setUploadedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    
-    // Clear saved chat state since user explicitly started new chat
-    localStorage.removeItem('current_chat_state');
+  };
+
+  const handleReportGenerate = async (data: {
+    reportType: string;
+    company: { ticker: string; name: string };
+    industryName?: string;
+    instructions: string;
+  }) => {
+    try {
+      // Generate session ID if not available
+      const sessionId = currentReportSessionId 
+        ? currentReportSessionId 
+        : `report_${Date.now()}`;
+      
+      // Update current session ID immediately so subsequent chunks use it
+      if (!currentReportSessionId) {
+          setCurrentReportSessionId(sessionId);
+      }
+
+      // Prepare request payload
+      let payload: any = {
+        session_id: sessionId,
+      };
+      
+      let endpoint = `${baseUrl}/api/sec/deep_qa_bot_report`;
+
+      // Handle different report types
+      if (data.reportType === 'custom_instructions') {
+        // Custom Instructions uses a different endpoint and schema
+        endpoint = `${baseUrl}/api/sec/deep_qa_bot_stream`;
+        payload = {
+            question: data.instructions, // Use instructions as the question
+            session_id: sessionId,
+            base64_images: [],
+            base64_files: [],
+            base64_audios: []
+        };
+      } else {
+          // Standard Report Types (Company/Industry) - Now using Streaming
+          endpoint = `${baseUrl}/api/sec/deep_qa_bot_stream_report`;
+          
+          payload.report_type = data.reportType;
+
+          if (data.reportType === 'industry_deep_drive') {
+            payload.industry_name = data.industryName;
+          } else {
+            // Standard company report
+            payload.ticker = data.company.ticker;
+            payload.company_name = data.company.name;
+          }
+
+          // Add optional fields for standard reports
+          if (data.instructions.trim()) {
+            payload.instructions = data.instructions;
+          }
+      }
+
+      // Show loading state
+      setIsGeneratingReport(true);
+      setChatMode('report');
+
+      // Call the report generation API (Streaming for ALL types)
+      const token = localStorage.getItem('access');
+      
+      // Add user message immediately
+      const userContent = data.reportType === 'custom_instructions' 
+          ? data.instructions 
+          : `Generate a report for ${data.reportType === 'industry_deep_drive' ? data.industryName : `${data.company.name} (${data.company.ticker})`}${data.instructions ? `\n\nInstructions: ${data.instructions}` : ''}`;
+
+      setReportMessages(prev => [
+        ...prev,
+        { role: 'user', content: userContent }
+      ]);
+
+      // Add placeholder for assistant message
+      setReportMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: '' }
+      ]);
+
+      // Refresh history after starting stream
+      setTimeout(fetchReportSessions, 2000);
+
+      try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : '',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+              throw new Error(`Stream connection failed: ${response.status}`);
+          }
+
+          if (!response.body) throw new Error('ReadableStream not supported');
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              // Keep the last partial line in buffer
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                      try {
+                          const jsonStr = line.substring(6);
+                          const eventData = JSON.parse(jsonStr);
+
+                          if (eventData.type === 'token' && eventData.content) {
+                              // Append token to the last assistant message
+                              setReportMessages(prev => {
+                                  const newMsgs = [...prev];
+                                  const lastIdx = newMsgs.length - 1;
+                                  if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
+                                      newMsgs[lastIdx] = {
+                                          ...newMsgs[lastIdx],
+                                          content: newMsgs[lastIdx].content + eventData.content
+                                      };
+                                  }
+                                  return newMsgs;
+                              });
+                          } else if (eventData.type === 'error') {
+                              console.error('Stream error:', eventData.error);
+                              // Optionally append error to chat
+                          }
+                      } catch (e) {
+                          console.warn('Failed to parse SSE data:', line);
+                      }
+                  }
+              }
+          }
+      } catch (error: any) {
+          console.error('Streaming error:', error);
+          setReportMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: `\n\n**Error:** ${error.message}` }
+          ]);
+      } finally {
+          setIsGeneratingReport(false);
+      }
+    } catch (error: any) {
+      console.error('Error generating report:', error);
+      alert(`Failed to generate report: ${error.message}`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   const handleSessionUpdate = () => {
     // Refresh chat history when a new message is sent
     fetchChatHistory();
-  };
-
-  const deleteChatBatch = async (batchId: number, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent loading the batch when clicking delete
-    
-    try {
-      const token = localStorage.getItem('access');
-      if (!token) return;
-
-      const response = await fetch(`${baseUrl}/api/chat/batches/${batchId}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        // Remove from local state
-        setChatHistory(prev => prev.filter(batch => batch.id !== batchId));
-        
-        // If this was the current batch, start a new chat
-        if (currentChatSession === batchId) {
-          startNewChat();
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting chat batch:', error);
-    }
   };
 
   const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -968,7 +1077,6 @@ const Dashboard: React.FC = () => {
   const [industryError, setIndustryError] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [availableIndustries, setAvailableIndustries] = useState<{ value: string; label: string; companies: string[] }[]>([]);
-  const [industryCompanyNames, setIndustryCompanyNames] = useState<{ [metric: string]: string[] }>({});
   const [selectedTicker, setSelectedTicker] = useState('');
   const [showMetricDropdown, setShowMetricDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1166,7 +1274,7 @@ const Dashboard: React.FC = () => {
         setAvailableMetrics(formattedMetrics);
       } else {
         // Fallback if empty
-        setAvailableMetrics(AVAILABLE_METRICS);
+      setAvailableMetrics(AVAILABLE_METRICS);
       }
     } catch (error) {
       console.error('Error fetching metrics:', error);
@@ -1489,14 +1597,14 @@ const Dashboard: React.FC = () => {
           // Do NOT slugify it or lowercase it unless the API specifically requires it.
           // Based on availableIndustries, the value is "Discount Stores", "Software - Infrastructure", etc.
           const url = `${baseUrl}/api/sec/central/industry-comparison?industries=${encodeURIComponent(selectedIndustry)}&metric=${encodeURIComponent(metric)}&period=ALL`;
-          const response = await fetch(url);
-          
-          if (!response.ok) {
+            const response = await fetch(url);
+            
+            if (!response.ok) {
             console.warn(`Failed to fetch industry comparison for ${metric}: ${response.status}`);
-            return;
-          }
-          
-          const data = await response.json();
+            return; // Gracefully skip if data is missing (404)
+            }
+            
+            const data = await response.json();
           // Expected format: { industries: [...], comparisons: [{ period: "2023", "Industry_Name_total": 123 }, ...] }
           
           if (data.comparisons && Array.isArray(data.comparisons)) {
@@ -1519,18 +1627,24 @@ const Dashboard: React.FC = () => {
               }
             });
           }
-        } catch (error) {
+          } catch (error) {
           console.error(`Error fetching ${metric} for industry:`, error);
-        }
-      });
+          }
+        });
 
       await Promise.all(promises);
-      
+        
       // Convert map to sorted array
       const sortedData = Object.values(yearMap).sort((a, b) => a.year - b.year);
       
       console.log('Industry comparison data:', sortedData);
-      setIndustryChartData(sortedData);
+
+      if (sortedData.length === 0) {
+        setIndustryError('No data available for the selected industry and metrics.');
+        setIndustryChartData([]);
+      } else {
+        setIndustryChartData(sortedData);
+      }
 
     } catch (error) {
       console.error('Error fetching industry data:', error);
@@ -2048,20 +2162,20 @@ const Dashboard: React.FC = () => {
                 ) : chatHistory.length > 0 ? (
                   chatHistory.map((session, index) => (
                     <div
-                      key={session.id || index}
+                      key={session.session_id || index}
                       className={`group flex items-center justify-between hover:bg-gray-50 rounded p-1 ${
-                        currentChatSession === session.id ? 'bg-blue-50' : ''
+                        currentChatSession === session.session_id ? 'bg-blue-50' : ''
                       }`}
                     >
                       <button
-                        onClick={() => loadChatBatch(session.id)}
+                        onClick={() => loadChatBatch(session.session_id)}
                         className={`flex-1 text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate ${
-                          currentChatSession === session.id ? 'text-blue-600' : ''
+                          currentChatSession === session.session_id ? 'text-blue-600' : ''
                         }`}
-                        title={session.title || `Chat ${index + 1}`}
+                        title={session.session_id}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="truncate">{session.title || `Chat ${index + 1}`}</span>
+                          <span className="truncate">{session.session_id}</span>
                           {session.message_count > 0 && (
                             <span className="text-xs text-gray-400 ml-2">
                               {session.message_count} msg
@@ -2070,7 +2184,7 @@ const Dashboard: React.FC = () => {
                         </div>
                       </button>
                       <button
-                        onClick={(e) => deleteChatBatch(session.id, e)}
+                        onClick={(e) => deleteChatBatch(session.session_id, e)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1"
                         title="Delete chat"
                       >
@@ -2085,7 +2199,76 @@ const Dashboard: React.FC = () => {
             )}
           </div>
 
-
+          {/* Report Sessions Section */}
+          <div className="space-y-2">
+            <button 
+              onClick={() => setShowReportHistoryDropdown(!showReportHistoryDropdown)}
+              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
+            >
+              <span className="text-sm">📊</span>
+              <span className="text-sm">Report Sessions</span>
+              <svg 
+                className={`w-3 h-3 ml-auto transition-transform ${showReportHistoryDropdown ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {/* Report Sessions Dropdown */}
+            {showReportHistoryDropdown && (
+              <div className="pl-8 space-y-1 text-sm text-gray-600">
+                {/* New Report Button */}
+                <button
+                  onClick={startNewReportChat}
+                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm font-medium text-blue-600 border-b border-gray-200 pb-1 mb-1"
+                >
+                  ✨ New Report
+                </button>
+                
+                {isLoadingReportHistory ? (
+                  <div className="text-gray-500 italic">Loading...</div>
+                ) : reportChatHistory.length > 0 ? (
+                  reportChatHistory.map((session, index) => (
+                    <div
+                      key={session.session_id || index}
+                      className={`group flex items-center justify-between hover:bg-gray-50 rounded p-1 ${
+                        currentReportSessionId === session.session_id ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <button
+                        onClick={() => loadReportSession(session.session_id)}
+                        className={`flex-1 text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate ${
+                          currentReportSessionId === session.session_id ? 'text-blue-600' : ''
+                        }`}
+                        title={session.session_id}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="truncate">{session.session_id}</span>
+                          {session.message_count > 0 && (
+                            <span className="text-xs text-gray-400 ml-2">
+                              {session.message_count} msg
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => deleteReportSession(session.session_id, e)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1"
+                        title="Delete session"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500 italic">No report sessions</div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* <div className="space-y-2">
             <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
@@ -2368,20 +2551,80 @@ const Dashboard: React.FC = () => {
                       {isLoadingChatHistory ? (
                         <div className="text-sm text-gray-500 p-2">Loading...</div>
                       ) : chatHistory.length > 0 ? (
-                        chatHistory.map((chat) => (
+                        chatHistory.map((session) => (
                           <button
-                            key={chat.id}
+                            key={session.session_id}
                             onClick={() => {
-                              loadChatBatch(chat.id);
+                              loadChatBatch(session.session_id);
                               setIsMobileSidebarOpen(false);
                             }}
                             className="block w-full text-left text-xs sm:text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors p-1.5 sm:p-2 rounded truncate"
                           >
-                            {chat.title}
+                            {session.session_id}
                           </button>
                         ))
                       ) : (
                         <div className="text-sm text-gray-500 p-2">No chat history</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Report Sessions Section */}
+                <div className="space-y-2 border-t pt-4">
+                  <button 
+                    onClick={() => setShowReportHistoryDropdown(!showReportHistoryDropdown)}
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="text-base sm:text-lg">📊</span>
+                    <span className="text-sm sm:text-base">Report Sessions</span>
+                    <svg 
+                      className={`w-4 h-4 ml-auto transition-transform ${showReportHistoryDropdown ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {showReportHistoryDropdown && (
+                    <div className="pl-8 sm:pl-10 space-y-1 max-h-40 sm:max-h-48 overflow-y-auto">
+                      {isLoadingReportHistory ? (
+                        <div className="text-sm text-gray-500 p-2">Loading...</div>
+                      ) : reportChatHistory.length > 0 ? (
+                        reportChatHistory.map((session) => (
+                          <div
+                            key={session.session_id}
+                            className={`group flex items-center justify-between p-1.5 sm:p-2 rounded transition-colors ${
+                              currentReportSessionId === session.session_id 
+                                ? 'bg-blue-50 text-blue-700' 
+                                : 'hover:bg-gray-50 text-gray-700'
+                            }`}
+                          >
+                            <button
+                              onClick={() => {
+                                loadReportSession(session.session_id);
+                                setIsMobileSidebarOpen(false);
+                              }}
+                              className="flex-1 min-w-0 text-left text-xs sm:text-sm truncate"
+                            >
+                              <div className="truncate">{session.session_id}</div>
+                              <div className="text-xs text-gray-500">{session.message_count} messages</div>
+                            </button>
+                            <button
+                              onClick={(e) => deleteReportSession(session.session_id, e)}
+                              className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Delete Session"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500 p-2">No report sessions</div>
                       )}
                     </div>
                   )}
@@ -2481,7 +2724,8 @@ const Dashboard: React.FC = () => {
         <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:p-6 xl:p-8 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6">
             {/* Chart Section - full width on mobile */}
-            <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-6'} transition-all duration-300`}>
+            {!isPerformanceMinimized && (
+              <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-6'} transition-all duration-300`}>
               <div className="bg-white rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm" ref={performanceCardRef} id="bp-print-area">
 
                 {/* Business Performance Tabs */}
@@ -2490,10 +2734,12 @@ const Dashboard: React.FC = () => {
                     onClick={() => {
                       setActivePerformanceTab('top-picks');
                       setIsChatbotMinimized(false);
+                      setIsPerformanceMinimized(false); // Reset minimized state when clicking tab
                     }}
                     onDoubleClick={() => {
                       setActivePerformanceTab('top-picks');
                       setIsChatbotMinimized(true);
+                      setIsPerformanceMinimized(false); // Reset minimized state on double click
                     }}
                     className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       activePerformanceTab === 'top-picks'
@@ -2507,10 +2753,12 @@ const Dashboard: React.FC = () => {
                     onClick={() => {
                       setActivePerformanceTab('performance');
                       setIsChatbotMinimized(false); // Default to split view on single click
+                      setIsPerformanceMinimized(false); // Reset minimized state when clicking tab
                     }}
                     onDoubleClick={() => {
                       setActivePerformanceTab('performance');
                       setIsChatbotMinimized(true); // Expand on double click
+                      setIsPerformanceMinimized(false); // Reset minimized state on double click
                     }}
                     className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       activePerformanceTab === 'performance'
@@ -3824,14 +4072,29 @@ const Dashboard: React.FC = () => {
 
 
             </div>
+            )}
 
             {/* Insights Generation - full width on mobile */}
             {!isChatbotMinimized && (
-              <div className="lg:col-span-4 lg:mr-[-11rem] transition-all duration-300">
+              <div className={`${isPerformanceMinimized ? 'lg:col-span-12' : 'lg:col-span-4'} lg:mr-[-11rem] transition-all duration-300`}>
                 <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
                   <div className="bg-white rounded-lg shadow-sm">
                   <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b">
                     <div className="flex justify-end items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2 mb-3">
+                      {/* Maximize Button */}
+                      <button
+                        onClick={() => {
+                          setIsPerformanceMinimized(!isPerformanceMinimized);
+                          setIsChatbotMinimized(false); // Ensure chatbot is shown when maximizing
+                        }}
+                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                        title={isPerformanceMinimized ? "Show performance tab" : "Maximize chatbot"}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
+                          <path d="M4 4h12v12H4V4z" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
                       {/* Minimize/Hide Button */}
                       <button
                         onClick={() => setIsChatbotMinimized(!isChatbotMinimized)}
@@ -3852,8 +4115,12 @@ const Dashboard: React.FC = () => {
                         className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                         title="Click to reset conversation"
                         onClick={() => {
+                          // Clear Insights Chat
                           const event = new CustomEvent('clearChat');
                           window.dispatchEvent(event);
+                          
+                          // Clear Report Chat
+                          startNewReportChat();
                         }}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
@@ -3881,9 +4148,38 @@ const Dashboard: React.FC = () => {
                         {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
                       </button>
                     </div>
-                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">Insights Generation</h2>
+                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">
+                      {chatMode === 'insights' ? 'Insights Generation' : 'Report Generation'}
+                    </h2>
                   </div>
                   
+                  {/* Toggle Tabs */}
+                  <div className="flex space-x-2 px-4 xl:px-6 pt-4 border-b border-gray-200">
+                    <button
+                      onClick={() => setChatMode('insights')}
+                      className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+                        chatMode === 'insights'
+                          ? 'text-[#1B5A7D] border-b-2 border-[#1B5A7D]'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Insights Generation
+                    </button>
+                    <button
+                      onClick={() => setChatMode('report')}
+                      className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+                        chatMode === 'report'
+                          ? 'text-[#1B5A7D] border-b-2 border-[#1B5A7D]'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Report Generation
+                    </button>
+                  </div>
+
+                  {/* Conditional Content */}
+                  {chatMode === 'insights' ? (
+                    <>
                   {/* Chat Header with New Chat Button */}
                   <div className="flex items-center justify-between p-4 xl:p-6 border-b">
                     <h3 className="text-lg font-semibold text-gray-800">
@@ -4036,6 +4332,80 @@ const Dashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Report Generation Form - At Top */}
+                      <div className="p-4 xl:p-6 border-b">
+                        <ReportGenerationForm 
+                          key={reportFormKey}
+                          onGenerate={handleReportGenerate} 
+                          isLoading={isGeneratingReport}
+                          showInstructions={true}
+                          showFormFields={true}
+                        />
+                      </div>
+
+                      {/* Report Generation Chat Messages - In Middle */}
+                      <div 
+                        ref={chatMessagesRef}
+                        className="h-[200px] xs:h-[250px] sm:h-[300px] md:h-[400px] xl:h-[500px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
+                      >
+                        {reportMessages.map((message, index) => 
+                          message.role === 'assistant' ? (
+                            <div key={index} className="flex gap-3 xl:gap-4">
+                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
+                                AI
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className={`bg-white rounded-lg border border-gray-200 shadow-sm p-4 xl:p-6 ${
+                                  message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600' : ''
+                                }`}>
+                                  {message.content === 'Thinking...' ? (
+                                    message.content
+                                  ) : (
+                                    <ReactMarkdown
+                                      components={{
+                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mb-4 mt-0" {...props} />,
+                                        h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 mb-3 mt-6 border-b border-gray-200 pb-2" {...props} />,
+                                        h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 mb-2 mt-4" {...props} />,
+                                        p: ({node, ...props}) => <p className="text-gray-700 leading-relaxed mb-4" {...props} />,
+                                        strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
+                                        ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2" {...props} />,
+                                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2" {...props} />,
+                                        li: ({node, ...props}) => <li className="text-gray-700 leading-relaxed" {...props} />,
+                                        hr: ({node, ...props}) => <hr className="my-6 border-gray-300" {...props} />,
+                                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 my-4" {...props} />,
+                                        code: ({node, inline, ...props}: any) => 
+                                          inline ? (
+                                            <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props} />
+                                          ) : (
+                                            <code className="block bg-gray-100 p-3 rounded text-sm font-mono text-gray-800 overflow-x-auto my-4" {...props} />
+                                          ),
+                                      }}
+                                    >
+                                      {message.content}
+                                    </ReactMarkdown>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div key={index} className="flex gap-3 justify-end xl:gap-4">
+                              <div className="flex-1">
+                                <div className="bg-gray-100 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%]">
+                                  {message.content}
+                                </div>
+                              </div>
+                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0">
+                                {userInitials}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -4577,6 +4947,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
     </>
   );

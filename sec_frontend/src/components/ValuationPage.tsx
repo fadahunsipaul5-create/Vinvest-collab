@@ -1718,7 +1718,7 @@ const IncomeStatementTable: React.FC<{
 
                     <td key={`SGA-${String(yk)}`} className="p-2 text-center">
 
-                      {renderCell(yk, 'SellingGeneralAdministrative')}
+                      {renderCell(yk, 'SGAExpense')}
 
                     </td>
 
@@ -1726,10 +1726,78 @@ const IncomeStatementTable: React.FC<{
 
                   </td>
 
-                  {renderAllAverageCellsIS('SellingGeneralAdministrative')}
+                  {renderAllAverageCellsIS('SGAExpense')}
 
-                  {renderAllCAGRCellsIS('SellingGeneralAdministrative')}
+                  {renderAllCAGRCellsIS('SGAExpense')}
 
+                </tr>
+
+                {/* Additional breakdown rows: Selling & Marketing, G&A */}
+                <tr className="border-b">
+                  <td className="pl-10 pr-4 py-3 text-gray-600 sticky left-0 z-10 bg-white border-r min-w-[250px] text-xs">Selling And Marketing</td>
+                  {incomeYears.map(yk => (
+                    <td key={`SellingAndMarketing-${String(yk)}`} className="p-2 text-center">
+                      {renderCell(yk, 'SellingAndMarketingExpense')}
+                    </td>
+                  ))}<td className="p-2 text-center"></td>
+                  {renderAllAverageCellsIS('SellingAndMarketingExpense')}
+                  {renderAllCAGRCellsIS('SellingAndMarketingExpense')}
+                </tr>
+
+                <tr className="border-b">
+                  <td className="pl-10 pr-4 py-3 text-gray-600 sticky left-0 z-10 bg-white border-r min-w-[250px] text-xs">General And Administrative</td>
+                  {incomeYears.map(yk => (
+                    <td key={`GeneralAndAdministrative-${String(yk)}`} className="p-2 text-center">
+                      {renderCell(yk, 'GeneralAndAdministrativeExpense')}
+                    </td>
+                  ))}<td className="p-2 text-center"></td>
+                  {renderAllAverageCellsIS('GeneralAndAdministrativeExpense')}
+                  {renderAllCAGRCellsIS('GeneralAndAdministrativeExpense')}
+                </tr>
+
+                <tr className="border-b">
+
+                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Research And Development</td>
+
+                  {incomeYears.map(yk => (
+
+                    <td key={`RND-${String(yk)}`} className="p-2 text-center">
+
+                      {renderCell(yk, 'ResearchAndDevelopment')}
+
+                    </td>
+
+                  ))}<td className="p-2 text-center">
+
+                  </td>
+
+                  {renderAllAverageCellsIS('ResearchAndDevelopment')}
+
+                  {renderAllCAGRCellsIS('ResearchAndDevelopment')}
+
+                </tr>
+
+                {/* Additional breakdown rows: Fulfillment, Technology */}
+                <tr className="border-b">
+                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Fulfillment</td>
+                  {incomeYears.map(yk => (
+                    <td key={`Fulfillment-${String(yk)}`} className="p-2 text-center">
+                      {renderCell(yk, 'FulfillmentExpense')}
+                    </td>
+                  ))}<td className="p-2 text-center"></td>
+                  {renderAllAverageCellsIS('FulfillmentExpense')}
+                  {renderAllCAGRCellsIS('FulfillmentExpense')}
+                </tr>
+
+                <tr className="border-b">
+                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Technology</td>
+                  {incomeYears.map(yk => (
+                    <td key={`Technology-${String(yk)}`} className="p-2 text-center">
+                      {renderCell(yk, 'TechnologyExpense')}
+                    </td>
+                  ))}<td className="p-2 text-center"></td>
+                  {renderAllAverageCellsIS('TechnologyExpense')}
+                  {renderAllCAGRCellsIS('TechnologyExpense')}
                 </tr>
 
                 <tr className="border-b">
@@ -1740,7 +1808,7 @@ const IncomeStatementTable: React.FC<{
 
                     <td key={`Depreciation-${String(yk)}`} className="p-2 text-center">
 
-                      {renderCell(yk, 'Depreciation')}
+                      {renderCell(yk, 'DepreciationAmortization')}
 
                     </td>
 
@@ -1748,9 +1816,9 @@ const IncomeStatementTable: React.FC<{
 
                   </td>
 
-                  {renderAllAverageCellsIS('Depreciation')}
+                  {renderAllAverageCellsIS('DepreciationAmortization')}
 
-                  {renderAllCAGRCellsIS('Depreciation')}
+                  {renderAllCAGRCellsIS('DepreciationAmortization')}
 
                 </tr>
 
@@ -5861,7 +5929,7 @@ const ROICPerformanceTable: React.FC<{
 
   const formatNumber = (value: number | string | undefined) => {
 
-    return formatMonetaryValue(value);
+    return formatPercentage(value);
 
   };
 
@@ -6453,7 +6521,7 @@ const FinancingHealthTable: React.FC<{
 
     const isCalculated = isCalculatedField ? isCalculatedField(key) : false;
 
-    const isCurrency = key === 'TotalInterestIncludingLeaseInterest';
+    const isCurrency = key === 'TotalInterestIncludingLeaseInterest' || key === 'NetDebt';
 
     
 
@@ -6557,6 +6625,8 @@ const FinancingHealthTable: React.FC<{
 
   const fields = [
 
+    'NetDebt',
+
     'AssetsToEquity',
 
     'DebtToEquity',
@@ -6582,6 +6652,8 @@ const FinancingHealthTable: React.FC<{
 
 
   const fieldTypes = [
+
+    'Calculated',
 
     'Calculated',
 
@@ -7044,6 +7116,10 @@ const OperationalPerformanceTable: React.FC<{
 
 
   const fields = [
+
+    'RevenueGrowth',
+
+    'EBITDAMargin',
 
     'ReturnOnEquity',
 
@@ -8838,7 +8914,14 @@ const BalanceSheetTable: React.FC<{
 
                     </tr>
 
-
+                    {/* AccruedIncomeTaxesCurrent */}
+                    <tr className="border-b">
+                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">AccruedIncomeTaxesCurrent</td>
+                      {yearsList.map(y => (
+                        <td key={`AccruedIncomeTaxesCurrent-${y}`} className="p-2 text-center">{renderCell(y, 'AccruedIncomeTaxesCurrent')}</td>
+                      ))}{renderAllAverageCells('AccruedIncomeTaxesCurrent')}
+                      {renderAllCAGRCells('AccruedIncomeTaxesCurrent')}
+                    </tr>
 
                     {/* DeferredRevenueCurrent */}
 
@@ -9072,7 +9155,9 @@ const BalanceSheetTable: React.FC<{
 
               <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
 
-                Stockholders' Equity
+                <button onClick={() => toggle('StockholdersEquity')} className="w-full text-left">
+                  {expanded['StockholdersEquity'] ? 'v' : '^'} Stockholders' Equity
+                </button>
 
                 </td>
 
@@ -9089,6 +9174,42 @@ const BalanceSheetTable: React.FC<{
                 {renderAllCAGRCells('StockholdersEquity')}
 
             </tr>
+
+            {expanded['StockholdersEquity'] && (
+              <>
+                <tr className="border-b">
+                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">CommonStockEquity</td>
+                  {yearsList.map(y => (
+                    <td key={`CommonStockEquity-${y}`} className="p-2 text-center">{renderCell(y, 'CommonStockEquity')}</td>
+                  ))}{renderAllAverageCells('CommonStockEquity')}
+                  {renderAllCAGRCells('CommonStockEquity')}
+                </tr>
+
+                <tr className="border-b">
+                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">PaidInCapitalCommonStock</td>
+                  {yearsList.map(y => (
+                    <td key={`PaidInCapitalCommonStock-${y}`} className="p-2 text-center">{renderCell(y, 'PaidInCapitalCommonStock')}</td>
+                  ))}{renderAllAverageCells('PaidInCapitalCommonStock')}
+                  {renderAllCAGRCells('PaidInCapitalCommonStock')}
+                </tr>
+
+                <tr className="border-b">
+                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">AccumulatedOtherComprehensiveIncomeLossNetOfTax</td>
+                  {yearsList.map(y => (
+                    <td key={`AccumulatedOtherComprehensiveIncomeLossNetOfTax-${y}`} className="p-2 text-center">{renderCell(y, 'AccumulatedOtherComprehensiveIncomeLossNetOfTax')}</td>
+                  ))}{renderAllAverageCells('AccumulatedOtherComprehensiveIncomeLossNetOfTax')}
+                  {renderAllCAGRCells('AccumulatedOtherComprehensiveIncomeLossNetOfTax')}
+                </tr>
+
+                <tr className="border-b">
+                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">RetainedEarningsAccumulated</td>
+                  {yearsList.map(y => (
+                    <td key={`RetainedEarningsAccumulated-${y}`} className="p-2 text-center">{renderCell(y, 'RetainedEarningsAccumulated')}</td>
+                  ))}{renderAllAverageCells('RetainedEarningsAccumulated')}
+                  {renderAllCAGRCells('RetainedEarningsAccumulated')}
+                </tr>
+              </>
+            )}
 
 
 
@@ -9441,6 +9562,7 @@ const mapBalanceSheetKey = (k: string): string => {
 const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, onCompanyChange }) => {
 
   const { updateCompanyTableData, resetCompanyData, getModifiedCompanyData } = useCompanyData();
+  const [hasIncomeStatementData, setHasIncomeStatementData] = useState<boolean>(true);
   
   // Helper function to merge static data with context modifications
   const mergeDataWithContext = useCallback((staticData: {[key: string]: TableData}, ticker: string): {[key: string]: TableData} => {
@@ -9586,10 +9708,26 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   // Map CSV metric names to frontend field names
   const mapMetricNameToFrontendField = (csvMetricName: string): string => {
     const mapping: { [key: string]: string } = {
-      'SellingGeneralAndAdministration': 'SellingGeneralAdministrative',
-      'DepreciationAndAmortization': 'Depreciation',
-      'NetIncomeControlling': 'ProfitLossControlling',
+      // API Name -> Frontend Structure Name
+      'SellingGeneralAndAdministration': 'SGAExpense',
+      'SellingAndMarketingExpense': 'SellingAndMarketingExpense',
+      'GeneralAndAdministrativeExpense': 'GeneralAndAdministrativeExpense',
+      'ResearchAndDevelopment': 'ResearchAndDevelopment',
+      'FulfillmentExpense': 'FulfillmentExpense',
+      'TechnologyExpense': 'TechnologyExpense',
+      'DepreciationAndAmortization': 'DepreciationAmortization',
+      'GrossMargin': 'GrossProfit',
+      'NetIncomeControlling': 'ProfitLossControlling', // Keep if used elsewhere, but check structure
       'OtherNonoperatingIncome': 'OtherIncome',
+      'Revenue': 'Revenue',
+      'CostOfRevenue': 'CostOfRevenue',
+      'OperatingIncome': 'OperatingIncome',
+      'OperatingExpenses': 'OperatingExpenses',
+      'InterestExpense': 'InterestExpense',
+      'InterestIncome': 'InterestIncome',
+      'TaxProvision': 'TaxProvision',
+      'NetIncome': 'NetIncome',
+      'NetIncomeNoncontrolling': 'NetIncomeNoncontrolling'
     };
     
     // Return mapped name if exists, otherwise return original
@@ -9599,9 +9737,56 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   // Map balance sheet CSV metric names to frontend field names
   const mapBalanceSheetMetricNameToFrontendField = (csvMetricName: string): string => {
     const mapping: { [key: string]: string } = {
-      'EmployeeAccruedLiabilitiesCurrent': 'EmployeeRelatedLiabilitiesCurrent',
-      // Most CSV field names match frontend expectations directly
-      // Add more mappings here if needed as we discover differences
+      // API Name -> Frontend Structure Name
+      // Assets Current
+      'CashAndCashEquivalents': 'CashAndCashEquivalents',
+      'ShortTermInvestments': 'ShortTermInvestments',
+      'ReceivablesCurrent': 'ReceivablesCurrent', // Was 'Receivables' in structure but API sends 'ReceivablesCurrent'. Structure uses 'ReceivablesCurrent' as key.
+      'Inventory': 'Inventory',
+      'DeferredTaxAssetsCurrentBS': 'DeferredTaxAssetsCurrentBS',
+      'OtherAssetsCurrent': 'OtherAssetsCurrent',
+      
+      // Assets Noncurrent
+      'PropertyPlantAndEquipment': 'PropertyPlantAndEquipmentNet', // Map API 'PropertyPlantAndEquipment' to 'PropertyPlantAndEquipmentNet'
+      'OperatingLeaseAssets': 'OperatingLeaseAssetsNoncurrent',   // Map API 'OperatingLeaseAssets' to 'OperatingLeaseAssetsNoncurrent'
+      'FinanceLeaseAssets': 'FinanceLeaseAssetsNoncurrent',       // Map API 'FinanceLeaseAssets' to 'FinanceLeaseAssetsNoncurrent'
+      'Goodwill': 'Goodwill',
+      'DeferredIncomeTaxAssetsNoncurrent': 'DeferredIncomeTaxAssetsNoncurrent',
+      'OtherAssetsNoncurrent': 'OtherAssetsNoncurrent',
+      'ReceivablesNoncurrent': 'ReceivablesNoncurrent',
+      'VariableLeaseAssets': 'VariableLeaseAssets',
+      
+      // Liabilities Current
+      'AccountsPayableCurrent': 'AccountsPayableCurrent',
+      'EmployeeAccruedLiabilitiesCurrent': 'EmployeeLiabilitiesCurrent', // Map API 'EmployeeAccruedLiabilitiesCurrent' to 'EmployeeLiabilitiesCurrent'
+      'AccruedLiabilitiesCurrent': 'AccruedLiabilitiesCurrent',
+      'AccruedIncomeTaxesCurrent': 'AccruedIncomeTaxesCurrent',
+      'DeferredRevenueCurrent': 'DeferredRevenueCurrent',
+      'LongTermDebtCurrent': 'LongTermDebtCurrent',
+      'OperatingLeaseLiabilitiesCurrent': 'OperatingLeaseLiabilitiesCurrent',
+      'FinanceLeaseLiabilitiesCurrent': 'FinanceLeaseLiabilitiesCurrent',
+      'OtherLiabilitiesCurrent': 'OtherLiabilitiesCurrent',
+
+      // Liabilities Noncurrent
+      'LongTermDebtNoncurrent': 'LongTermDebtNoncurrent',
+      'OperatingLeaseLiabilitiesNoncurrent': 'OperatingLeaseLiabilitiesNoncurrent', // Map API to Frontend
+      'FinanceLeaseLiabilitiesNoncurrent': 'FinanceLeaseLiabilitiesNoncurrent',
+      'DeferredIncomeTaxLiabilitiesNoncurrent': 'DeferredIncomeTaxLiabilitiesNoncurrent',
+      'OtherLiabilitiesNoncurrent': 'OtherLiabilitiesNoncurrent',
+
+      // Equity
+      'CommonStock': 'CommonStockEquity', // Map API 'CommonStock' to 'CommonStockEquity'
+      'PaidInCapitalCommonStock': 'PaidInCapitalCommonStock',
+      'AccumulatedOtherIncome': 'AccumulatedOtherComprehensiveIncomeLossNetOfTax', // Map API 'AccumulatedOtherIncome'
+      'NoncontrollingInterests': 'NoncontrollingInterests',
+      'RetainedEarningsAccumulated': 'RetainedEarningsAccumulated',
+      
+      // Additional Metrics
+      'Debt': 'Debt',
+      'ForeignTaxCreditCarryForward': 'ForeignTaxCreditCarryForward',
+      'CapitalExpenditures': 'CapitalExpenditures',
+      'OperatingCash': 'OperatingCash',
+      'ExcessCash': 'ExcessCash'
     };
     
     // Return mapped name if exists, otherwise return original
@@ -9611,11 +9796,36 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   // Map cash flow CSV metric names to frontend field names
   const mapCashFlowMetricNameToFrontendField = (csvMetricName: string): string => {
     const mapping: { [key: string]: string } = {
+      // API Name -> Frontend CashFlowsTable Name
       'DepreciationAndAmortization': 'DepreciationDepletionAndAmortization',
       'PaidInCapitalCommonStockIssuance': 'CommonStockIssuance',
       'PaidInCapitalCommonStockRepurchasePayment': 'CommonStockRepurchasePayment',
       'PaidInCapitalCommonStockDividendPayment': 'CommonStockDividendPayment',
-      // Most other CSV field names match frontend expectations directly
+      
+      // Direct matches (explicitly listed for clarity)
+      'NetIncome': 'NetIncome',
+      'DeferredTax': 'DeferredTax',
+      'OtherNoncashChanges': 'OtherNoncashChanges',
+      'ChangeInReceivables': 'ChangeInReceivables',
+      'ChangeInInventory': 'ChangeInInventory',
+      'ChangeInPayable': 'ChangeInPayable',
+      'ChangeInOtherCurrentAssets': 'ChangeInOtherCurrentAssets',
+      'ChangeInOtherCurrentLiabilities': 'ChangeInOtherCurrentLiabilities',
+      'ChangeInOtherWorkingCapital': 'ChangeInOtherWorkingCapital',
+      'PurchaseOfPPE': 'PurchaseOfPPE',
+      'SaleOfPPE': 'SaleOfPPE',
+      'PurchaseOfBusiness': 'PurchaseOfBusiness',
+      'SaleOfBusiness': 'SaleOfBusiness',
+      'PurchaseOfInvestment': 'PurchaseOfInvestment',
+      'SaleOfInvestment': 'SaleOfInvestment',
+      'ShortTermDebtIssuance': 'ShortTermDebtIssuance',
+      'ShortTermDebtPayment': 'ShortTermDebtPayment',
+      'LongTermDebtIssuance': 'LongTermDebtIssuance',
+      'LongTermDebtPayment': 'LongTermDebtPayment',
+      'TaxWithholdingPayment': 'TaxWithholdingPayment',
+      'FinancingLeasePayment': 'FinancingLeasePayment',
+      'MinorityDividendPayment': 'MinorityDividendPayment',
+      'MinorityShareholderPayment': 'MinorityShareholderPayment'
     };
     
     // Return mapped name if exists, otherwise return original
@@ -9626,7 +9836,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   const fetchIncomeStatementData = useCallback(async (ticker: string): Promise<TableData | null> => {
     console.log(`[Income Statement] Fetching data for ${ticker}...`);
     try {
-      const response = await fetch(`${baseUrl}/api/income-statement-data/${ticker}/`);
+      // Use new centralized API endpoint
+      const response = await fetch(`${baseUrl}/api/sec/central/financials/income-statement/${ticker}`);
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(`[Income Statement] No income statement data found for ${ticker}`);
@@ -9675,7 +9886,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   const fetchBalanceSheetData = useCallback(async (ticker: string): Promise<TableData | null> => {
     console.log(`[Balance Sheet] Fetching data for ${ticker}...`);
     try {
-      const response = await fetch(`${baseUrl}/api/balance-sheet-data/${ticker}/`);
+      // Use new centralized API endpoint
+      const response = await fetch(`${baseUrl}/api/sec/central/financials/balance-sheet/${ticker}`);
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(`[Balance Sheet] No balance sheet data found for ${ticker}`);
@@ -9687,8 +9899,6 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       console.log(`[Balance Sheet] Raw API response for ${ticker}:`, data);
       
       // Transform API response to TableData format
-      // API returns: { [year: string]: { [metric_name: string]: number } }
-      // We need: { [year: number]: { [field_name: string]: number } }
       const tableData: TableData = {};
       
       for (const [yearStr, metrics] of Object.entries(data)) {
@@ -9707,12 +9917,6 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       }
       
       console.log(`[Balance Sheet] Transformed data for ${ticker}:`, tableData);
-      console.log(`[Balance Sheet] Years available:`, Object.keys(tableData));
-      if (Object.keys(tableData).length > 0) {
-        const firstYear = Object.keys(tableData)[0];
-        console.log(`[Balance Sheet] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
-      }
-      
       return tableData;
     } catch (error) {
       console.error(`[Balance Sheet] Error fetching balance sheet data for ${ticker}:`, error);
@@ -9724,7 +9928,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   const fetchCashFlowData = useCallback(async (ticker: string): Promise<TableData | null> => {
     console.log(`[Cash Flow] Fetching data for ${ticker}...`);
     try {
-      const response = await fetch(`${baseUrl}/api/cash-flow-data/${ticker}/`);
+      // Use new centralized API endpoint
+      const response = await fetch(`${baseUrl}/api/sec/central/financials/cash-flow/${ticker}`);
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(`[Cash Flow] No cash flow data found for ${ticker}`);
@@ -9736,8 +9941,6 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       console.log(`[Cash Flow] Raw API response for ${ticker}:`, data);
       
       // Transform API response to TableData format
-      // API returns: { [year: string]: { [metric_name: string]: number } }
-      // We need: { [year: number]: { [field_name: string]: number } }
       const tableData: TableData = {};
       
       for (const [yearStr, metrics] of Object.entries(data)) {
@@ -9756,12 +9959,6 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       }
       
       console.log(`[Cash Flow] Transformed data for ${ticker}:`, tableData);
-      console.log(`[Cash Flow] Years available:`, Object.keys(tableData));
-      if (Object.keys(tableData).length > 0) {
-        const firstYear = Object.keys(tableData)[0];
-        console.log(`[Cash Flow] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
-      }
-      
       return tableData;
     } catch (error) {
       console.error(`[Cash Flow] Error fetching cash flow data for ${ticker}:`, error);
@@ -9779,6 +9976,249 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
 
 
+
+  // Fetch NOPAT data from API
+  const fetchNOPATData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[NOPAT] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/analysis/nopat/${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[NOPAT] No NOPAT data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch NOPAT data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[NOPAT] Raw API response for ${ticker}:`, data);
+      
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          const m = metrics as { [key: string]: number | string };
+          
+          // Map API fields to Frontend fields
+          if (m.EBIT !== undefined) yearData['EBITAAdjusted'] = m.EBIT;
+          if (m.CashTaxAdjustment !== undefined) yearData['TaxProvision'] = m.CashTaxAdjustment;
+          if (m.NOPAT !== undefined) yearData['NOPAT'] = m.NOPAT;
+          
+          // Fill other fields if possible or leave empty/calculated
+          // Usually NOPAT table has more rows, but we only get these 3 from API.
+          // The calculation logic might override this if we trigger recalculations.
+          // But for historical data, we should trust the API if available.
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[NOPAT] Transformed data for ${ticker}:`, tableData);
+      return tableData;
+    } catch (error) {
+      console.error(`[NOPAT] Error fetching NOPAT data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch Invested Capital data from API
+  const fetchInvestedCapitalData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Invested Capital] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/analysis/invested-capital/${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Invested Capital] No Invested Capital data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch Invested Capital data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Invested Capital] Raw API response for ${ticker}:`, data);
+      
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          const m = metrics as { [key: string]: number | string };
+          
+          // Map API fields to Frontend fields
+          if (m.OperatingWorkingCapital !== undefined) yearData['OperatingWorkingCapital'] = m.OperatingWorkingCapital;
+          if (m['NetPP&E'] !== undefined) yearData['PropertyPlantAndEquipment'] = m['NetPP&E'];
+          if (m.InvestedCapital !== undefined) yearData['InvestedCapitalIncludingGoodwill'] = m.InvestedCapital;
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Invested Capital] Transformed data for ${ticker}:`, tableData);
+      return tableData;
+    } catch (error) {
+      console.error(`[Invested Capital] Error fetching Invested Capital data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch Free Cash Flow data from API
+  const fetchFreeCashFlowData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Free Cash Flow] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/analysis/free-cash-flow/${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Free Cash Flow] No Free Cash Flow data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch Free Cash Flow data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Free Cash Flow] Raw API response for ${ticker}:`, data);
+      
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          const m = metrics as { [key: string]: number | string };
+          
+          if (m.NOPAT !== undefined) yearData['NetOperatingProfitAfterTaxes'] = m.NOPAT;
+          if (m.FreeCashFlow !== undefined) yearData['FreeCashFlow'] = m.FreeCashFlow;
+          // ChangeInInvestedCapital is an aggregate, might not map directly to a single breakdown line
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Free Cash Flow] Transformed data for ${ticker}:`, tableData);
+      return tableData;
+    } catch (error) {
+      console.error(`[Free Cash Flow] Error fetching Free Cash Flow data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch ROIC data from API
+  const fetchROICData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[ROIC] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/analysis/roic/${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[ROIC] No ROIC data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch ROIC data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[ROIC] Raw API response for ${ticker}:`, data);
+      
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          const m = metrics as { [key: string]: number | string };
+          
+          if (m.NOPATMargin !== undefined && typeof m.NOPATMargin === 'number') {
+            yearData['OperatingProfitAsPercentOfRevenue'] = m.NOPATMargin * 100; // Convert to percentage
+          }
+          if (m.ROIC !== undefined && typeof m.ROIC === 'number') {
+            yearData['ReturnOnInvestedCapitalIncludingGoodwill'] = m.ROIC * 100; // Convert to percentage
+          }
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[ROIC] Transformed data for ${ticker}:`, tableData);
+      return tableData;
+    } catch (error) {
+      console.error(`[ROIC] Error fetching ROIC data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch Operational Performance data from API
+  const fetchOperationalPerformanceData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Operational Performance] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/analysis/operational-performance/${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Operational Performance] No Operational Performance data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch Operational Performance data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Operational Performance] Raw API response for ${ticker}:`, data);
+      
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          const m = metrics as { [key: string]: number | string };
+          
+          if (m.RevenueGrowth !== undefined) yearData['RevenueGrowth'] = m.RevenueGrowth; // Percentage value (e.g. 6.7)
+          if (m.EBITDAMargin !== undefined) yearData['EBITDAMargin'] = (m.EBITDAMargin as number) * 100; // Ratio (e.g. 0.034) -> Percentage (3.4)
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Operational Performance] Transformed data for ${ticker}:`, tableData);
+      return tableData;
+    } catch (error) {
+      console.error(`[Operational Performance] Error fetching Operational Performance data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch Financing Health data from API
+  const fetchFinancingHealthData = useCallback(async (ticker: string): Promise<TableData | null> => {
+    console.log(`[Financing Health] Fetching data for ${ticker}...`);
+    try {
+      const response = await fetch(`${baseUrl}/api/sec/central/analysis/financing-health/${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Financing Health] No Financing Health data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch Financing Health data: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`[Financing Health] Raw API response for ${ticker}:`, data);
+      
+      const tableData: TableData = {};
+      
+      for (const [yearStr, metrics] of Object.entries(data)) {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          const yearData: { [key: string]: number | string } = {};
+          const m = metrics as { [key: string]: number | string };
+          
+          if (m.NetDebt !== undefined) yearData['NetDebt'] = m.NetDebt;
+          if (m.NetDebtToEBITDA !== undefined) yearData['DebtToEBITDA'] = m.NetDebtToEBITDA;
+          if (m.InterestCoverage !== undefined) yearData['EBITAToTotalInterest'] = m.InterestCoverage;
+          
+          tableData[year] = yearData;
+        }
+      }
+      
+      console.log(`[Financing Health] Transformed data for ${ticker}:`, tableData);
+      return tableData;
+    } catch (error) {
+      console.error(`[Financing Health] Error fetching Financing Health data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
 
   // Fetch companies on mount
   useEffect(() => {
@@ -9808,6 +10248,13 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       const incomeStatementData = await fetchIncomeStatementData(selectedCompany);
       console.log(`[ValuationPage] Income statement data received:`, incomeStatementData ? `Has ${Object.keys(incomeStatementData).length} years` : 'null/empty');
       
+      const hasData = !!(incomeStatementData && Object.keys(incomeStatementData).length > 0);
+      setHasIncomeStatementData(hasData);
+      
+      if (!hasData) {
+        console.warn(`No income statement data available for ${selectedCompany}`);
+      }
+      
       // Fetch balance sheet from API
       const balanceSheetData = await fetchBalanceSheetData(selectedCompany);
       console.log(`[ValuationPage] Balance sheet data received:`, balanceSheetData ? `Has ${Object.keys(balanceSheetData).length} years` : 'null/empty');
@@ -9816,21 +10263,45 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       const cashFlowData = await fetchCashFlowData(selectedCompany);
       console.log(`[ValuationPage] Cash flow data received:`, cashFlowData ? `Has ${Object.keys(cashFlowData).length} years` : 'null/empty');
       
+      // Fetch NOPAT from API
+      const nopatData = await fetchNOPATData(selectedCompany);
+      console.log(`[ValuationPage] NOPAT data received:`, nopatData ? `Has ${Object.keys(nopatData).length} years` : 'null/empty');
+
+      // Fetch Invested Capital from API
+      const investedCapitalData = await fetchInvestedCapitalData(selectedCompany);
+      console.log(`[ValuationPage] Invested Capital data received:`, investedCapitalData ? `Has ${Object.keys(investedCapitalData).length} years` : 'null/empty');
+
+      // Fetch Free Cash Flow from API
+      const freeCashFlowData = await fetchFreeCashFlowData(selectedCompany);
+      console.log(`[ValuationPage] Free Cash Flow data received:`, freeCashFlowData ? `Has ${Object.keys(freeCashFlowData).length} years` : 'null/empty');
+
+      // Fetch ROIC from API
+      const roicData = await fetchROICData(selectedCompany);
+      console.log(`[ValuationPage] ROIC data received:`, roicData ? `Has ${Object.keys(roicData).length} years` : 'null/empty');
+
+      // Fetch Operational Performance from API
+      const opData = await fetchOperationalPerformanceData(selectedCompany);
+      console.log(`[ValuationPage] Operational Performance data received:`, opData ? `Has ${Object.keys(opData).length} years` : 'null/empty');
+
+      // Fetch Financing Health from API
+      const fhData = await fetchFinancingHealthData(selectedCompany);
+      console.log(`[ValuationPage] Financing Health data received:`, fhData ? `Has ${Object.keys(fhData).length} years` : 'null/empty');
+      
       // For now, keep other tables as hardcoded (will be replaced later)
       // Start with default/fallback data structure
       let staticData: any = {
         balanceSheet: balanceSheetData || {} as TableData,
         ppeChanges: ppeChangesReal as TableData,
-        freeCashFlow: {} as TableData,
+        freeCashFlow: freeCashFlowData || {} as TableData,
         cashFlows: cashFlowData || {} as TableData,
         incomeStatement: incomeStatementData || {} as TableData,
         incomeStatementCommonSize: {} as TableData,
         balanceSheetCommonSize: {} as TableData,
-        nopat: {} as TableData,
-        investedCapital: {} as TableData,
-        roicPerformance: {} as TableData,
-        financingHealth: {} as TableData,
-        operationalPerformance: {} as TableData
+        nopat: nopatData || {} as TableData,
+        investedCapital: investedCapitalData || {} as TableData,
+        roicPerformance: roicData || {} as TableData,
+        financingHealth: fhData || {} as TableData,
+        operationalPerformance: opData || {} as TableData
       };
 
       // Load other tables from mock data for specific companies (temporary until we load them from DB)
@@ -10132,14 +10603,28 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
   const inputFields = [
 
-    'Revenue', 'CostOfRevenue', 'SellingGeneralAdministrative',
+    'Revenue', 'CostOfRevenue', 'SGAExpense',
 
-    'Depreciation', 'OperatingLeaseCost', 'VariableLeaseCost', 'LeasesDiscountRate',
+    'SellingAndMarketingExpense', 'GeneralAndAdministrativeExpense', 'ResearchAndDevelopment',
+    'FulfillmentExpense', 'TechnologyExpense', 'OtherOperatingExpense',
+
+    'DepreciationAmortization', 'OperatingLeaseCost', 'VariableLeaseCost', 'LeasesDiscountRate',
 
     'InterestExpense', 'InterestIncome', 'OtherIncome', 'ForeignCurrencyAdjustment',
 
-    'TaxProvision', 'NetIncomeNoncontrolling'
+    'TaxProvision', 'NetIncomeNoncontrolling',
 
+    // Balance Sheet Inputs
+    'CashAndCashEquivalents', 'ShortTermInvestments', 'ReceivablesCurrent', 'Inventory', 'DeferredTaxAssetsCurrentBS', 'OtherAssetsCurrent',
+    'PropertyPlantAndEquipmentNet', 'OperatingLeaseAssetsNoncurrent', 'FinanceLeaseAssetsNoncurrent', 'Goodwill', 'DeferredIncomeTaxAssetsNoncurrent', 'OtherAssetsNoncurrent', 'ReceivablesNoncurrent', 'VariableLeaseAssets',
+    
+    'AccountsPayableCurrent', 'EmployeeLiabilitiesCurrent', 'AccruedLiabilitiesCurrent', 'AccruedIncomeTaxesCurrent', 'DeferredRevenueCurrent', 'LongTermDebtCurrent', 'OperatingLeaseLiabilitiesCurrent', 'FinanceLeaseLiabilitiesCurrent', 'OtherLiabilitiesCurrent',
+    
+    'LongTermDebtNoncurrent', 'OperatingLeaseLiabilitiesNoncurrent', 'FinanceLeaseLiabilitiesNoncurrent', 'DeferredIncomeTaxLiabilitiesNoncurrent', 'OtherLiabilitiesNoncurrent',
+    
+    'CommonStockEquity', 'PaidInCapitalCommonStock', 'AccumulatedOtherComprehensiveIncomeLossNetOfTax', 'RetainedEarningsAccumulated', 'NoncontrollingInterest', 'NoncontrollingInterests',
+    
+    'Debt', 'ForeignTaxCreditCarryForward', 'CapitalExpenditures', 'OperatingCash', 'ExcessCash'
   ];
 
 
@@ -10186,14 +10671,27 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
     const alwaysInputFields = [
 
-      'Revenue', 'CostOfRevenue', 'SellingGeneralAdministrative', 'Depreciation',
+      'Revenue', 'CostOfRevenue', 'SGAExpense', 'DepreciationAmortization',
+      'SellingAndMarketingExpense', 'GeneralAndAdministrativeExpense', 'ResearchAndDevelopment',
+      'FulfillmentExpense', 'TechnologyExpense', 'OtherOperatingExpense',
 
       'OperatingLeaseCost', 'VariableLeaseCost', 'LeasesDiscountRate',
 
       'InterestExpense', 'InterestIncome', 'OtherIncome', 'ForeignCurrencyAdjustment',
 
-      'TaxProvision', 'NetIncomeNoncontrolling'
+      'TaxProvision', 'NetIncomeNoncontrolling',
 
+      // Balance Sheet Always Input
+      'CashAndCashEquivalents', 'ShortTermInvestments', 'ReceivablesCurrent', 'Inventory', 'DeferredTaxAssetsCurrentBS', 'OtherAssetsCurrent',
+      'PropertyPlantAndEquipmentNet', 'OperatingLeaseAssetsNoncurrent', 'FinanceLeaseAssetsNoncurrent', 'Goodwill', 'DeferredIncomeTaxAssetsNoncurrent', 'OtherAssetsNoncurrent', 'ReceivablesNoncurrent', 'VariableLeaseAssets',
+      
+      'AccountsPayableCurrent', 'EmployeeLiabilitiesCurrent', 'AccruedLiabilitiesCurrent', 'AccruedIncomeTaxesCurrent', 'DeferredRevenueCurrent', 'LongTermDebtCurrent', 'OperatingLeaseLiabilitiesCurrent', 'FinanceLeaseLiabilitiesCurrent', 'OtherLiabilitiesCurrent',
+      
+      'LongTermDebtNoncurrent', 'OperatingLeaseLiabilitiesNoncurrent', 'FinanceLeaseLiabilitiesNoncurrent', 'DeferredIncomeTaxLiabilitiesNoncurrent', 'OtherLiabilitiesNoncurrent',
+      
+      'CommonStockEquity', 'PaidInCapitalCommonStock', 'AccumulatedOtherComprehensiveIncomeLossNetOfTax', 'RetainedEarningsAccumulated', 'NoncontrollingInterest', 'NoncontrollingInterests',
+      
+      'Debt', 'ForeignTaxCreditCarryForward', 'CapitalExpenditures', 'OperatingCash', 'ExcessCash'
     ];
 
     if (alwaysInputFields.includes(field)) {
@@ -11805,6 +12303,20 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
           {/* Income Statement content */}
 
           <TabsContent value="incomeStatement" className="mt-6">
+            {!hasIncomeStatementData && (
+               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <span className="text-yellow-400">⚠</span>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        No income statement data available for {selectedCompany}. The API returned no historical records.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+            )}
 
             <IncomeStatementTable 
 

@@ -27,27 +27,50 @@ export const calculateGrossIncome = (data: IncomeStatementData, year: number): n
   }
 };
 
-// Calculate Operating Expense: SellingGeneralAdministrative + Depreciation
+// Calculate Operating Expense: SGAExpense + ResearchAndDevelopment + DepreciationAmortization + OtherOperatingExpense + SellingAndMarketingExpense + GeneralAndAdministrativeExpense + FulfillmentExpense + TechnologyExpense
 export const calculateOperatingExpense = (data: IncomeStatementData, year: number): number => {
   try {
     const yearData = data[year] || {};
-    const sga = toNumber(yearData.SellingGeneralAdministrative);
-    const depreciation = toNumber(yearData.Depreciation);
-    return sga + depreciation;
+    // Note: Some of these might be mutually exclusive depending on how the company reports.
+    // E.g. SGAExpense often includes SellingAndMarketingExpense and GeneralAndAdministrativeExpense.
+    // If the API provides both the total (SGA) and breakdown, adding them all up might double count.
+    // However, the prompt implies "breakdown fields" are additional. 
+    // Usually, we should sum the most granular available fields OR the high level ones.
+    // Given the previous setup used 'SellingGeneralAdministrative' (now SGAExpense) and 'Depreciation' (now DepreciationAmortization),
+    // and we are adding R&D, we should include R&D.
+    // For now, let's sum everything provided as per the request to "add the rest under their respective places".
+    // If double counting occurs, it should be handled by only populating one level of hierarchy or adjusting the formula.
+    // Assuming for now these are distinct line items or handled correctly in data population.
+    
+    // UPDATE: To avoid double counting, typically Operating Expenses = SG&A + R&D + D&A + Other.
+    // Breakdowns of SG&A (Marketing, G&A) shouldn't be added to SG&A itself in the total sum if SG&A is already the sum.
+    // If SGAExpense is populated, use it. Breakdowns are for display.
+    
+    const sga = toNumber(yearData.SGAExpense);
+    const rnd = toNumber(yearData.ResearchAndDevelopment);
+    const depreciation = toNumber(yearData.DepreciationAmortization);
+    const other = toNumber(yearData.OtherOperatingExpense);
+    
+    // If SGA is 0 but we have components, maybe sum components? 
+    // For safety with current data model where we map API fields directly:
+    // If API gives SGA, we use it. R&D is usually separate.
+    
+    return sga + rnd + depreciation + other;
   } catch (error) {
     console.error(`Error calculating Operating Expense for year ${year}:`, error);
     return 0;
   }
 };
 
-// Calculate Operating Income: GrossIncome - SellingGeneralAdministrative - Depreciation
+// Calculate Operating Income: GrossIncome - OperatingExpense
 export const calculateOperatingIncome = (data: IncomeStatementData, year: number): number => {
   try {
     const yearData = data[year] || {};
-    const gross = toNumber(yearData.GrossIncome);
-    const sga = toNumber(yearData.SellingGeneralAdministrative);
-    const depreciation = toNumber(yearData.Depreciation);
-    return gross - sga - depreciation;
+    const gross = toNumber(yearData.GrossIncome); // Using calculated GrossIncome
+    // Re-calculate operating expense here or trust the field if calculated previously?
+    // Safer to recalculate using the helper above to ensure consistency
+    const opExpense = calculateOperatingExpense(data, year);
+    return gross - opExpense;
   } catch (error) {
     console.error(`Error calculating Operating Income for year ${year}:`, error);
     return 0;

@@ -24,6 +24,25 @@ from .views2 import (
     IndustriesView,
     AggregatedDataView,
     IndustryComparisonView,
+    RankingTypesView,
+    HistoricalRankingView,
+    FinancialsIncomeStatementView,
+    FinancialsBalanceSheetView,
+    FinancialsCashFlowView,
+    FinancialsNOPATView,
+    FinancialsInvestedCapitalView,
+    FinancialsFreeCashFlowView,
+    FinancialsROICView,
+    FinancialsOperationalPerformanceView,
+    FinancialsFinancingHealthView,
+    DeepQABotReportView,
+    DeepQABotView,
+    DeepQABotStreamView,
+    DeepQABotReportStreamView,
+    ReportSessionsView,
+    ReportSessionDetailView,
+    ChatSessionsView,
+    ChatSessionDetailView,
 )
 
 urlpatterns = [
@@ -57,4 +76,29 @@ urlpatterns = [
     path('central/aggregated-data/', AggregatedDataView.as_view(), name='central_aggregated_data_slash'),
     path('central/industry-comparison', IndustryComparisonView.as_view(), name='central_industry_comparison'),
     path('central/industry-comparison/', IndustryComparisonView.as_view(), name='central_industry_comparison_slash'),
+    path('central/rankings/types', RankingTypesView.as_view(), name='central_ranking_types'),
+    path('central/rankings/historical', HistoricalRankingView.as_view(), name='central_ranking_historical'),
+    path('central/financials/income-statement/<str:ticker>', FinancialsIncomeStatementView.as_view(), name='central_financials_income_statement'),
+    path('central/financials/balance-sheet/<str:ticker>', FinancialsBalanceSheetView.as_view(), name='central_financials_balance_sheet'),
+    path('central/financials/cash-flow/<str:ticker>', FinancialsCashFlowView.as_view(), name='central_financials_cash_flow'),
+    path('central/analysis/nopat/<str:ticker>', FinancialsNOPATView.as_view(), name='central_analysis_nopat'),
+    path('central/analysis/invested-capital/<str:ticker>', FinancialsInvestedCapitalView.as_view(), name='central_analysis_invested_capital'),
+    path('central/analysis/free-cash-flow/<str:ticker>', FinancialsFreeCashFlowView.as_view(), name='central_analysis_free_cash_flow'),
+    path('central/analysis/roic/<str:ticker>', FinancialsROICView.as_view(), name='central_analysis_roic'),
+    path('central/analysis/operational-performance/<str:ticker>', FinancialsOperationalPerformanceView.as_view(), name='central_analysis_operational_performance'),
+    path('central/analysis/financing-health/<str:ticker>', FinancialsFinancingHealthView.as_view(), name='central_analysis_financing_health'),
+    
+    # Report Generation API Endpoint
+    path('deep_qa_bot_report', DeepQABotReportView.as_view(), name='deep_qa_bot_report'),
+    path('deep_qa_bot', DeepQABotView.as_view(), name='deep_qa_bot'),
+    path('deep_qa_bot_stream', DeepQABotStreamView.as_view(), name='deep_qa_bot_stream'),
+    path('deep_qa_bot_stream_report', DeepQABotReportStreamView.as_view(), name='deep_qa_bot_stream_report'),
+    
+    # Report Sessions API Endpoints
+    path('sessions_report', ReportSessionsView.as_view(), name='report_sessions'),
+    path('sessions_report/<str:session_id>', ReportSessionDetailView.as_view(), name='report_session_detail'),
+    
+    # Chat Sessions API Endpoints (Insights Generation)
+    path('sessions', ChatSessionsView.as_view(), name='chat_sessions'),
+    path('sessions/<str:session_id>', ChatSessionDetailView.as_view(), name='chat_session_detail'),
 ]

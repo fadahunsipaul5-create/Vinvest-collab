@@ -139,17 +139,6 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
     }
   ];
 
-  // Format value for display (handle infinity and negative values)
-  const formatValue = (value: number): string => {
-    if (value === Infinity || value === -Infinity) {
-      return '∞';
-    }
-    if (value < 0) {
-      return `-$${Math.abs(value).toFixed(1)}B`;
-    }
-    return `$${value.toFixed(1)}B`;
-  };
-
   return (
     <div className={`w-full h-full ${className}`}>
       <div className="mb-4">

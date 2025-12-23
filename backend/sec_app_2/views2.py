@@ -5,6 +5,7 @@ from rest_framework import status
 import requests
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.http import StreamingHttpResponse
 
 # CONSTANT for the external API base URL
 EXTERNAL_API_BASE_URL = "http://34.68.84.147:8080"
@@ -204,6 +205,385 @@ class IndustryComparisonView(APIView):
             url = f"{EXTERNAL_API_BASE_URL}/api/central/industry-comparison"
             # Forward all query params (industries, metric, period)
             response = requests.get(url, params=request.GET, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class RankingTypesView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get available ranking types (Central API #6)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/rankings/types"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class HistoricalRankingView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get historical company ranking (Central API #7)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/rankings/historical"
+            # Forward all query params (tickers, rankingType, period)
+            response = requests.get(url, params=request.GET, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsIncomeStatementView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get income statement data for a company (Central API #8)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/financials/income-statement/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsBalanceSheetView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get balance sheet data for a company (Central API #9)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/financials/balance-sheet/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsCashFlowView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get cash flow data for a company (Central API #10)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/financials/cash-flow/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsNOPATView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get NOPAT analysis data for a company (Central API #11)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/nopat/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsInvestedCapitalView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get invested capital data for a company (Central API #12)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/invested-capital/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsFreeCashFlowView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get free cash flow analysis data for a company (Central API #13)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/free-cash-flow/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsROICView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get ROIC breakdown data for a company (Central API #14)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/roic/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsOperationalPerformanceView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get operational performance metrics for a company (Central API #15)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/operational-performance/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class FinancialsFinancingHealthView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, ticker):
+        """Get financing health metrics for a company (Central API #16)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/financing-health/{ticker}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class DeepQABotReportView(APIView):
+    permission_classes = [AllowAny]
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        """Generate a report using the Deep QA Bot Report API"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/deep_qa_bot_report"
+            
+            # Forward the request body to the external API
+            response = requests.post(
+                url,
+                json=request.data,
+                headers={'Content-Type': 'application/json'},
+                timeout=300  # Increased timeout for report generation
+            )
+            
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response(
+                {"error": "External API unavailable", "details": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+class DeepQABotView(APIView):
+    permission_classes = [AllowAny]
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        """Standard QA Chatbot Endpoint"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/deep_qa_bot"
+            
+            # Forward the request body to the external API
+            response = requests.post(
+                url,
+                json=request.data,
+                headers={'Content-Type': 'application/json'},
+                timeout=300  # Long timeout for model processing
+            )
+            
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response(
+                {"error": "External API unavailable", "details": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+class DeepQABotStreamView(APIView):
+    permission_classes = [AllowAny]
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        """Streaming QA Chatbot Endpoint"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/deep_qa_bot_stream"
+            
+            # Forward the request to the external API with stream=True
+            external_response = requests.post(
+                url,
+                json=request.data,
+                headers={'Content-Type': 'application/json'},
+                stream=True,
+                timeout=60
+            )
+            
+            # Create a generator to yield chunks from the external response
+            def event_stream():
+                try:
+                    for line in external_response.iter_lines():
+                        if line:
+                            # Forward the SSE line directly
+                            yield line + b'\n'
+                except Exception as e:
+                     # In case of stream error, try to yield an error event
+                     yield f'event: error\ndata: {{"error": "{str(e)}"}}\n\n'.encode('utf-8')
+
+            return StreamingHttpResponse(
+                event_stream(),
+                content_type='text/event-stream'
+            )
+        except requests.RequestException as e:
+             return Response(
+                {"error": "External API unavailable", "details": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+class DeepQABotReportStreamView(APIView):
+    permission_classes = [AllowAny]
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        """Streaming Report Generation Endpoint"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/deep_qa_bot_stream_report"
+            
+            # Forward the request to the external API with stream=True
+            external_response = requests.post(
+                url,
+                json=request.data,
+                headers={'Content-Type': 'application/json'},
+                stream=True,
+                timeout=60
+            )
+            
+            # Create a generator to yield chunks from the external response
+            def event_stream():
+                try:
+                    for line in external_response.iter_lines():
+                        if line:
+                            # Forward the SSE line directly
+                            yield line + b'\n'
+                except Exception as e:
+                     # In case of stream error, try to yield an error event
+                     yield f'event: error\ndata: {{"error": "{str(e)}"}}\n\n'.encode('utf-8')
+
+            return StreamingHttpResponse(
+                event_stream(),
+                content_type='text/event-stream'
+            )
+        except requests.RequestException as e:
+             return Response(
+                {"error": "External API unavailable", "details": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+class ReportSessionsView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """List Report Sessions"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    def delete(self, request):
+        """Clear All Report Sessions"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report"
+            response = requests.delete(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class ReportSessionDetailView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, session_id):
+        """Get Specific Report Session"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report/{session_id}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    def delete(self, request, session_id):
+        """Delete Specific Report Session"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report/{session_id}"
+            response = requests.delete(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+# ============================================================================
+# Chat Sessions Management Endpoints (General/Insights Chat)
+# ============================================================================
+
+class ChatSessionsView(APIView):
+    """
+    Handle listing and clearing all chat sessions
+    GET: List all sessions
+    DELETE: Clear all sessions
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        """List Chat Sessions"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    def delete(self, request):
+        """Clear All Chat Sessions"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions"
+            response = requests.delete(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class ChatSessionDetailView(APIView):
+    """
+    Handle individual chat session operations
+    GET: Get specific session
+    DELETE: Delete specific session
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request, session_id):
+        """Get Specific Chat Session"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions/{session_id}"
+            response = requests.get(url, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    def delete(self, request, session_id):
+        """Delete Specific Chat Session"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/sessions/{session_id}"
+            response = requests.delete(url, timeout=10)
             return Response(response.json(), status=response.status_code)
         except requests.RequestException as e:
              return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import baseUrl from './api';
 
 interface CompanyTicker {
@@ -61,7 +62,7 @@ interface TopPickData {
   };
 }
 
-const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industries: propIndustries, sectors: propSectors }) => {
+const TopPicks: React.FC<TopPicksProps> = () => {
   // Filter states
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
   const [selectedSector, setSelectedSector] = useState<string>('');
@@ -71,6 +72,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
   const [fetchedSectors, setFetchedSectors] = useState<Sector[]>([]);
   const [fetchedIndustries, setFetchedIndustries] = useState<Industry[]>([]);
   const [fetchedCompanies, setFetchedCompanies] = useState<CompanyTicker[]>([]); // Companies for the table
+  const [allCompanies, setAllCompanies] = useState<CompanyTicker[]>([]); // Store all companies to reset filtering
   
   // Search states for Industry, Sector, and Company filters
   const [industrySearch, setIndustrySearch] = useState<string>('');
@@ -86,13 +88,82 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
   const companyDropdownRef = useRef<HTMLDivElement>(null);
   
   const [picksData, setPicksData] = useState<TopPickData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   
   // New state for mode selection
   const [activeMode, setActiveMode] = useState<'today' | 'historical'>('today');
   // New state for Historical Ranking
-  const [selectedDate, setSelectedDate] = useState<string>(''); 
-  const [historicalFilter, setHistoricalFilter] = useState<'overall' | 'date'>('overall');
+  const [rankingTypes, setRankingTypes] = useState<{id: string, label: string}[]>([]);
+  const [selectedRankingType, setSelectedRankingType] = useState<string>('overall'); // Default to overall
+
+  // Historical Chart Data State
+  const [historicalChartData, setHistoricalChartData] = useState<any[]>([]);
+  const [historicalChartLoading, setHistoricalChartLoading] = useState(false);
+
+  // Fetch Ranking Types on Mount
+  useEffect(() => {
+    fetch(`${baseUrl}/api/sec/central/rankings/types`)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+          if (data && data.rankingTypes) {
+            setRankingTypes(data.rankingTypes);
+            // DO NOT set default here if state already has 'overall' as default
+            // Just let the user's default state 'overall' work, or find it in list to confirm existence
+          }
+      })
+      .catch(err => console.error("Failed to fetch ranking types:", err));
+  }, []);
+
+  // Fetch Historical Ranking Chart Data
+  useEffect(() => {
+    if (activeMode === 'historical' && selectedCompany) {
+        setHistoricalChartLoading(true);
+        // Fetch history for the selected company and ranking type
+        // Use 'ALL' period for full history
+        const url = `${baseUrl}/api/sec/central/rankings/historical?tickers=${encodeURIComponent(selectedCompany)}&rankingType=${encodeURIComponent(selectedRankingType)}&period=ALL`;
+        
+        console.log('Fetching historical ranking:', url);
+    
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+                console.log('Historical ranking data received:', data);
+                // API response format check
+                if (data && data.history && Array.isArray(data.history)) {
+                    // Format: { history: [{ date: "2025-12-13", "AAPL": 5 }, ...] }
+                    // We need to transform this to chart format: [{ date: "...", rank: 5 }]
+                    const tickerKey = selectedCompany; // The key in the object is the ticker
+                    
+                    const chartData = data.history.map((item: any) => ({
+                        date: item.date,
+                        rank: item[tickerKey] // Extract rank using the ticker as key
+                    })).filter((item: any) => item.rank !== null && item.rank !== undefined); // Filter out nulls
+                    
+                    setHistoricalChartData(chartData);
+                } else if (data && data.length > 0 && data[0].rankings) {
+                    // Fallback for previous expected format: [{ ticker: "AAPL", rankings: [...] }]
+                    setHistoricalChartData(data[0].rankings);
+                } else {
+                    console.log('Unexpected data format or empty:', data);
+                    setHistoricalChartData([]);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to fetch historical ranking chart data:", err);
+                setHistoricalChartData([]);
+            })
+            .finally(() => {
+                setHistoricalChartLoading(false);
+            });
+    } else {
+        setHistoricalChartData([]);
+    }
+  }, [activeMode, selectedCompany, selectedRankingType]);
 
   // Fetch Sectors on Mount
   useEffect(() => {
@@ -102,42 +173,48 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
         return res.json();
       })
       .then(data => {
-          setFetchedSectors(data);
+        setFetchedSectors(data);
       })
       .catch(err => console.error("Failed to fetch sectors:", err));
   }, []);
 
-  // Fetch Industries when Sector changes (or initially)
+  // Fetch Industries when Sector changes
   useEffect(() => {
     if (!selectedSector) {
-        setFetchedIndustries([]);
-        return; 
+      // If no sector selected, fetch ALL industries from Central
+      fetch(`${baseUrl}/api/sec/central/industries`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+            const inds = (data.industries || []).map((i: any) => ({
+                industryId: i.name,
+                industryName: i.name,
+                companies: i.companies
+            }));
+            setFetchedIndustries(inds);
+        })
+        .catch(err => console.error("Failed to fetch industries:", err));
+      return;
     }
 
-    let url = `${baseUrl}/api/sec/graphdb/industries_when_sector_given`;
-    // Find sector ID if possible, or pass name
-    const sector = fetchedSectors.find(s => s.sectorName === selectedSector);
-    // API NOTE: Sending both sectorName and sectorId causes the external API to return empty list.
-    // We prioritize sectorName as it is reliable.
-    url += `?sectorName=${encodeURIComponent(selectedSector)}`;
-    // if (sector) url += `&sectorId=${sector.sectorId}`;
-    
-    fetch(url)
+    // If Sector selected, fetch industries for that sector
+    fetch(`${baseUrl}/api/sec/graphdb/industries_when_sector_given?sectorName=${encodeURIComponent(selectedSector)}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
         return res.json();
       })
       .then(data => {
+          // GraphDB API likely returns array of { industryId, industryName, ... }
+          // We need to map it to our Industry interface
+          // Note: GraphDB might NOT return 'companies' list in the industry object?
+          // If not, our client-side filtering of companies (filteredCompanies) might break for those industries.
+          // But let's assume for now we just want to populate the Industry dropdown.
           setFetchedIndustries(data);
-          // Auto-select removed as per user request
-          /*
-          if (data && data.length > 0) {
-              setSelectedIndustry(data[0].industryName);
-          }
-          */
       })
-      .catch(err => console.error("Failed to fetch industries:", err));
-  }, [selectedSector, fetchedSectors]);
+      .catch(err => console.error("Failed to fetch industries for sector:", err));
+  }, [selectedSector]);
 
   // Ensure we always have a valid selection if data is available (API does not support "All")
   // Auto-select removed as per user request to not default to "Communication Services"
@@ -149,41 +226,86 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
   }, [fetchedSectors]);
   */
 
-  // Fetch Companies when Industry changes (or initially)
+  // Fetch Companies (Centralized)
   useEffect(() => {
-    if (!selectedIndustry) {
-        setFetchedCompanies([]);
-        setIsLoading(false);
-        return;
-    }
+    // If industry is selected, we might still want to filter by it, but the source should be central
+    // However, the central companies API returns ALL companies.
+    // GraphDB API was filtering by industry.
+    // Strategy: Fetch ALL companies once from central, then filter locally if industry is selected.
+    
+    // Check if we already have companies from props or if we need to fetch
+    // If propCompanies is empty or we want to force central:
 
-    let url = `${baseUrl}/api/sec/graphdb/companies_when_industry_given`;
-    const industry = fetchedIndustries.find(i => i.industryName === selectedIndustry);
-    // API NOTE: Sending both industryName and industryId might cause issues (like with sectors).
-    // Using industryName is reliable.
-    url += `?industryName=${encodeURIComponent(selectedIndustry)}`;
-    // if (industry) url += `&industryId=${industry.industryId}`;
-
-    setIsLoading(true);
-    fetch(url)
+    fetch(`${baseUrl}/api/sec/central/companies`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
         return res.json();
       })
       .then(data => {
-          // Map response to CompanyTicker format
-          const comps = data.map((c: any) => ({
-              ticker: c.ticker,
-              name: c.companyName || c.name || c.ticker
-          }));
-          setFetchedCompanies(comps);
-          setIsLoading(false);
+          // Map response to CompanyTicker format if needed
+          // API returns [{ticker: "AAPL", name: "Apple Inc."}, ...]
+          setFetchedCompanies(data);
+          setAllCompanies(data);
+          // Loading state removed(false);
       })
       .catch(err => {
           console.error("Failed to fetch companies:", err);
-          setIsLoading(false);
+          // Loading state removed(false);
       });
+  }, []); // Run once on mount
+
+  /* 
+  // OLD GraphDB Logic - Commented Out
+  // Fetch Companies when Industry changes (or initially)
+  useEffect(() => {
+    if (!selectedIndustry) {
+        setFetchedCompanies([]);
+        // Loading state removed(false);
+        return;
+    }
+
+    let url = `${baseUrl}/api/sec/graphdb/companies_when_industry_given`;
+    // ...
   }, [selectedIndustry, fetchedIndustries]);
+  */
+
+  // Fetch Companies when Industry changes (handle GraphDB vs Central logic)
+  useEffect(() => {
+    if (!selectedIndustry) {
+        // Reset to all companies if no industry selected
+        if (allCompanies.length > 0) {
+            setFetchedCompanies(allCompanies);
+        }
+        return;
+    }
+
+    const industryObj = fetchedIndustries.find(ind => ind.industryName === selectedIndustry);
+    
+    // If industry object exists but lacks 'companies' list (GraphDB source), fetch them
+    if (industryObj && !(industryObj as any).companies) {
+        // Loading state removed(true);
+        fetch(`${baseUrl}/api/sec/graphdb/companies_when_industry_given?industryName=${encodeURIComponent(selectedIndustry)}`)
+           .then(res => {
+               if (!res.ok) throw new Error("Failed to fetch companies for industry");
+               return res.json();
+           })
+           .then(data => {
+               setFetchedCompanies(data);
+               // Loading state removed(false);
+           })
+           .catch(err => {
+               console.error("Failed to fetch companies for industry:", err);
+               setFetchedCompanies([]);
+               // Loading state removed(false);
+           });
+    } else {
+        // Central source (has companies list) or unknown
+        // Reset fetchedCompanies to allCompanies so that 'filteredCompanies' logic can work
+        if (allCompanies.length > 0) {
+             setFetchedCompanies(allCompanies);
+        }
+    }
+  }, [selectedIndustry, fetchedIndustries, allCompanies]);
 
   // Helper to format numbers
   const formatPercent = (val: number) => {
@@ -206,117 +328,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
   useEffect(() => {
     // Logic split based on Active Mode
     
-    // 1. Historical Mode Logic
-    if (activeMode === 'historical') {
-        
-        // Case A: Overall Ranking (Same as Today's default)
-        if (historicalFilter === 'overall') {
-            const fetchAllRankings = async () => {
-                setIsLoading(true);
-                try {
-                    const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table_for_all_companies`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    const data = await response.json();
-                    const rankings: RankingResult[] = data.Ranking || data.ranking || [];
-
-                    const newPicksData: TopPickData[] = rankings.map(r => ({
-                        ticker: r.ticker,
-                        name: r.ticker,
-                        industry: 'N/A',
-                        sector: 'N/A',
-                        roic5YAvg: r.roic_5y_avg,
-                        earningsYield: r.earnings_yield,
-                        intrinsicToMarketCap: r.intrinsic_to_mc,
-                        ranks: {
-                            roic: r.roic_rank,
-                            earnings: r.earnings_yield_rank,
-                            intrinsic: r.intrinsic_to_mc_rank,
-                            overall: r.overall_rank
-                        },
-                        netIncome5YAvg: 0,
-                        sharesOutstanding: 0,
-                        stockPrice: 0,
-                        intrinsicValue: 0,
-                        marketCap: 0
-                    }));
-                    setPicksData(newPicksData);
-                } catch (err) {
-                    console.error("Failed to fetch overall rankings in historical mode:", err);
-                    setPicksData([]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchAllRankings();
-            return;
-        }
-
-        // Case B: Specific Date
-        if (historicalFilter === 'date') {
-            if (!selectedDate) {
-                 setPicksData([]);
-                 return;
-            }
-    
-            const fetchHistoricalRankings = async () => {
-                setIsLoading(true);
-                try {
-                    const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table_for_all_companies/${selectedDate}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({}) // Empty body as we just need the date which is in URL
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    const data = await response.json();
-                    
-                    // Parse logic similar to "Today" mode
-                    const rankings: RankingResult[] = data.Ranking || data.ranking || [];
-    
-                    const newPicksData: TopPickData[] = rankings.map(r => ({
-                        ticker: r.ticker,
-                        name: r.ticker, // API doesn't return name
-                        industry: 'N/A',
-                        sector: 'N/A',
-                        
-                        // Raw values from API
-                        roic5YAvg: r.roic_5y_avg,
-                        earningsYield: r.earnings_yield,
-                        intrinsicToMarketCap: r.intrinsic_to_mc,
-                        
-                        // Ranks
-                        ranks: {
-                            roic: r.roic_rank,
-                            earnings: r.earnings_yield_rank,
-                            intrinsic: r.intrinsic_to_mc_rank,
-                            overall: r.overall_rank
-                        },
-    
-                        // Missing fields
-                        netIncome5YAvg: 0,
-                        sharesOutstanding: 0,
-                        stockPrice: 0,
-                        intrinsicValue: 0,
-                        marketCap: 0
-                    }));
-                    
-                    setPicksData(newPicksData);
-                } catch (err) {
-                    console.error("Failed to fetch historical rankings:", err);
-                    setPicksData([]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            
-            fetchHistoricalRankings();
-            return;
-        }
-    }
+    // 1. Historical Mode Logic - Handled by Chart useEffect now
 
     // 2. Today's Pick Logic (Existing Default Behavior)
     
@@ -324,7 +336,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
     // Only applies if in 'today' mode or if we want historical to behave similarly initially
     if (activeMode === 'today' && !selectedSector && !selectedIndustry) {
         const fetchAllRankings = async () => {
-            setIsLoading(true);
+            // Loading state removed(true);
             try {
                 const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table_for_all_companies`);
                 if (!response.ok) {
@@ -365,7 +377,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
             } catch (err) {
                 console.error("Failed to fetch all rankings:", err);
             } finally {
-                setIsLoading(false);
+                // Loading state removed(false);
             }
         };
         fetchAllRankings();
@@ -389,7 +401,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
     }
 
     const fetchRankingData = async () => {
-        setIsLoading(true);
+        // Loading state removed(true);
         try {
             const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table`, {
                 method: 'POST',
@@ -470,12 +482,12 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
             // Fallback to empty or keep previous?
             // setPicksData([]); 
         } finally {
-            setIsLoading(false);
+            // Loading state removed(false);
         }
     };
 
     fetchRankingData();
-  }, [fetchedCompanies, selectedSector, selectedIndustry, activeMode, selectedDate, historicalFilter]); // Re-run when companies list or filters change
+  }, [fetchedCompanies, selectedSector, selectedIndustry, activeMode]); // Re-run when companies list or filters change
 
   // Format Helper override for ROIC if needed
   // If ROIC comes as huge number (e.g. 7442211765), formatPercent might be wrong.
@@ -484,12 +496,17 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
 
   // Filter Data - RESTORED
   const filteredData = useMemo(() => {
-    return picksData.filter(item => {
+    let data = picksData.filter(item => {
       const matchIndustry = selectedIndustry ? item.industry === selectedIndustry : true;
       const matchSector = selectedSector ? item.sector === selectedSector : true;
       const matchCompany = selectedCompany ? item.ticker === selectedCompany : true;
       return matchIndustry && matchSector && matchCompany;
-    }).sort((a, b) => a.ranks.overall - b.ranks.overall);
+    });
+
+    // Default sort by overall rank for Today's Pick
+    data = data.sort((a, b) => a.ranks.overall - b.ranks.overall);
+    
+    return data;
   }, [picksData, selectedIndustry, selectedSector, selectedCompany]);
 
   // Update available options for filters based on API data
@@ -515,35 +532,25 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
 
   // Filtered Companies for Dropdown (based on industry selection)
   const filteredCompanies = useMemo(() => {
-    // Assuming fetchedCompanies is the source of truth for the dropdowns when using API
+    // FetchedCompanies has ALL companies from Central API
     const sourceCompanies = fetchedCompanies;
     
     if (!selectedIndustry) return sourceCompanies;
     
-    // Find the selected industry object
-    const industryObj = fetchedIndustries.length > 0 
-        ? fetchedIndustries.find(ind => ind.industryName === selectedIndustry)
-        : propIndustries.find(ind => (ind.name || ind.label) === selectedIndustry);
+    // Find the selected industry object from fetchedIndustries (which now comes from Central API)
+    const industryObj = fetchedIndustries.find(ind => ind.industryName === selectedIndustry);
 
     if (!industryObj) return sourceCompanies;
 
-    // If using API data, we likely already fetched the companies for this industry in the useEffect
-    // So we might just return fetchedCompanies if it matches the current industry context.
-    // But for robustness with prop fallback:
+    // Filter sourceCompanies to include only those in the industry's company list
+    // industryObj.companies is array of tickers (strings)
+    // sourceCompanies is array of {ticker, name}
     
-    return sourceCompanies.filter(comp => {
-      // If using props
-      if ((industryObj as any).companies) {
-          return (industryObj as any).companies.some((c: any) => 
-        (typeof c === 'string' ? c : c.ticker) === comp.ticker
-      );
-      }
-      // If using API, we just return the fetchedCompanies because they are already filtered by industry in useEffect
-      // Check if the current fetchedCompanies are indeed for this industry? 
-      // The useEffect updates fetchedCompanies when selectedIndustry changes.
-      return true;
-    });
-  }, [fetchedCompanies, propCompanies, fetchedIndustries, propIndustries, selectedIndustry]);
+    // Check if industryObj has companies property (added in previous step)
+    const validTickers = (industryObj as any).companies || [];
+    
+    return sourceCompanies.filter(comp => validTickers.includes(comp.ticker));
+  }, [fetchedCompanies, fetchedIndustries, selectedIndustry]);
 
   // Filtered Companies for Search (based on search input)
   const filteredCompaniesForSearch = useMemo(() => {
@@ -615,10 +622,9 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
         
         {/* Mode Selection Buttons */}
         <div className="flex space-x-2 mb-6 border-b border-gray-200">
-            <button
+          <button
             onClick={() => {
                 setActiveMode('today');
-                setSelectedDate('');
             }}
             className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
               activeMode === 'today'
@@ -643,25 +649,25 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           
-          {/* Historical Mode Filters: Date Selection */}
+          {/* Historical Mode Filters: Ranking Type & Company Only */}
           {activeMode === 'historical' && (
             <>
-             {/* Filter Type Selection */}
+             {/* Ranking Type Filter */}
              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ranking View</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ranking Type</label>
                 <div className="relative">
                   <select
-                    value={historicalFilter}
-                    onChange={(e) => {
-                        setHistoricalFilter(e.target.value as 'overall' | 'date');
-                        if (e.target.value === 'overall') {
-                            setSelectedDate('');
-                        }
-                    }}
+                    value={selectedRankingType}
+                    onChange={(e) => setSelectedRankingType(e.target.value)}
                     className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] appearance-none bg-white"
                   >
-                    <option value="overall">Overall Ranking (Current)</option>
-                    <option value="date">Specific Date</option>
+                    {rankingTypes.length > 0 ? (
+                        rankingTypes.map(type => (
+                            <option key={type.id} value={type.id}>{type.label}</option>
+                        ))
+                    ) : (
+                    <option value="overall">Overall Rank</option>
+                    )}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -670,21 +676,6 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
                   </div>
                 </div>
              </div>
-
-             {/* Date Filter (Only shown if 'date' is selected) */}
-             {historicalFilter === 'date' && (
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full font-medium text-sm px-3 py-1 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white"
-                      />
-                    </div>
-                 </div>
-             )}
             </>
           )}
 
@@ -856,10 +847,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
           </>
           )}
 
-          {/* Company Filter (Shared or specific per mode?) */}
-          {/* Requirement says "When the Historical Picks is clicked on, show 2 filters ie, company/companies and Ranking type." */}
-          {/* Today's pick also has Company filter. So it can be shared, but maybe positioned differently if needed. */}
-          {/* For now, keeping it here for both modes as it seems applicable. */}
+          {/* Company Filter - Available in both modes now */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
             <div className="relative" ref={companyDropdownRef}>
@@ -944,7 +932,53 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
         </div>
       </div>
 
-      {/* Table */}
+        {/* Main Content Area: Table or Chart */}
+        {activeMode === 'historical' && selectedCompany ? (
+            // Historical Chart View
+            <div className="h-[400px] w-full mt-4">
+                {historicalChartLoading ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">Loading chart data...</div>
+                ) : historicalChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={historicalChartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis 
+                                dataKey="date" 
+                                tickFormatter={(val) => {
+                                    const d = new Date(val);
+                                    return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+                                }}
+                                minTickGap={30}
+                            />
+                            <YAxis 
+                                reversed={true} // Lower rank is better
+                                label={{ value: 'Rank', angle: -90, position: 'insideLeft' }} 
+                                domain={[1, 'auto']}
+                            /> 
+                            <Tooltip 
+                                labelFormatter={(val) => new Date(val).toLocaleDateString()}
+                                formatter={(val: number) => [`Rank ${val}`, 'Rank']}
+                            />
+                            <Legend />
+                            <Line 
+                                type="monotone" 
+                                dataKey="rank" 
+                                stroke="#1B5A7D" 
+                                strokeWidth={2}
+                                name={`${selectedCompany} - ${rankingTypes.find(t => t.id === selectedRankingType)?.label || 'Rank'}`}
+                                dot={false}
+                                activeDot={{ r: 6 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                        No historical ranking data available for {selectedCompany} ({selectedRankingType}).
+                    </div>
+                )}
+            </div>
+        ) : (
+            // Standard Table View (Today's Pick Only)
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
           <thead className="bg-gray-50">
@@ -1018,6 +1052,7 @@ const TopPicks: React.FC<TopPicksProps> = ({ companies: propCompanies, industrie
           </tbody>
         </table>
       </div>
+        )}
       
       <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded">
         <p className="font-semibold mb-1">Methodology:</p>
