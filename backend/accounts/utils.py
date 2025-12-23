@@ -45,7 +45,7 @@ def user_email(request, user):
             algorithm="HS256",
         )
         # Use production frontend URL for email verification
-        absurl = f"https://get-deep-ai.vercel.app/email-verification?token={token}" 
+        absurl = f"https://vinvest.vercel.app/email-verification?token={token}" 
         
         print(f"Generated verification URL: {absurl}")
 

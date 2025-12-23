@@ -58,6 +58,7 @@ ALLOWED_HOSTS = [
     'getdeep.ai',
     'get-deep-ai.vercel.app',
     'sec-insights-app.onrender.com',
+    "vinvest.vercel.app"
 ]
 
 # Add Cloud Run URL if available
@@ -219,6 +220,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://api.getdeep.ai",
     "https://get-deep-ai.vercel.app",
     "https://sec-insights-app.onrender.com",
+    "https://vinvest.vercel.app",
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
