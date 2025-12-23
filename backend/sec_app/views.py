@@ -115,8 +115,6 @@ def create_checkout_session(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
