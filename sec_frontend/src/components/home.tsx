@@ -326,13 +326,14 @@ const Dashboard: React.FC = () => {
         currentY += fontSize + 4;
       };
 
-      const writeSubheading = (text: string) => {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
-        ensureSpace(20);
-        doc.text(text, marginLeft, currentY);
-        currentY += 10;
-      };
+      // Unused function - removed to fix TypeScript error
+      // const writeSubheading = (text: string) => {
+      //   doc.setFont('helvetica', 'bold');
+      //   doc.setFontSize(14);
+      //   ensureSpace(20);
+      //   doc.text(text, marginLeft, currentY);
+      //   currentY += 10;
+      // };
 
       const writeParagraph = (text: string) => {
         if (!text) return;
@@ -923,27 +924,28 @@ const Dashboard: React.FC = () => {
     setShowReportHistoryDropdown(false);
   };
 
-  const deleteChatBatch = async (sessionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const token = localStorage.getItem('access');
-      if (!token) return;
+  // Unused function - removed to fix TypeScript error
+  // const deleteChatBatch = async (sessionId: string, e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   try {
+  //     const token = localStorage.getItem('access');
+  //     if (!token) return;
 
-      const response = await fetch(`${baseUrl}/api/sec/sessions/${sessionId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  //     const response = await fetch(`${baseUrl}/api/sec/sessions/${sessionId}`, {
+  //       method: 'DELETE',
+  //       headers: { 'Authorization': `Bearer ${token}` }
+  //     });
 
-      if (response.ok) {
-        setChatHistory(prev => prev.filter(s => s.session_id !== sessionId));
-        if (currentChatSession === sessionId) {
-          startNewChat();
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting chat session:', error);
-    }
-  };
+  //     if (response.ok) {
+  //       setChatHistory(prev => prev.filter(s => s.session_id !== sessionId));
+  //       if (currentChatSession === sessionId) {
+  //         startNewChat();
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('Error deleting chat session:', error);
+  //   }
+  // };
 
   // Fetch report history when entering report mode
   useEffect(() => {

@@ -788,7 +788,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
               // Regular structure for other tables
 
-              fields.map((field, index) => (
+              fields.map((field) => (
 
               <tr 
 
@@ -10570,7 +10570,9 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
       investedCapital: calculatedInvestedCapital,
 
-      freeCashFlow: freeCashFlow
+      freeCashFlow: freeCashFlow,
+
+      roicPerformance: allData.roicPerformance || {} // Include roicPerformance from allData
 
     };
 
