@@ -99,11 +99,11 @@ const Profile: React.FC = () => {
   const getSubscriptionBadgeColor = (plan: string) => {
     switch (plan) {
       case 'pro':
-        return 'bg-blue-500';
+        return 'bg-[#144D37]';
       case 'pro-plus':
-        return 'bg-purple-500';
+        return 'bg-[#D4AF37]';
       default:
-        return 'bg-green-500';
+        return 'bg-[#144D37]';
     }
   };
 
@@ -128,26 +128,27 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0F0E]">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-white dark:bg-[#0B0F0E] shadow dark:shadow-none border-b dark:border-[#161C1A]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-6 space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-3 sm:space-x-4">
               <button
                 onClick={() => navigate('/home')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-gray-600 dark:text-[#E0E6E4] hover:text-gray-900 dark:hover:text-[#E0E6E4] transition-colors"
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">User Profile</h1>
-                <p className="text-sm sm:text-base text-gray-600 hidden sm:block">Manage your account settings and preferences</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-[#E0E6E4]">User Profile</h1>
+                <p className="text-sm sm:text-base text-gray-600 dark:text-[#889691] hidden sm:block">Manage your account settings and preferences</p>
               </div>
             </div>
-            <img src="/inv.png" alt="GetDeep.AI" className="h-8 sm:h-10" />
+            <img src="/logo.svg" alt="GetDeep.AI" className="h-12 sm:h-16 dark:hidden" />
+            <img src="/vshape.svg" alt="GetDeep.AI" className="h-12 sm:h-16 hidden dark:block" />
           </div>
         </div>
       </div>
@@ -157,14 +158,14 @@ const Profile: React.FC = () => {
         <div className="space-y-6 sm:space-y-8">
           
           {/* Profile Card */}
-          <div className="bg-white rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm border dark:border-[#161C1A]">
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Personal Information</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-[#E0E6E4]">Personal Information</h2>
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                    className="w-full sm:w-auto px-4 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors text-sm sm:text-base"
                   >
                     Edit Profile
                   </button>
@@ -172,13 +173,13 @@ const Profile: React.FC = () => {
                   <div className="flex flex-col sm:flex-row w-full sm:w-auto space-y-2 sm:space-y-0 sm:space-x-3">
                     <button
                       onClick={handleSave}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
+                      className="px-4 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors text-sm sm:text-base"
                     >
                       Save
                     </button>
                     <button
                       onClick={handleCancel}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm sm:text-base"
+                      className="px-4 py-2 bg-gray-500 dark:bg-[#161C1A] text-white dark:text-[#E0E6E4] rounded-lg hover:bg-gray-600 dark:hover:bg-[#1C2220] transition-colors text-sm sm:text-base"
                     >
                       Cancel
                     </button>
@@ -188,90 +189,90 @@ const Profile: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">First Name</label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={editForm.first_name || ''}
                       onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#161C1A] rounded-md bg-white dark:bg-[#0B0F0E] text-gray-900 dark:text-[#E0E6E4] focus:outline-none focus:ring-2 focus:ring-[#144D37] text-sm sm:text-base"
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm sm:text-base">{userInfo.first_name || 'Not set'}</p>
+                    <p className="text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base">{userInfo.first_name || 'Not set'}</p>
                   )}
                 </div>
 
                 <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Last Name</label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={editForm.last_name || ''}
                       onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#161C1A] rounded-md bg-white dark:bg-[#0B0F0E] text-gray-900 dark:text-[#E0E6E4] focus:outline-none focus:ring-2 focus:ring-[#144D37] text-sm sm:text-base"
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm sm:text-base">{userInfo.last_name || 'Not set'}</p>
+                    <p className="text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base">{userInfo.last_name || 'Not set'}</p>
                   )}
                 </div>
 
                 <div className="sm:col-span-2 md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <p className="text-gray-900 text-sm sm:text-base">{userInfo.email || 'Not set'}</p>
-                  <p className="text-xs text-gray-500 mt-1">Email cannot be changed here</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Email</label>
+                  <p className="text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base">{userInfo.email || 'Not set'}</p>
+                  <p className="text-xs text-gray-500 dark:text-[#889691] mt-1">Email cannot be changed here</p>
                 </div>
 
                 <div className="sm:col-span-2 md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                  <p className="text-gray-900 text-sm sm:text-base">{userInfo.username || 'Not set'}</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Username</label>
+                  <p className="text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base">{userInfo.username || 'Not set'}</p>
                 </div>
 
                 <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Member Since</label>
-                  <p className="text-gray-900 text-sm sm:text-base">{formatDate(userInfo.date_joined)}</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Member Since</label>
+                  <p className="text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base">{formatDate(userInfo.date_joined)}</p>
                 </div>
 
                 <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Login</label>
-                  <p className="text-gray-900 text-sm sm:text-base">{formatDate(userInfo.last_login)}</p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Last Login</label>
+                  <p className="text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base">{formatDate(userInfo.last_login)}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Subscription Card */}
-          <div className="bg-white rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm border dark:border-[#161C1A]">
             <div className="p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Subscription Details</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-[#E0E6E4] mb-4 sm:mb-6">Subscription Details</h2>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                <div className="bg-gray-50 dark:bg-[#0B0F0E] rounded-lg p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 space-y-2 sm:space-y-0">
-                    <h3 className="text-sm font-medium text-gray-700">Current Plan</h3>
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">Current Plan</h3>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium text-white self-start ${getSubscriptionBadgeColor(subscription.plan)}`}>
                       {formatPlanName(subscription.plan)}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Questions Used</h3>
+                <div className="bg-gray-50 dark:bg-[#0B0F0E] rounded-lg p-3 sm:p-4">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Questions Used</h3>
                   <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div className="flex-1 bg-gray-200 dark:bg-[#161C1A] rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        className="bg-[#144D37] h-2 rounded-full transition-all"
                         style={{ width: `${Math.min((subscription.questionsUsed / subscription.questionsLimit) * 100, 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-[#889691] whitespace-nowrap">
                       {subscription.questionsUsed}/{subscription.questionsLimit === 9999 ? '∞' : subscription.questionsLimit}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 sm:col-span-2 lg:col-span-1">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Questions Remaining</h3>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                <div className="bg-gray-50 dark:bg-[#0B0F0E] rounded-lg p-3 sm:p-4 sm:col-span-2 lg:col-span-1">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-2">Questions Remaining</h3>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-[#E0E6E4]">
                     {subscription.questionsLimit === 9999 ? '∞' : (subscription.questionsLimit - subscription.questionsUsed)}
                   </p>
                 </div>
@@ -284,7 +285,7 @@ const Profile: React.FC = () => {
                     localStorage.setItem('show_pricing_modal', '1');
                     navigate('/home');
                   }}
-                  className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm sm:text-base"
+                  className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-all text-sm sm:text-base"
                 >
                   Upgrade Plan
                 </button>
@@ -293,14 +294,14 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Account Actions */}
-          <div className="bg-white rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm border dark:border-[#161C1A]">
             <div className="p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Account Actions</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-[#E0E6E4] mb-4 sm:mb-6">Account Actions</h2>
               
               <div className="space-y-3 sm:space-y-4">
                 <button
                   onClick={() => navigate('/password-reset')}
-                  className="w-full sm:w-auto px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm sm:text-base"
+                  className="w-full sm:w-auto px-4 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors text-sm sm:text-base"
                 >
                   Change Password
                 </button>
@@ -313,7 +314,7 @@ const Profile: React.FC = () => {
                       alert('Saved data cleared successfully!');
                     }
                   }}
-                  className="w-full sm:w-auto px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors sm:ml-4 text-sm sm:text-base"
+                  className="w-full sm:w-auto px-4 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors sm:ml-4 text-sm sm:text-base"
                 >
                   Clear Saved Data
                 </button>
@@ -325,7 +326,7 @@ const Profile: React.FC = () => {
                       alert('Account deletion feature coming soon!');
                     }
                   }}
-                  className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors sm:ml-4 text-sm sm:text-base"
+                  className="w-full sm:w-auto px-4 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors sm:ml-4 text-sm sm:text-base"
                 >
                   Delete Account
                 </button>

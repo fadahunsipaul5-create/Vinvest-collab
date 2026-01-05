@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import baseUrl from './api';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Type definitions for API responses
 interface RegisterResponse {
@@ -28,6 +29,7 @@ interface GoogleAuthResponse {
 }
 
 const Register = () => {
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ 
     first_name: '', 
@@ -121,18 +123,45 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-4 px-3 xm:py-6 xm:px-4 xs:py-8 xs:px-5 sm:py-12 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0B0F0E] py-4 px-3 xm:py-6 xm:px-4 xs:py-8 xs:px-5 sm:py-12 sm:px-6 md:px-8 lg:px-10 xl:px-12 relative">
+      {/* Dark Mode Toggle - Top Right */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 rounded-md bg-[#161C1A] dark:bg-[#161C1A] text-[#E0E6E4] hover:bg-[#1C2220] transition-colors text-sm font-medium"
+        title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+      >
+        {theme === 'light' ? (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+            </svg>
+            <span className="hidden sm:inline">Dark Mode</span>
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+            </svg>
+            <span className="hidden sm:inline">Light Mode</span>
+          </>
+        )}
+      </button>
       <div className="max-w-xs xm:max-w-sm xs:max-w-md sm:max-w-lg w-full space-y-4 xm:space-y-6 xs:space-y-7 sm:space-y-8">
         <div>
           <img 
-            className="mx-auto h-8 w-auto xm:h-10 xs:h-12 sm:h-14 md:h-16 lg:h-18 xl:h-13" 
-            src="/inv.png"
+            className="mx-auto h-12 w-auto xm:h-18 xs:h-26 sm:h-30 md:h-30 lg:h-32 xl:h-50 dark:hidden" 
+            src="/logo.svg"
             alt="GetDeep.AI"
           />
-          <h2 className="mt-3 xm:mt-4 xs:mt-5 sm:mt-6 text-center text-xl xm:text-2xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-bold text-gray-900">
+          <img 
+            className="mx-auto h-12 w-auto xm:h-18 xs:h-26 sm:h-30 md:h-30 lg:h-32 xl:h-50 hidden dark:block" 
+            src="/vshape.svg"
+            alt="GetDeep.AI"
+          />
+          <h2 className="mt-3 xm:mt-4 xs:mt-5 sm:mt-6 text-center text-xl xm:text-2xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-bold text-gray-900 dark:text-[#E0E6E4]">
             Create your account
           </h2>
-          <p className="mt-1 xm:mt-2 text-center text-xs xm:text-sm xs:text-base sm:text-base md:text-lg text-gray-600">
+          <p className="mt-1 xm:mt-2 text-center text-xs xm:text-sm xs:text-base sm:text-base md:text-lg text-gray-600 dark:text-[#889691]">
             Sign up with your email or use Google authentication
           </p>
         </div>
@@ -151,7 +180,7 @@ const Register = () => {
                 name="first_name"
                 type="text"
                 required
-                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 dark:border-[#161C1A] rounded-md bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base focus:ring-2 focus:ring-[#144D37] focus:border-[#144D37]"
                 placeholder="First Name"
                 value={formData.first_name}
                 onChange={handleChange}
@@ -163,7 +192,7 @@ const Register = () => {
                 name="last_name"
                 type="text"
                 required
-                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 dark:border-[#161C1A] rounded-md bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] text-sm sm:text-base focus:ring-2 focus:ring-[#144D37] focus:border-[#144D37]"
                 placeholder="Last Name"
                 value={formData.last_name}
                 onChange={handleChange}
@@ -227,14 +256,14 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 sm:py-3 sm:px-6 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm sm:text-base font-medium transition-colors"
+            className="w-full py-2 px-4 sm:py-3 sm:px-6 bg-[#144D37] text-white rounded-md hover:bg-[#0F3A28] disabled:opacity-50 text-sm sm:text-base font-medium transition-colors"
           >
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
 
         <div className="mt-4 sm:mt-6 text-center">
-          <p className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3">Or sign up with Google</p>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-[#889691] mb-2 sm:mb-3">Or sign up with Google</p>
           <div className="flex justify-center">
             <GoogleLogin
               onSuccess={handleGoogleLoginSuccess}
@@ -246,12 +275,12 @@ const Register = () => {
         </div>
 
         <div className="text-center text-sm sm:text-base text-gray-500 mt-4">
-          <a href="/login" className="text-blue-600 hover:underline">Already have an account? Sign in</a>
+          <a href="/login" className="text-blue-600 dark:text-[#144D37] hover:underline">Already have an account? Sign in</a>
         </div>
 
         {/* Simple AI Disclaimer */}
         <div className="mt-4 text-center">
-          <p className="text-xs sm:text-sm text-gray-500 bg-gray-50 p-2 sm:p-3 rounded-md">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#161C1A] p-2 sm:p-3 rounded-md">
             ⚠️ AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
           </p>
         </div>

@@ -15,6 +15,7 @@ import { useChat } from './chatbox';
 import { TooltipProps } from 'recharts';
 import { AVAILABLE_METRICS } from '../data/availableMetrics';
 import { useCompanyData } from '../contexts/CompanyDataContext';
+import { useTheme } from '../contexts/ThemeContext';
 import ReportGenerationForm from './ReportGenerationForm';
 // const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // import {baseUrl} from '../api';
@@ -142,6 +143,7 @@ const HARDCODED_INDUSTRIES = [
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { modifiedData, resetTrigger } = useCompanyData();
+  const { theme, toggleTheme } = useTheme();
   
   // Initialize Stripe
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51Rtnsm3OKz7lNN5EIAyB8tRqrJQ2KBPMvLiNh5mjZiKLOqnhezmIzhCSNRk1E0QVVlN1G4RPgbZlTbXOHmmAahvN00ChkAsNey');
@@ -170,6 +172,7 @@ const Dashboard: React.FC = () => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportMessages, setReportMessages] = useState<Message[]>([]);
   const [reportFormKey, setReportFormKey] = useState(0); // Key to force reset of ReportGenerationForm
+  const [isSavingReport, setIsSavingReport] = useState(false);
   
   // Report Chat History State
   const [reportChatHistory, setReportChatHistory] = useState<any[]>([]);
@@ -258,6 +261,181 @@ const Dashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error saving chat batch:', error);
+    }
+  };
+
+  const saveReport = async () => {
+    setIsSavingReport(true);
+    try {
+      // Extract all assistant messages (the actual report content)
+      const reportContent = reportMessages
+        .filter(msg => msg.role === 'assistant' && msg.content && msg.content !== 'Thinking...')
+        .map(msg => msg.content)
+        .join('\n\n');
+
+      if (!reportContent.trim()) {
+        alert('No report content to save.');
+        setIsSavingReport(false);
+        return;
+      }
+
+      // Get company name from user messages if available
+      const userMessage = reportMessages.find(msg => msg.role === 'user');
+      let reportTitle = 'Investment Report';
+      let fileName = 'report';
+      if (userMessage) {
+        // Extract company name from user message
+        const match = userMessage.content.match(/(?:for|about)\s+([^(]+)\s*\(/i);
+        if (match) {
+          const companyName = match[1].trim();
+          reportTitle = `${companyName} - Investment Report`;
+          fileName = companyName.replace(/\s+/g, '_');
+        }
+      }
+
+      // Convert to PDF using jsPDF
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginLeft = 20;
+      const marginTop = 20;
+      const marginRight = 20;
+      const marginBottom = 20;
+      const usableWidth = pageWidth - marginLeft - marginRight;
+      const lineHeight = 12;
+      if ((doc as any).setLineHeightFactor) {
+        (doc as any).setLineHeightFactor(1.0);
+      }
+
+      let currentY = marginTop;
+
+      const ensureSpace = (requiredHeight: number) => {
+        if (currentY + requiredHeight > pageHeight - marginBottom) {
+          doc.addPage();
+          currentY = marginTop;
+        }
+      };
+
+      const writeHeading = (text: string, fontSize: number = 20) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(fontSize);
+        ensureSpace(fontSize + 8);
+        doc.text(text, marginLeft, currentY);
+        currentY += fontSize + 4;
+      };
+
+      const writeSubheading = (text: string) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        ensureSpace(20);
+        doc.text(text, marginLeft, currentY);
+        currentY += 10;
+      };
+
+      const writeParagraph = (text: string) => {
+        if (!text) return;
+        const normalized = text.replace(/\r\n/g, '\n');
+        const lines = normalized.split(/\n/);
+        
+        lines.forEach((line) => {
+          const trimmed = line.trim();
+          
+          if (trimmed.length === 0) {
+            currentY += 3;
+            return;
+          }
+          
+          // Check if it's a markdown heading
+          if (trimmed.startsWith('#')) {
+            const level = trimmed.match(/^#+/)?.[0].length || 1;
+            const headingText = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '');
+            const headingSize = level === 1 ? 18 : level === 2 ? 16 : 14;
+            writeHeading(headingText, headingSize);
+            return;
+          }
+          
+          // Check if it's a list item
+          if (trimmed.match(/^[-*]\s+/) || trimmed.match(/^\d+\.\s+/)) {
+            const listText = trimmed.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '');
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            const wrapped = doc.splitTextToSize(`• ${listText}`, usableWidth);
+            ensureSpace(wrapped.length * lineHeight);
+            wrapped.forEach((wLine: string) => {
+              doc.text(wLine, marginLeft + 5, currentY);
+              currentY += lineHeight;
+            });
+            return;
+          }
+          
+          // Process text with inline bold markers
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          let remainingText = trimmed;
+          let xPos = marginLeft;
+          
+          // Split by bold markers and process
+          const parts = remainingText.split(/(\*\*.*?\*\*)/g);
+          parts.forEach((part) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              // Bold text
+              const boldText = part.replace(/\*\*/g, '');
+              doc.setFont('helvetica', 'bold');
+              const wrapped = doc.splitTextToSize(boldText, usableWidth - (xPos - marginLeft));
+              if (wrapped.length > 0) {
+                ensureSpace(wrapped.length * lineHeight);
+                wrapped.forEach((wLine: string) => {
+                  doc.text(wLine, xPos, currentY);
+                  currentY += lineHeight;
+                  xPos = marginLeft;
+                });
+              }
+              doc.setFont('helvetica', 'normal');
+            } else if (part.trim()) {
+              // Regular text
+              const wrapped = doc.splitTextToSize(part, usableWidth - (xPos - marginLeft));
+              if (wrapped.length > 0) {
+                ensureSpace(wrapped.length * lineHeight);
+                wrapped.forEach((wLine: string) => {
+                  doc.text(wLine, xPos, currentY);
+                  currentY += lineHeight;
+                  xPos = marginLeft;
+                });
+              }
+            }
+          });
+          
+          currentY += 2; // Small spacing between lines
+        });
+      };
+
+      // Write report title
+      writeHeading(reportTitle, 20);
+
+      // Write timestamp
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      ensureSpace(12);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, marginLeft, currentY);
+      currentY += 12;
+
+      // Write report content
+      writeParagraph(reportContent);
+
+      // Save the PDF
+      const pdfFileName = `${fileName}_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(pdfFileName);
+      
+      // Show success message
+      alert('Report saved as PDF successfully!');
+      
+    } catch (error) {
+      console.error('Error saving report:', error);
+      alert('Failed to save report. Please try again.');
+    } finally {
+      setIsSavingReport(false);
     }
   };
 
@@ -924,6 +1102,25 @@ const Dashboard: React.FC = () => {
                                   }
                                   return newMsgs;
                               });
+                          } else if (eventData.type === 'image' || eventData.type === 'chart' || eventData.type === 'figure') {
+                              // Handle image/chart data - append as markdown image syntax
+                              const imageUrl = eventData.url || eventData.data || eventData.content;
+                              const imageAlt = eventData.alt || eventData.caption || 'Report image';
+                              if (imageUrl) {
+                                  setReportMessages(prev => {
+                                      const newMsgs = [...prev];
+                                      const lastIdx = newMsgs.length - 1;
+                                      if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
+                                          // Append image markdown syntax
+                                          const imageMarkdown = `\n\n![${imageAlt}](${imageUrl})\n\n`;
+                                          newMsgs[lastIdx] = {
+                                              ...newMsgs[lastIdx],
+                                              content: newMsgs[lastIdx].content + imageMarkdown
+                                          };
+                                      }
+                                      return newMsgs;
+                                  });
+                              }
                           } else if (eventData.type === 'error') {
                               console.error('Stream error:', eventData.error);
                               // Optionally append error to chat
@@ -1990,7 +2187,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <>
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-[#0B0F0E]">
       <style>
         {`
           @media print {
@@ -2005,13 +2202,13 @@ const Dashboard: React.FC = () => {
         `}
       </style>
               {/* Mobile Header */}
-        <div className="lg:hidden flex justify-between items-center p-1 xm:p-1.5 xs:p-2 sm:p-2.5 md:p-3 bg-white border-b h-14 xm:h-16 xs:h-16 sm:h-18 md:h-20">
+        <div className="lg:hidden flex justify-between items-center p-1 xm:p-1.5 xs:p-2 sm:p-2.5 md:p-3 bg-white dark:bg-[#161C1A] border-b dark:border-[#161C1A] h-14 xm:h-16 xs:h-16 sm:h-18 md:h-20">
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="p-1 xm:p-1.5 xs:p-2 rounded-md hover:bg-gray-100 transition-colors"
+            className="p-1 xm:p-1.5 xs:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
             aria-label="Open menu"
           >
-            <svg className="w-4 h-4 xm:w-4.5 xm:h-4.5 xs:w-5 xs:h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 xm:w-4.5 xm:h-4.5 xs:w-5 xs:h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 dark:text-[#E0E6E4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -2021,279 +2218,15 @@ const Dashboard: React.FC = () => {
           <div className="w-6 xm:w-7 xs:w-8 sm:w-9 md:w-10"></div> {/* Spacer for balance */}
         </div>
 
-      {/* Sidebar */}
-      <div className="hidden lg:block w-64 xl:w-72 bg-white border-r">
-        <div className="px-4 xl:px-6 h-full">
-          <div className="space-y-2 mt-[6rem]">
-
-          <div className="space-y-2">
-            {/* <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
-              <span className="text-xl">+</span>
-                <span>Upload Context Files (Optional)</span>
-            </button> */}
-            {/* <div className="pl-8 space-y-2 text-sm text-gray-600">
-              <div>Add data sources</div>
-              <div>Change model</div>
-            </div> */}
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowValuationModal(true)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">📊</span>
-              <span className="text-sm">Company Valuation</span>
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowContactModal(true)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">📞</span>
-              <span className="text-sm">Contact Us</span>
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">💡</span>
-              <span className="text-sm">Our Capabilities, Solutions, & Accelerators</span>
-              <svg 
-                className={`w-3 h-3 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {/* Dropdown Menu */}
-            {showCapabilitiesDropdown && (
-            <div className="pl-8 space-y-1 text-sm text-gray-600">
-                <button 
-                  onClick={() => setShowInsightsModal(true)}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm"
-                >
-                  Insights Generators (domain-specific)
-                </button>
-                <button 
-                  onClick={() => setShowAIOTModal(true)}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm"
-                >
-                  AIOT Platform & Solutions
-                </button>
-                <button 
-                  onClick={() => setShowOperationsModal(true)}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm"
-                >
-                  Operations Virtualization & Optimization
-                </button>
-            </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowApproachModal(true)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">⚡</span>
-                <span className="text-sm">Our Approach To Accelerate Value Creation</span>
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowValueServicesModal(true)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">🎯</span>
-                <span className="text-sm">Our Value Identification To Realization Services</span>
-            </button>
-            </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowWhyUsModal(true)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">🏆</span>
-                <span className="text-sm">Why Us</span>
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowChatHistoryDropdown(!showChatHistoryDropdown)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">📚</span>
-              <span className="text-sm">Chat History</span>
-              <svg 
-                className={`w-3 h-3 ml-auto transition-transform ${showChatHistoryDropdown ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {/* Chat History Dropdown */}
-            {showChatHistoryDropdown && (
-              <div className="pl-8 space-y-1 text-sm text-gray-600">
-                {/* New Chat Button */}
-                <button
-                  onClick={startNewChat}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm font-medium text-blue-600 border-b border-gray-200 pb-1 mb-1"
-                >
-                  ✨ New Chat
-                </button>
-                
-                {isLoadingChatHistory ? (
-                  <div className="text-gray-500 italic">Loading...</div>
-                ) : chatHistory.length > 0 ? (
-                  chatHistory.map((session, index) => (
-                    <div
-                      key={session.session_id || index}
-                      className={`group flex items-center justify-between hover:bg-gray-50 rounded p-1 ${
-                        currentChatSession === session.session_id ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <button
-                        onClick={() => loadChatBatch(session.session_id)}
-                        className={`flex-1 text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate ${
-                          currentChatSession === session.session_id ? 'text-blue-600' : ''
-                        }`}
-                        title={session.session_id}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="truncate">{session.session_id}</span>
-                          {session.message_count > 0 && (
-                            <span className="text-xs text-gray-400 ml-2">
-                              {session.message_count} msg
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                      <button
-                        onClick={(e) => deleteChatBatch(session.session_id, e)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1"
-                        title="Delete chat"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-gray-500 italic">No chat history</div>
-                )}
-            </div>
-            )}
-          </div>
-
-          {/* Report Sessions Section */}
-          <div className="space-y-2">
-            <button 
-              onClick={() => setShowReportHistoryDropdown(!showReportHistoryDropdown)}
-              className="flex items-center gap-2 w-full text-left p-1.5 hover:bg-gray-100 rounded"
-            >
-              <span className="text-sm">📊</span>
-              <span className="text-sm">Report Sessions</span>
-              <svg 
-                className={`w-3 h-3 ml-auto transition-transform ${showReportHistoryDropdown ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {/* Report Sessions Dropdown */}
-            {showReportHistoryDropdown && (
-              <div className="pl-8 space-y-1 text-sm text-gray-600">
-                {/* New Report Button */}
-                <button
-                  onClick={startNewReportChat}
-                  className="block w-full text-left hover:text-blue-600 transition-colors cursor-pointer text-sm font-medium text-blue-600 border-b border-gray-200 pb-1 mb-1"
-                >
-                  ✨ New Report
-                </button>
-                
-                {isLoadingReportHistory ? (
-                  <div className="text-gray-500 italic">Loading...</div>
-                ) : reportChatHistory.length > 0 ? (
-                  reportChatHistory.map((session, index) => (
-                    <div
-                      key={session.session_id || index}
-                      className={`group flex items-center justify-between hover:bg-gray-50 rounded p-1 ${
-                        currentReportSessionId === session.session_id ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <button
-                        onClick={() => loadReportSession(session.session_id)}
-                        className={`flex-1 text-left hover:text-blue-600 transition-colors cursor-pointer text-sm truncate ${
-                          currentReportSessionId === session.session_id ? 'text-blue-600' : ''
-                        }`}
-                        title={session.session_id}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="truncate">{session.session_id}</span>
-                          {session.message_count > 0 && (
-                            <span className="text-xs text-gray-400 ml-2">
-                              {session.message_count} msg
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                      <button
-                        onClick={(e) => deleteReportSession(session.session_id, e)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1"
-                        title="Delete session"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-gray-500 italic">No report sessions</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* <div className="space-y-2">
-            <button className="flex items-center gap-2 w-full text-left p-2 hover:bg-gray-100 rounded">
-              <span>📄</span>
-                <span>Recent charts and reports</span>
-            </button>
-            <div className="pl-8 space-y-2 text-sm text-gray-600">
-              <div>CAT revenue chart</div>
-              <div>Machinery industry report</div>
-              <div>AI Agents in Industrials</div>
-            </div>
-          </div> */}
-        </div>
-      </div>
-      </div>
-
       {/* Main Content */}
       <div className="flex-1">
         {/* Desktop Header - hidden on mobile, shown only on lg+ screens */}
-        <div className="hidden lg:block border-b bg-white absolute left-0 right-0 h-20 lg:h-24">
-          <div className="flex items-center h-full relative border">
+        <div className="hidden lg:block border-b dark:border-[#161C1A] bg-white dark:bg-[#161C1A] absolute left-0 right-0 h-20 lg:h-24">
+          <div className="flex items-center h-full relative border dark:border-[#161C1A]">
             {/* Logo container - hide on mobile and show only on desktop */}
-            <div className="hidden lg:block h-9 w-fit  overflow-visible pl-4 lg:pl-6 xl:pl-7">
+            <div className="hidden lg:block h-45 w-fit  overflow-visible pl-4 lg:pl-6 xl:pl-7">
               <img 
-                src="/inv.png" 
+                src={theme === 'dark' ? "/vshape.svg" : "/logo.svg"}
                 alt="GetDeep.AI" 
                 className="w-full h-full"
               />
@@ -2301,43 +2234,60 @@ const Dashboard: React.FC = () => {
             
             {/* GetDeeper icon container with user profile - hidden on mobile */}
             <div className="hidden lg:flex flex-1 justify-end items-center gap-3 lg:gap-4 xl:gap-6">
-              <div className="absolute top-1 lg:top-2 left-1/2 transform -translate-x-1/2 lg:mr-[15%] xl:mr-[20%] 2xl:mr-[25%]">  
+              <div className="absolute top-1 lg:top-2 left-1/3 transform -translate-x-1/2 lg:mr-[20%] xl:mr-[25%] 2xl:mr-[30%]">  
                 <button
                   onClick={() => setShowPricingModal(true)}
                   className="hover:opacity-80 transition-opacity cursor-pointer"
                   title="Upgrade to Pro"
                 >
-                  <img 
-                    src="/GetDeeperIcons.png" 
-                    alt="Pro" 
-                    className="h-12 w-fit mt-3"
-                  />
                 </button>
               </div>
-              
+
+              {/* Dark Mode Toggle - hidden on mobile, positioned between GetDeeper icon and username */}
+              <button
+                onClick={toggleTheme}
+                className="hidden lg:flex absolute right-[16rem] lg:right-[18rem] xl:right-[20rem] top-1/2 -translate-y-1/2 items-center justify-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
+              >
+                {theme === 'light' ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                    </svg>
+                    Dark Mode
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                    </svg>
+                    Light Mode
+                  </>
+                )}
+              </button>
+
               {/* User Profile - hidden on mobile */}
               <div className="absolute right-3 lg:right-4 xl:right-6" ref={profileDropdownRef}>
                 <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
                   <div className="text-right relative">
                     <button
-                      className="text-lg lg:text-xl xl:text-2xl font-medium focus:outline-none"
+                      className="text-lg lg:text-xl xl:text-2xl font-medium focus:outline-none dark:text-[#E0E6E4]"
                       onClick={() => setProfileDropdownOpen((open) => !open)}
                     >
                       {userName}
                     </button>
                     {profileDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
+                      <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg z-50">
                         {/* User Profile Section */}
-                        <div className="px-4 py-3 border-b border-gray-100">
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-[#161C1A]">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                            <div className="w-10 h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm font-medium">
                               {userInitials}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">
+                              <div className="text-sm font-medium text-gray-900 dark:text-[#E0E6E4] truncate">
                                 {userName}
                               </div>
-                              <div className="text-xs text-gray-500 truncate">
+                              <div className="text-xs text-gray-500 dark:text-[#889691] truncate">
                                 {(() => {
                                   const userInfo = localStorage.getItem('user_info');
                                   if (userInfo) {
@@ -2362,13 +2312,13 @@ const Dashboard: React.FC = () => {
                               navigate('/profile');
                               setProfileDropdownOpen(false);
                             }}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
                           >
                             View Profile
                           </button>
                           <button
                             onClick={logout}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
                           >
                             Sign out
                           </button>
@@ -2376,7 +2326,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="w-8 lg:w-9 xl:w-10 2xl:w-12 h-8 lg:h-9 xl:h-10 2xl:h-12 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm lg:text-base xl:text-lg">
+                  <div className="w-8 lg:w-9 xl:w-10 2xl:w-12 h-8 lg:h-9 xl:h-10 2xl:h-12 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm lg:text-base xl:text-lg">
                     {userInitials}
                   </div>
                 </div>
@@ -2395,19 +2345,42 @@ const Dashboard: React.FC = () => {
             />
             
             {/* Sidebar */}
-            <div className="fixed left-0 top-0 h-full w-64 xm:w-72 xs:w-80 sm:w-96 md:w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
+            <div className="fixed left-0 top-0 h-full w-64 xm:w-72 xs:w-80 sm:w-96 md:w-80 bg-white dark:bg-[#161C1A] shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b">
-                <img src="/inv.png" alt="GetDeep.AI" className="h-9 w-fit opacity-100" style={{ filter: 'contrast(1.2) brightness(1.1)' }} />
-                <button
-                  onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-2 rounded-md hover:bg-gray-100 transition-colors"
-                  aria-label="Close menu"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+              <div className="flex items-center justify-between p-4 border-b dark:border-[#161C1A]">
+                <img src={theme === 'dark' ? "/vshape.svg" : "/logo.svg"} alt="GetDeep.AI" className="h-12 w-fit opacity-100" />
+                <div className="flex items-center gap-2">
+                  {/* Dark Mode Toggle */}
+                  <button
+                    onClick={toggleTheme}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
+                  >
+                    {theme === 'light' ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                        </svg>
+                        Dark Mode
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                        </svg>
+                        Light Mode
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <svg className="w-6 h-6 dark:text-[#E0E6E4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               
               {/* Navigation Items */}
@@ -2418,7 +2391,7 @@ const Dashboard: React.FC = () => {
                       setShowValuationModal(true);
                       setIsMobileSidebarOpen(false);
                     }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
                   >
                     <span className="text-base sm:text-lg">📊</span>
                     <span className="text-sm sm:text-base">Company Valuation</span>
@@ -2431,7 +2404,7 @@ const Dashboard: React.FC = () => {
                       setShowContactModal(true);
                       setIsMobileSidebarOpen(false);
                     }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
                   >
                     <span className="text-base sm:text-lg">📞</span>
                     <span className="text-sm sm:text-base">Contact Us</span>
@@ -2441,7 +2414,7 @@ const Dashboard: React.FC = () => {
                 <div className="space-y-2">
                   <button 
                     onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
                   >
                     <span className="text-base sm:text-lg">💡</span>
                     <span className="text-sm sm:text-base">Our Capabilities, Solutions, & Accelerators</span>
@@ -2646,7 +2619,7 @@ const Dashboard: React.FC = () => {
                 {/* User Profile Section */}
                 <div className="border-t pt-4">
                   <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                    <div className="w-10 h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white">
+                    <div className="w-10 h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white">
                       {(() => {
                         const userInfo = localStorage.getItem('user_info');
                         if (userInfo) {
@@ -2722,11 +2695,11 @@ const Dashboard: React.FC = () => {
 
         {/* Main Grid */}
         <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:p-6 xl:p-8 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6 items-stretch">
             {/* Chart Section - full width on mobile */}
             {!isPerformanceMinimized && (
-              <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-6'} transition-all duration-300`}>
-              <div className="bg-white rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm" ref={performanceCardRef} id="bp-print-area">
+              <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-7'} transition-all duration-300 flex flex-col`}>
+              <div className="bg-white dark:bg-[#161C1A] rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm flex-1 flex flex-col" ref={performanceCardRef} id="bp-print-area">
 
                 {/* Business Performance Tabs */}
                 <div className="flex gap-2 mb-3">
@@ -2743,8 +2716,8 @@ const Dashboard: React.FC = () => {
                     }}
                     className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       activePerformanceTab === 'top-picks'
-                        ? 'bg-[#1B5A7D] text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-[#144D37] text-white'
+                        : 'bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]'
                     }`}
                   >
                     Top Picks
@@ -2762,15 +2735,15 @@ const Dashboard: React.FC = () => {
                     }}
                     className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                       activePerformanceTab === 'performance'
-                        ? 'bg-[#1B5A7D] text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-[#144D37] text-white'
+                        : 'bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]'
                     }`}
                   >
                     Performance
                   </button>
                   <button
                     onClick={() => setShowValuationModal(true)}
-                    className="px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    className="px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]"
                   >
                     Valuation Model
                   </button>
@@ -2790,7 +2763,7 @@ const Dashboard: React.FC = () => {
                       className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
                         isSaving 
                           ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
+                          : 'bg-[#144D37] text-white hover:bg-[#0F3A28]'
                       }`}
                       title={
                         isSaving 
@@ -2813,18 +2786,18 @@ const Dashboard: React.FC = () => {
               {activeChart === 'peers' ? (
                 <div className="relative" ref={companyDropdownRef}>
                   {/* ... existing company dropdown code ... */}
-                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
+                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 dark:border-[#161C1A] rounded min-h-[42px] bg-white dark:bg-[#1C2220]">
                     {selectedCompanies.map((company, index) => (
                       <div 
                         key={index} 
-                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
                       >
                         {company.name || company.ticker}
                         <button
                           onClick={() => setSelectedCompanies(companies => 
                             companies.filter((_, i) => i !== index)
                           )}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
                         >
                           <svg
                             className="w-3 h-3"
@@ -2848,16 +2821,16 @@ const Dashboard: React.FC = () => {
                       onChange={(e) => setCompanyInput(e.target.value)}
                       onFocus={() => setShowCompanyDropdown(true)}
                       placeholder="Search companies..."
-                      className="flex-1 min-w-[100px] outline-none text-sm"
+                      className="flex-1 min-w-[100px] outline-none text-sm bg-transparent dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                     />
                   </div>
                   
                   {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                       {companiesLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
                       ) : availableCompanies.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
                       ) : (
                         availableCompanies
                         .filter(company => 
@@ -2875,7 +2848,7 @@ const Dashboard: React.FC = () => {
                                 setCompanyInput('');
                                 setShowCompanyDropdown(false);
                               }}
-                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
                             >
                             {company.name} ({company.ticker})
                             </div>
@@ -2897,7 +2870,7 @@ const Dashboard: React.FC = () => {
                       setIndustrySearch('');
                     }}
                     onFocus={() => setShowCompanyDropdown(true)}
-                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                   />
                   {selectedTicker && (
                     <button
@@ -2907,7 +2880,7 @@ const Dashboard: React.FC = () => {
                         setSelectedIndustry('');
                         setIndustrySearch('');
                       }}
-                      className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-[#E0E6E4]"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2921,11 +2894,11 @@ const Dashboard: React.FC = () => {
                   </div>
                   
                   {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                       {companiesLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
                       ) : availableCompanies.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
                       ) : (
                         availableCompanies
                         .filter(company => 
@@ -2954,7 +2927,7 @@ const Dashboard: React.FC = () => {
                                   setIndustrySearch(industryName);
                                 }
                               }}
-                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
                             >
                             {company.name} ({company.ticker})
                             </div>
@@ -2971,12 +2944,12 @@ const Dashboard: React.FC = () => {
                     onChange={(e) => setSearchValue(e.target.value)}
                     onFocus={() => setShowCompanyDropdown(true)}
                     placeholder="Search company..."
-                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                   />
                   {searchValue && (
                     <button
                       onClick={() => setSearchValue('')}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-[#E0E6E4]"
                     >
                       <svg
                         className="w-4 h-4"
@@ -3000,11 +2973,11 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                       {companiesLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
                       ) : availableCompanies.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
                       ) : (
                         availableCompanies
                         .filter(company => 
@@ -3018,7 +2991,7 @@ const Dashboard: React.FC = () => {
                               setSearchValue(company.ticker);
                                 setShowCompanyDropdown(false);
                               }}
-                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
                             >
                             {company.name} ({company.ticker})
                             </div>
@@ -3038,32 +3011,32 @@ const Dashboard: React.FC = () => {
                  <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
                   <button 
                     onClick={() => setActiveChart('valuation')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
-                      activeChart === 'valuation' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${
+                      activeChart === 'valuation' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                     }`}
                   >
                     Valuation
                   </button>
                   <button 
                     onClick={() => setActiveChart('metrics')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded ${
-                      activeChart === 'metrics' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${
+                      activeChart === 'metrics' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                     }`}
                   >
                     Across Metrics
                   </button>
                   <button 
                     onClick={() => setActiveChart('peers')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
-                      activeChart === 'peers' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm transition-colors rounded ${
+                      activeChart === 'peers' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                     }`}
                   >
                     Across Peers
                   </button>
                   <button 
                     onClick={() => setActiveChart('industry')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm ${
-                      activeChart === 'industry' ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-600'
+                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm transition-colors rounded ${
+                      activeChart === 'industry' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                     }`}
                   >
                     Across Industry
@@ -3076,70 +3049,70 @@ const Dashboard: React.FC = () => {
                     <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3 min-w-max">
                           <button 
                       onClick={() => setSelectedPeriod('Last 1Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 1Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 1Y AVG
                           </button>
                           <button 
                       onClick={() => setSelectedPeriod('Last 2Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 2Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 2Y AVG
                           </button>
                           <button 
                       onClick={() => setSelectedPeriod('Last 3Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 3Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 3Y AVG
                           </button>
                           <button 
                       onClick={() => setSelectedPeriod('Last 4Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 4Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 4Y AVG
                           </button>
                           <button 
                       onClick={() => setSelectedPeriod('Last 5Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 5Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 5Y AVG
                           </button>
                           <button 
                       onClick={() => setSelectedPeriod('Last 10Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 10Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 10Y AVG
                           </button>
                           <button 
                       onClick={() => setSelectedPeriod('Last 15Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs ${
+                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
                         selectedPeriod === 'Last 15Y AVG' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Last 15Y AVG
@@ -3150,30 +3123,30 @@ const Dashboard: React.FC = () => {
                   <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
                           <button 
                       onClick={() => setSelectedPeriod('Annual')}
-                       className={`flex-1 px-4 py-2 rounded text-sm ${
+                       className={`flex-1 px-4 py-2 rounded text-sm transition-colors ${
                         selectedPeriod === 'Annual' 
-                                ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                                : 'text-gray-600'
+                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                             }`}
                           >
                       Annual
                     </button>
                     <button 
                       onClick={() => setSelectedPeriod('Average')}
-                       className={`flex-1 px-4 py-2 rounded text-sm ${
+                       className={`flex-1 px-4 py-2 rounded text-sm transition-colors ${
                         selectedPeriod === 'Average' 
-                          ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                          : 'text-gray-600'
+                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                       }`}
                     >
                       Average
                     </button>
                     <button 
                       onClick={() => setSelectedPeriod('CAGR')}
-                       className={`flex-1 px-4 py-2 rounded text-sm ${
+                       className={`flex-1 px-4 py-2 rounded text-sm transition-colors ${
                         selectedPeriod === 'CAGR' 
-                          ? 'bg-[#E5F0F6] text-[#1B5A7D]' 
-                          : 'text-gray-600'
+                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
+                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
                       }`}
                     >
                       CAGR
@@ -3191,7 +3164,7 @@ const Dashboard: React.FC = () => {
             {/* Industry selection - restored */}
             {activeChart === 'industry' && (
               <div>
-                <div className="text-sm xl:text-base text-gray-500">Industry</div>
+                <div className="text-sm xl:text-base text-gray-500 dark:text-[#889691]">Industry</div>
                 <div className="relative" ref={industryDropdownRef}>
                   <input
                     type="text"
@@ -3207,7 +3180,7 @@ const Dashboard: React.FC = () => {
                     onFocus={() => {
                         setShowIndustryDropdown(true);
                     }}
-                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#1C2220] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
                   />
                   {(selectedIndustry || industrySearch) && (
                     <button
@@ -3216,7 +3189,7 @@ const Dashboard: React.FC = () => {
                         setIndustrySearch('');
                         setShowIndustryDropdown(false);
                       }}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
                     >
                       <svg
                         className="w-4 h-4"
@@ -3234,15 +3207,15 @@ const Dashboard: React.FC = () => {
                     </button>
                   )}
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                   
                   {showIndustryDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                       {availableIndustries.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No industries available</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No industries available</div>
                       ) : (
                         availableIndustries
                           .filter(ind => 
@@ -3259,7 +3232,7 @@ const Dashboard: React.FC = () => {
                                 setIndustrySearch(ind.label);
                                 setShowIndustryDropdown(false);
                               }}
-                              className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                              className="px-3 py-1 text-sm xl:text-base text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer"
                             >
                               {ind.label}
                             </div>
@@ -3279,14 +3252,14 @@ const Dashboard: React.FC = () => {
               {activeChart === 'peers' ? (
                 <div className="relative" ref={peerDropdownRef}>
                   {/* Unified input with inline chips */}
-                  <div className="relative border border-gray-200 rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D]">
+                  <div className="relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] bg-white dark:bg-[#1C2220]">
                     {/* Selected metrics as chips */}
                     {selectedPeerMetrics.map((metric, index) => {
                       const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
                       return (
                         <div 
                           key={index} 
-                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
                         >
                           {metricLabel}
                     <button
@@ -3294,7 +3267,7 @@ const Dashboard: React.FC = () => {
                               setSelectedPeerMetrics(metrics => metrics.filter((_, i) => i !== index));
                         setSelectedPeerMetric('');
                       }}
-                            className="text-gray-400 hover:text-gray-600"
+                            className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
                           >
                             <svg
                               className="w-3 h-3"
@@ -3321,7 +3294,7 @@ const Dashboard: React.FC = () => {
                       value={peerMetricSearch}
                       onChange={(e) => setPeerMetricSearch(e.target.value)}
                       onFocus={() => setShowPeerMetricDropdown(true)}
-                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base"
+                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-white dark:placeholder-gray-400"
                     />
                     
                     {/* Dropdown chevron */}
@@ -3334,7 +3307,7 @@ const Dashboard: React.FC = () => {
                   
                   {/* Dropdown menu */}
                   {showPeerMetricDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                       {availableMetrics
                         .filter(metric => 
                           !selectedPeerMetrics.includes(metric.value) &&
@@ -3352,7 +3325,7 @@ const Dashboard: React.FC = () => {
                               setPeerMetricSearch('');
                               setShowPeerMetricDropdown(false);
                             }}
-                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
                           >
                         {metric.label}
                           </div>
@@ -3363,19 +3336,19 @@ const Dashboard: React.FC = () => {
               ) : activeChart === 'metrics' ? (
                 <div className="relative" ref={dropdownRef}>
                   {/* Unified input with inline chips */}
-                  <div className="relative border border-gray-200 rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D]">
+                  <div className="relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] bg-white dark:bg-[#1C2220]">
                     {/* Selected metrics as chips */}
                     {selectedSearchMetrics.map((metric, index) => (
                       <div 
                         key={index} 
-                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
                       >
                         {metric}
                         <button
                           onClick={() => setSelectedSearchMetrics(metrics => 
                             metrics.filter((_, i) => i !== index)
                           )}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
                         >
                           <svg
                             className="w-3 h-3"
@@ -3401,7 +3374,7 @@ const Dashboard: React.FC = () => {
                       value={searchMetricInput}
                       onChange={(e) => setSearchMetricInput(e.target.value)}
                       onFocus={() => setShowMetricDropdown(true)}
-                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base"
+                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-white dark:placeholder-gray-400"
                     />
                     
                     {/* Dropdown chevron */}
@@ -3414,7 +3387,7 @@ const Dashboard: React.FC = () => {
 
                   {/* Dropdown menu */}
                     {showMetricDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                         {availableMetrics
                           .filter(metric => 
                             !selectedSearchMetrics.includes(metric.value) &&
@@ -3431,7 +3404,7 @@ const Dashboard: React.FC = () => {
                                 setSearchMetricInput('');
                                 setShowMetricDropdown(false);
                               }}
-                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
                             >
                             {metric.label}
                             </div>
@@ -3442,21 +3415,21 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div className="relative" ref={dropdownRef}>
                   {/* Unified input with inline chips */}
-                  <div className={`relative border border-gray-200 rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50' : ''}`}>
+                  <div className={`relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 dark:bg-[#161C1A]' : 'bg-white dark:bg-[#1C2220]'}`}>
                   {/* Selected metrics as chips */}
                     {selectedIndustryMetrics.map((metric, index) => {
                       const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
                       return (
                         <div 
                           key={index} 
-                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
                         >
                           {metricLabel}
                           <button
                             onClick={() => setSelectedIndustryMetrics(metrics => 
                               metrics.filter((_, i) => i !== index)
                             )}
-                            className="text-gray-400 hover:text-gray-600"
+                            className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
                           >
                             <svg
                               className="w-3 h-3"
@@ -3483,7 +3456,7 @@ const Dashboard: React.FC = () => {
                       value={industryMetricInput}
                       onChange={(e) => setIndustryMetricInput(e.target.value)}
                       onFocus={() => setShowMetricDropdown(true)}
-                      className={`flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                      className={`flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-[#E0E6E4] dark:placeholder-[#889691] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 dark:bg-[#161C1A] cursor-not-allowed' : ''}`}
                       disabled={selectedIndustryMetrics.length >= 3}
                     />
                     
@@ -3497,7 +3470,7 @@ const Dashboard: React.FC = () => {
                     
                   {/* Dropdown menu */}
                     {showMetricDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                         {availableMetrics
                           .filter(metric => 
                             !selectedIndustryMetrics.includes(metric.value) &&
@@ -3516,8 +3489,8 @@ const Dashboard: React.FC = () => {
                               }}
                             className={`px-3 py-1 text-sm xl:text-base cursor-pointer ${
                                 selectedIndustryMetrics.length >= 3 
-                                  ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
-                                  : 'hover:bg-gray-100'
+                                  ? 'bg-gray-50 dark:bg-[#161C1A] text-gray-400 cursor-not-allowed' 
+                                  : 'hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4]'
                               }`}
                             >
                               {metric.label}
@@ -3531,7 +3504,7 @@ const Dashboard: React.FC = () => {
             )}
           </div>
 
-                <div className="h-[180px] xs:h-[200px] sm:h-[300px] md:h-[350px] xl:h-[400px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4 bp-scroll">
+                <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4 bp-scroll">
           {activePerformanceTab === 'top-picks' ? (
             <TopPicks 
               companies={availableCompanies}
@@ -3541,20 +3514,20 @@ const Dashboard: React.FC = () => {
           ) : activeChart === 'metrics' ? (
                     // Metrics Chart
                     isLoading ? (
-                      <div className="flex items-center justify-center h-full">
+                      <div className="flex items-center justify-center h-full min-h-[400px]">
                         <span>Loading...</span>
                       </div>
                     ) : error ? (
-                      <div className="flex items-center justify-center h-full text-red-500">
+                      <div className="flex items-center justify-center h-full min-h-[400px] text-red-500">
                         {error}
                       </div>
                     ) : chartData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-gray-500">
+                      <div className="flex items-center justify-center h-full min-h-[400px] text-gray-500">
                         No data available
                       </div>
                     ) : ( 
-                      <div ref={chartContainerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div ref={chartContainerRef} className="w-full min-h-[400px]" style={{ position: 'relative' }}>
+                        <ResponsiveContainer width="100%" height={400}>
                           <LineChart 
                             data={chartData}
                             onMouseMove={e => {
@@ -3791,8 +3764,8 @@ const Dashboard: React.FC = () => {
                         No data available
                       </div>
                     ) : (
-                      <div ref={chartContainerRef} style={{ position: 'relative', width: '100%', height: 400 }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div ref={chartContainerRef} className="w-full min-h-[400px]" style={{ position: 'relative' }}>
+                        <ResponsiveContainer width="100%" height={400}>
                           <LineChart 
                             data={peerChartData.filter(dataPoint => {
                               // Filter out dummy data points based on selected period
@@ -4028,36 +4001,38 @@ const Dashboard: React.FC = () => {
                         {industryError}
                       </div>
                     ) : industryChartData && industryChartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={industryChartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                          <XAxis dataKey="name" />
-                          <YAxis 
-                            tickFormatter={(value) => new Intl.NumberFormat('en-US', {
-                              notation: 'compact',
-                              maximumFractionDigits: 1
-                            }).format(value)}
-                          />
-                          <Tooltip 
-                            formatter={(value: number) => new Intl.NumberFormat('en-US', {
+                      <div className="w-full min-h-[400px]" style={{ position: 'relative' }}>
+                        <ResponsiveContainer width="100%" height={400}>
+                          <LineChart data={industryChartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                            <XAxis dataKey="name" />
+                            <YAxis 
+                              tickFormatter={(value) => new Intl.NumberFormat('en-US', {
                                 notation: 'compact',
                                 maximumFractionDigits: 1
-                            }).format(value)}
-                          />
-                          <Legend />
-                          {selectedIndustryMetrics.map((metric, idx) => (
-                            <Line
-                              key={metric}
-                              type="monotone"
-                              dataKey={metric}
-                              stroke={generateColorPalette(selectedIndustryMetrics.length)[idx]}
-                              name={availableMetrics.find(m => m.value === metric)?.label || metric}
-                              strokeWidth={2}
-                              dot={{ r: 4 }}
+                              }).format(value)}
                             />
-                          ))}
-                        </LineChart>
-                      </ResponsiveContainer>
+                            <Tooltip 
+                              formatter={(value: number) => new Intl.NumberFormat('en-US', {
+                                  notation: 'compact',
+                                  maximumFractionDigits: 1
+                              }).format(value)}
+                            />
+                            <Legend />
+                            {selectedIndustryMetrics.map((metric, idx) => (
+                              <Line
+                                key={metric}
+                                type="monotone"
+                                dataKey={metric}
+                                stroke={generateColorPalette(selectedIndustryMetrics.length)[idx]}
+                                name={availableMetrics.find(m => m.value === metric)?.label || metric}
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                              />
+                            ))}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         No data available
@@ -4076,10 +4051,10 @@ const Dashboard: React.FC = () => {
 
             {/* Insights Generation - full width on mobile */}
             {!isChatbotMinimized && (
-              <div className={`${isPerformanceMinimized ? 'lg:col-span-12' : 'lg:col-span-4'} lg:mr-[-11rem] transition-all duration-300`}>
-                <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
-                  <div className="bg-white rounded-lg shadow-sm">
-                  <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b">
+              <div className={`${isPerformanceMinimized ? 'lg:col-span-12' : 'lg:col-span-3'} ${isPerformanceMinimized ? '' : 'lg:mr-[-11rem]'} transition-all duration-300 flex flex-col`}>
+                <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4 flex-1 flex flex-col">
+                  <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+                  <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
                     <div className="flex justify-end items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2 mb-3">
                       {/* Maximize Button */}
                       <button
@@ -4087,32 +4062,32 @@ const Dashboard: React.FC = () => {
                           setIsPerformanceMinimized(!isPerformanceMinimized);
                           setIsChatbotMinimized(false); // Ensure chatbot is shown when maximizing
                         }}
-                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-[#144D37] dark:bg-[#144D37] text-white dark:text-white rounded hover:bg-[#0F3A28] dark:hover:bg-[#0F3A28] transition-colors"
                         title={isPerformanceMinimized ? "Show performance tab" : "Maximize chatbot"}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
-                          <path d="M4 4h12v12H4V4z" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M4 4h12v12H4V4z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </button>
                       {/* Minimize/Hide Button */}
                       <button
                         onClick={() => setIsChatbotMinimized(!isChatbotMinimized)}
-                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] rounded hover:bg-gray-300 dark:hover:bg-[#161C1A] transition-colors"
                         title={isChatbotMinimized ? "Show chatbot" : "Hide chatbot"}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
                           {isChatbotMinimized ? (
-                            <path d="M10 4v12M4 10h12" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
+                            <path d="M10 4v12M4 10h12" stroke="#144D37" strokeWidth="2" strokeLinecap="round"/>
                           ) : (
-                            <path d="M4 10h12" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
+                            <path d="M4 10h12" stroke="#144D37" strokeWidth="2" strokeLinecap="round"/>
                           )}
                         </svg>
                       </button>
                       {/* Clear Chat Button */}
                       <button
-                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 dark:bg-gray-400 text-gray-700 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
                         title="Click to reset conversation"
                         onClick={() => {
                           // Clear Insights Chat
@@ -4125,42 +4100,63 @@ const Dashboard: React.FC = () => {
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
-                          <path d="M6 6l8 8M6 14L14 6" stroke="#1B5A7D" strokeWidth="2" strokeLinecap="round"/>
+                          <path d="M6 6l8 8M6 14L14 6" stroke="#144D37" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
                       </button>
-                      {/* Save Conversation Button */}
-                      <button 
-                        onClick={saveConversation}
-                        disabled={isSavingConversation || messages.length <= 1}
-                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
-                          isSavingConversation || messages.length <= 1
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
-                        }`}
-                        title={
-                          isSavingConversation 
-                            ? 'Generating PDF...' 
-                            : messages.length <= 1
-                            ? 'No conversation to save'
-                            : 'Save conversation as PDF report'
-                        }
-                      >
-                        {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
-                      </button>
+                      {/* Save Conversation/Report Button */}
+                      {chatMode === 'report' ? (
+                        <button 
+                          onClick={saveReport}
+                          disabled={isSavingReport || reportMessages.filter(msg => msg.role === 'assistant' && msg.content && msg.content !== 'Thinking...').length === 0}
+                          className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
+                            isSavingReport || reportMessages.filter(msg => msg.role === 'assistant' && msg.content && msg.content !== 'Thinking...').length === 0
+                              ? 'bg-gray-400 dark:bg-[#161C1A] cursor-not-allowed text-gray-200' 
+                              : 'bg-[#144D37] text-white hover:bg-[#0F3A28]'
+                          }`}
+                          title={
+                            isSavingReport 
+                              ? 'Saving report...' 
+                              : reportMessages.filter(msg => msg.role === 'assistant' && msg.content && msg.content !== 'Thinking...').length === 0
+                              ? 'No report to save'
+                              : 'Download report as text file'
+                          }
+                        >
+                          {isSavingReport ? 'Saving...' : 'Save Report'}
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={saveConversation}
+                          disabled={isSavingConversation || messages.length <= 1}
+                          className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
+                            isSavingConversation || messages.length <= 1
+                              ? 'bg-gray-400 cursor-not-allowed' 
+                              : 'bg-[#144D37] text-white hover:bg-[#0F3A28]'
+                          }`}
+                          title={
+                            isSavingConversation 
+                              ? 'Generating PDF...' 
+                              : messages.length <= 1
+                              ? 'No conversation to save'
+                              : 'Save conversation as PDF report'
+                          }
+                        >
+                          {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
+                        </button>
+                      )}
                     </div>
-                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium">
+                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium dark:text-white">
                       {chatMode === 'insights' ? 'Insights Generation' : 'Report Generation'}
                     </h2>
                   </div>
                   
                   {/* Toggle Tabs */}
-                  <div className="flex space-x-2 px-4 xl:px-6 pt-4 border-b border-gray-200">
+                  <div className="flex space-x-2 px-4 xl:px-6 pt-4 border-b border-gray-200 dark:border-[#161C1A]">
                     <button
                       onClick={() => setChatMode('insights')}
                       className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
                         chatMode === 'insights'
-                          ? 'text-[#1B5A7D] border-b-2 border-[#1B5A7D]'
-                          : 'text-gray-500 hover:text-gray-700'
+                          ? 'text-[#144D37] border-b-2 border-[#144D37]'
+                          : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
                       }`}
                     >
                       Insights Generation
@@ -4169,8 +4165,8 @@ const Dashboard: React.FC = () => {
                       onClick={() => setChatMode('report')}
                       className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
                         chatMode === 'report'
-                          ? 'text-[#1B5A7D] border-b-2 border-[#1B5A7D]'
-                          : 'text-gray-500 hover:text-gray-700'
+                          ? 'text-[#144D37] border-b-2 border-[#144D37]'
+                          : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
                       }`}
                     >
                       Report Generation
@@ -4178,16 +4174,17 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   {/* Conditional Content */}
+                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                   {chatMode === 'insights' ? (
                     <>
                   {/* Chat Header with New Chat Button */}
-                  <div className="flex items-center justify-between p-4 xl:p-6 border-b">
-                    <h3 className="text-lg font-semibold text-gray-800">
+                  <div className="flex items-center justify-between p-4 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">
                       {currentChatSession ? 'Chat Session' : 'New Chat'}
                     </h3>
                     <button
                       onClick={startNewChat}
-                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-3 py-1.5 text-sm bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors"
                     >
                       ✨ New Chat
                     </button>
@@ -4196,17 +4193,17 @@ const Dashboard: React.FC = () => {
                   {/* Chat Messages */}
                   <div 
                     ref={chatMessagesRef}
-                    className="h-[200px] xs:h-[250px] sm:h-[300px] md:h-[400px] xl:h-[500px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
+                    className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
                   >
                     {messages.map((message, index) => 
                       message.role === 'assistant' ? (
                         <div key={index} className="flex gap-3 xl:gap-4">
-                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm xl:text-base">
+                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base">
                             AI
                           </div>
                           <div className="flex-1">
-                            <div className={`bg-[#E5F0F6] rounded-lg p-3 xl:p-4 text-sm xl:text-base ${
-                              message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600' : ''
+                            <div className={`bg-[#E5F0F6] dark:bg-[#1C2220] dark:text-[#E0E6E4] rounded-lg p-3 xl:p-4 text-sm xl:text-base ${
+                              message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-[#889691]' : ''
                             }`}>
                               {message.content}
                             </div>
@@ -4215,11 +4212,11 @@ const Dashboard: React.FC = () => {
                       ) : (
                         <div key={index} className="flex gap-3 justify-end xl:gap-4">
                           <div className="flex-1">
-                            <div className="bg-gray-100 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%]">
+                            <div className="bg-gray-100 dark:bg-[#1C2220] dark:text-[#E0E6E4] rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%]">
                               {message.content}
                             </div>
                           </div>
-                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm xl:text-base">
+                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base dark:text-[#E0E6E4]">
                             {userInitials}
                           </div>
                         </div>
@@ -4228,7 +4225,7 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   {/* Chat Input */}
-                  <div className="p-4 xl:p-6 border-t">
+                  <div className="p-4 xl:p-6 border-t dark:border-[#161C1A] flex-shrink-0">
                     <form 
                       className="flex gap-2 xl:gap-3"
                       onSubmit={(e) => {
@@ -4245,14 +4242,14 @@ const Dashboard: React.FC = () => {
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Ask Me Anything..."
-                        className="flex-1 px-3 xl:px-4 py-2 xl:py-3 text-sm xl:text-base border rounded-lg"
+                        className="flex-1 px-3 xl:px-4 py-2 xl:py-3 text-sm xl:text-base border dark:border-[#161C1A] rounded-lg bg-white dark:bg-[#161C1A] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                       />
                       <button 
                         type="button" 
                         className={`p-1 xl:p-2 rounded transition-colors ${
                           isListening 
-                            ? 'bg-red-100 hover:bg-red-200' 
-                            : 'hover:bg-gray-100'
+                            ? 'bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800' 
+                            : 'hover:bg-gray-100 dark:hover:bg-[#161C1A]'
                         }`}
                         title={isListening ? "Listening... Click to stop" : "Click to speak"}
                         onClick={startListening}
@@ -4270,11 +4267,11 @@ const Dashboard: React.FC = () => {
                       {/* File Upload Button */}
                       <button 
                         type="button" 
-                        className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100"
+                        className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100 dark:hover:bg-[#161C1A]"
                         title="Upload files"
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        <span className="text-2xl font-bold text-[#1B5A7D]">+</span>
+                        <span className="text-2xl font-bold text-[#144D37] dark:text-[#144D37]">+</span>
                       </button>
                       
                       {/* Hidden File Input */}
@@ -4288,7 +4285,7 @@ const Dashboard: React.FC = () => {
                       />
                       <button 
                         type="submit" 
-                        className="p-2 xl:p-3 bg-[#1B5A7D] text-white rounded hover:bg-[#164964] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        className="p-2 xl:p-3 bg-[#144D37] text-white rounded hover:bg-[#0F3A28] disabled:bg-gray-300 disabled:cursor-not-allowed"
                         disabled={!inputValue.trim() || isChatLoading}
                       >
                         <span className="text-lg">{isChatLoading ? '⏳' : '➤'}</span>
@@ -4296,15 +4293,15 @@ const Dashboard: React.FC = () => {
                     </form>
                     
                     {/* Chat Disclaimer - beneath the input area */}
-                    <div className="mt-3 text-xs text-gray-500 bg-gray-50 p-2 rounded text-center">
+                    <div className="mt-3 text-xs text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#161C1A] p-2 rounded text-center">
                       💡 AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
                     </div>
                     
                     {/* Uploaded Files Display */}
                     {uploadedFiles.length > 0 && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="mt-3 p-3 bg-gray-50 dark:bg-[#161C1A] rounded-lg">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700">Uploaded Files:</span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">Uploaded Files:</span>
                           <button
                             onClick={() => setUploadedFiles([])}
                             className="text-xs text-red-600 hover:text-red-800"
@@ -4314,11 +4311,11 @@ const Dashboard: React.FC = () => {
                   </div>
                         <div className="space-y-2">
                           {uploadedFiles.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                            <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-[#161C1A] rounded border dark:border-[#161C1A]">
                               <div className="flex items-center space-x-2">
-                                <span className="text-blue-600">📎</span>
-                                <span className="text-sm text-gray-700 truncate max-w-48">{file.name}</span>
-                                <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                                <span className="text-blue-600 dark:text-blue-400">📎</span>
+                                <span className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-48">{file.name}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
                 </div>
                               <button
                                 onClick={() => removeFile(index)}
@@ -4336,7 +4333,7 @@ const Dashboard: React.FC = () => {
                   ) : (
                     <>
                       {/* Report Generation Form - At Top */}
-                      <div className="p-4 xl:p-6 border-b">
+                      <div className="p-4 xl:p-6 border-b dark:border-gray-700 flex-shrink-0">
                         <ReportGenerationForm 
                           key={reportFormKey}
                           onGenerate={handleReportGenerate} 
@@ -4349,38 +4346,48 @@ const Dashboard: React.FC = () => {
                       {/* Report Generation Chat Messages - In Middle */}
                       <div 
                         ref={chatMessagesRef}
-                        className="h-[200px] xs:h-[250px] sm:h-[300px] md:h-[400px] xl:h-[500px] overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
+                        className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
                       >
                         {reportMessages.map((message, index) => 
                           message.role === 'assistant' ? (
                             <div key={index} className="flex gap-3 xl:gap-4">
-                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#1B5A7D] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
+                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
                                 AI
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className={`bg-white rounded-lg border border-gray-200 shadow-sm p-4 xl:p-6 ${
-                                  message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600' : ''
+                                <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4 xl:p-6 ${
+                                  message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
                                 }`}>
                                   {message.content === 'Thinking...' ? (
                                     message.content
                                   ) : (
                                     <ReactMarkdown
                                       components={{
-                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mb-4 mt-0" {...props} />,
-                                        h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 mb-3 mt-6 border-b border-gray-200 pb-2" {...props} />,
-                                        h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 mb-2 mt-4" {...props} />,
-                                        p: ({node, ...props}) => <p className="text-gray-700 leading-relaxed mb-4" {...props} />,
-                                        strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
-                                        ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2" {...props} />,
-                                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2" {...props} />,
-                                        li: ({node, ...props}) => <li className="text-gray-700 leading-relaxed" {...props} />,
-                                        hr: ({node, ...props}) => <hr className="my-6 border-gray-300" {...props} />,
-                                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 my-4" {...props} />,
+                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
+                                        h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
+                                        h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4" {...props} />,
+                                        p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props} />,
+                                        strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
+                                        ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                        li: ({node, ...props}) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
+                                        hr: ({node, ...props}) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
+                                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
+                                        img: ({node, ...props}: any) => (
+                                          <img 
+                                            {...props} 
+                                            className="max-w-full h-auto rounded-lg my-4 shadow-md" 
+                                            alt={props.alt || 'Report image'}
+                                            onError={(e: any) => {
+                                              e.target.style.display = 'none';
+                                            }}
+                                          />
+                                        ),
                                         code: ({node, inline, ...props}: any) => 
                                           inline ? (
-                                            <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props} />
+                                            <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200" {...props} />
                                           ) : (
-                                            <code className="block bg-gray-100 p-3 rounded text-sm font-mono text-gray-800 overflow-x-auto my-4" {...props} />
+                                            <code className="block bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto my-4" {...props} />
                                           ),
                                       }}
                                     >
@@ -4393,11 +4400,11 @@ const Dashboard: React.FC = () => {
                           ) : (
                             <div key={index} className="flex gap-3 justify-end xl:gap-4">
                               <div className="flex-1">
-                                <div className="bg-gray-100 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%]">
+                                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
                                   {message.content}
                                 </div>
                               </div>
-                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0">
+                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
                                 {userInitials}
                               </div>
                             </div>
@@ -4406,6 +4413,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     </>
                   )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -4419,7 +4427,7 @@ const Dashboard: React.FC = () => {
           <div className="fixed bottom-4 right-4 z-50">
             <button
               onClick={() => setIsChatbotMinimized(false)}
-              className="bg-[#1B5A7D] text-white px-4 py-2 rounded-lg shadow-lg hover:bg-[#164964] transition-colors flex items-center gap-2"
+              className="bg-[#144D37] text-white px-4 py-2 rounded-lg shadow-lg hover:bg-[#0F3A28] transition-colors flex items-center gap-2"
               title="Show chatbot"
             >
               <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
@@ -4938,7 +4946,7 @@ const Dashboard: React.FC = () => {
       {/* Valuation Modal */}
       {showValuationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
             <ValuationPage 
               onClose={() => setShowValuationModal(false)}
               initialCompany={searchValue}

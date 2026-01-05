@@ -14,6 +14,7 @@ import ValuationPage from './components/ValuationPage';
 import BalanceSheet from './components/BalanceSheet';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { CompanyDataProvider } from './contexts/CompanyDataContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import './App.css';
 
 // Check if user is authenticated
@@ -23,6 +24,7 @@ const GOOGLE_CLIENT_ID = '791634680391-elnan8tnv6tp3247anotm14g6g671uvi.apps.goo
 
 function App() {
   return (
+    <ThemeProvider>
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <CompanyDataProvider>
         <Router>
@@ -60,6 +62,7 @@ function App() {
         </Router>
       </CompanyDataProvider>
     </GoogleOAuthProvider>
+    </ThemeProvider>
   );
 }
 

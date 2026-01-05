@@ -218,12 +218,12 @@ const renderForecastReadonlyInput = (
     { year, hideZero }
   );
 
-  const inputClasses = `${inputClassName ?? 'w-full p-2 text-center border border-blue-300 rounded bg-blue-50'} pl-6 pr-6`;
+  const inputClasses = `${inputClassName ?? 'w-full p-2 text-center border border-blue-300 dark:border-blue-600 rounded bg-blue-50 dark:bg-blue-900/20'} pl-6 pr-6`;
   const wrapperClasses = `relative w-full ${wrapperClassName ?? ''}`.trim();
 
   return (
     <div className={wrapperClasses}>
-      <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 ${prefixClassName ?? ''}`.trim()}>
+      <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 ${prefixClassName ?? ''}`.trim()}>
         {prefix}
       </span>
       <input
@@ -234,7 +234,7 @@ const renderForecastReadonlyInput = (
         placeholder={shouldDisplay ? undefined : emptyValue}
       />
       {(suffix || shouldDisplay) && (
-        <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 ${suffixClassName ?? ''}`.trim()}>
+        <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 ${suffixClassName ?? ''}`.trim()}>
           {suffix}
         </span>
       )}
@@ -270,8 +270,8 @@ const renderForecastReadonlyDisplay = (
   );
 
   const baseClasses = shouldDisplay
-    ? 'bg-blue-50 text-gray-700'
-    : 'bg-gray-100 text-gray-400';
+    ? 'bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white'
+    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500';
 
   const wrapperClasses = `relative block rounded p-2 pl-6 pr-6 text-center ${baseClasses} ${wrapperClassName ?? ''}`.trim();
 
@@ -285,12 +285,12 @@ const renderForecastReadonlyDisplay = (
 
   return (
     <div className={wrapperClasses}>
-      <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 ${prefixClassName ?? ''}`.trim()}>
+      <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 ${prefixClassName ?? ''}`.trim()}>
         {prefix}
       </span>
       <span>{value}</span>
       {(suffix || shouldDisplay) && (
-        <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 ${suffixClassName ?? ''}`.trim()}>
+        <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 ${suffixClassName ?? ''}`.trim()}>
           {suffix}
         </span>
       )}
@@ -424,11 +424,11 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
   return (
 
-    <div className="mb-8 bg-white rounded-lg shadow-sm border">
+    <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
 
-      <div className="p-4 border-b bg-gray-50">
+      <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
 
       </div>
 
@@ -436,13 +436,13 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
       <div className="overflow-x-auto">
 
-        <table className="w-full text-sm">
+        <table className="w-full text-sm text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="bg-gray-100 border-b">
+            <tr className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
 
-              <th className="text-left px-4 py-3 font-medium text-gray-700 sticky left-0 z-30 bg-gray-100 border-r min-w-[250px]">
+              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-30 bg-gray-100 dark:bg-gray-700 border-r dark:border-gray-600 min-w-[250px]">
 
                 Breakdown
 
@@ -450,7 +450,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
               {years.map(year => (
 
-                <th key={year} className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px]">
+                <th key={year} className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px]">
 
                   {year}
 
@@ -474,9 +474,9 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                   {/* Main category header */}
 
-                  <tr className="bg-gray-100 border-b-2 border-gray-300">
+                  <tr className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
 
-                    <td className="px-4 py-3 font-bold text-gray-800 sticky left-0 z-20 bg-gray-100 border-r">
+                    <td className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-20 bg-gray-100 dark:bg-gray-700 border-r dark:border-gray-600">
 
                       <button
 
@@ -500,7 +500,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                     {years.map(year => (
 
-                      <td key={year} className="p-2 text-center bg-gray-100"></td>
+                      <td key={year} className="p-2 text-center bg-gray-100 dark:bg-gray-700"></td>
 
                     ))}
 
@@ -520,9 +520,9 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                           {/* Subcategory header */}
 
-                          <tr className="bg-gray-50 border-b">
+                          <tr className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
 
-                            <td className="pl-6 px-4 py-3 font-semibold text-gray-700 sticky left-0 z-10 bg-gray-50 border-r">
+                            <td className="pl-6 px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600">
 
                               <button
 
@@ -588,11 +588,11 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                                 key={fieldKey} 
 
-                                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                                className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50/30 dark:bg-gray-700/50'}`}
 
                               >
 
-                                <td className="pl-12 px-4 py-3 text-gray-700 sticky left-0 z-5 bg-inherit border-r">
+                                <td className="pl-12 px-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-5 bg-inherit border-r dark:border-gray-600">
 
                                   {isCalculatedFieldItem ? '=' : '^'} {displayName as string}
 
@@ -634,7 +634,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                                         onChange={(e) => handleCellChange(year, fieldKey, e.target.value.replace(/,/g, ''))}
 
-                                        className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50"
+                                        className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white"
 
                                       />
 
@@ -648,13 +648,13 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                                           : isHistoricalYear 
 
-                                            ? 'bg-gray-200 text-gray-600' 
+                                            ? 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300' 
 
                                             : isFutureYear && !isEditable 
 
-                                              ? 'bg-blue-100 text-blue-800' 
+                                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' 
 
-                                              : 'bg-gray-100'
+                                              : 'bg-gray-100 dark:bg-gray-700'
 
                                       }`}>
 
@@ -682,7 +682,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                         // Direct item (like StockholdersEquity or CalculatedTotals)
 
-                        <tr className={`border-b hover:bg-gray-50 ${mainCategory === 'CalculatedTotals' ? 'bg-yellow-50' : 'bg-white'}`}>
+                        <tr className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${mainCategory === 'CalculatedTotals' ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-white dark:bg-gray-800'}`}>
 
                           <td className={`pl-6 px-4 py-3 sticky left-0 z-5 bg-inherit border-r ${
 
@@ -690,7 +690,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                               ? 'font-bold text-blue-800' 
 
-                              : 'text-gray-700'
+                              : 'text-gray-700 dark:text-gray-300'
 
                           }`}>
 
@@ -736,7 +736,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                                     onChange={(e) => handleCellChange(year, subCategory, e.target.value.replace(/,/g, ''))}
 
-                                    className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50"
+                                    className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white"
 
                                   />
 
@@ -794,11 +794,11 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-medium text-gray-700 sticky left-0 z-5 bg-inherit border-r">
+                <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-5 bg-inherit border-r dark:border-gray-600">
 
                   {field}
 
@@ -834,7 +834,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
 
                           onChange={(e) => handleCellChange(year, field, e.target.value.replace(/,/g, ''))}
 
-                            className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50"
+                            className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white"
 
                         />
 
@@ -1221,13 +1221,13 @@ const IncomeStatementTable: React.FC<{
                     });
                   }}
 
-                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
                   placeholder=""
 
                 />
 
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">{suffix}</span>
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">{suffix}</span>
 
               </div>
 
@@ -1286,7 +1286,7 @@ const IncomeStatementTable: React.FC<{
 
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
           placeholder=""
 
@@ -1306,7 +1306,7 @@ const IncomeStatementTable: React.FC<{
 
       return (
 
-        <span className="block p-2 text-center">
+        <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
           {formatNumber(-value)}
 
@@ -1320,7 +1320,7 @@ const IncomeStatementTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {getValue(yk, fieldKey)}
 
@@ -1362,7 +1362,7 @@ const IncomeStatementTable: React.FC<{
 
     return (
 
-      <td className="p-2 text-center bg-blue-50">
+      <td className="p-2 text-center bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white">
 
         {calculateAverageIS(field, years)}
 
@@ -1434,7 +1434,7 @@ const IncomeStatementTable: React.FC<{
 
     return (
 
-      <td className="p-2 text-center bg-green-50">
+      <td className="p-2 text-center bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white">
 
         {calculateCAGRIS(field, years)}
 
@@ -1476,23 +1476,23 @@ const IncomeStatementTable: React.FC<{
 
   return (
 
-    <div className="mb-8 bg-white rounded-lg shadow-sm border">
+    <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
 
-      <div className="p-4 border-b bg-gray-50">
+      <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-800">{companyTicker} Income Statement Expanded</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{companyTicker} Income Statement Expanded</h3>
 
               </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full text-sm">
+        <table className="w-full text-sm text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="bg-gray-100 border-b">
+            <tr className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
 
-              <th className="text-left px-4 py-3 font-medium text-gray-700 sticky left-0 z-30 bg-gray-100 border-r min-w-[250px]">
+              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-30 bg-gray-100 dark:bg-gray-700 border-r dark:border-gray-600 min-w-[250px]">
 
                 Breakdown
 
@@ -1500,7 +1500,7 @@ const IncomeStatementTable: React.FC<{
 
               {incomeYears.map(yk => (
 
-                <th key={String(yk)} className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px]">
+                <th key={String(yk)} className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px]">
 
                   {typeof yk === 'number' ? `8/31/${yk}` : 'TTM'}
 
@@ -1508,85 +1508,85 @@ const IncomeStatementTable: React.FC<{
 
               ))}
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last15Y_CAGR
 
@@ -1600,9 +1600,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* Total Revenue group header with values */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="p-3 font-bold text-gray-800 sticky left-0 z-20 bg-white border-r">
+              <td className="p-3 font-bold text-gray-800 dark:text-white sticky left-0 z-20 bg-white dark:bg-gray-800 border-r dark:border-gray-600">
 
                 <button onClick={() => toggle('TotalRevenue')} className="w-full text-left">
 
@@ -1632,9 +1632,9 @@ const IncomeStatementTable: React.FC<{
 
                 {/* Cost of Revenue row under Total Revenue */}
 
-                <tr className="border-b hover:bg-gray-50">
+                <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Cost of Revenue</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Cost of Revenue</td>
 
                   {incomeYears.map(yk => (
 
@@ -1658,9 +1658,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* Gross Income - separate field beneath Total Revenue */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">Gross Income</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Gross Income</td>
 
               {incomeYears.map(yk => (
 
@@ -1680,9 +1680,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* Operating Expense group header */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 <button onClick={() => toggle('OperatingExpense')} className="w-full text-left">
 
@@ -1710,9 +1710,9 @@ const IncomeStatementTable: React.FC<{
 
               <>
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Selling General and Administrative</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Selling General and Administrative</td>
 
                   {incomeYears.map(yk => (
 
@@ -1733,8 +1733,8 @@ const IncomeStatementTable: React.FC<{
                 </tr>
 
                 {/* Additional breakdown rows: Selling & Marketing, G&A */}
-                <tr className="border-b">
-                  <td className="pl-10 pr-4 py-3 text-gray-600 sticky left-0 z-10 bg-white border-r min-w-[250px] text-xs">Selling And Marketing</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="pl-10 pr-4 py-3 text-gray-600 dark:text-gray-400 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] text-xs">Selling And Marketing</td>
                   {incomeYears.map(yk => (
                     <td key={`SellingAndMarketing-${String(yk)}`} className="p-2 text-center">
                       {renderCell(yk, 'SellingAndMarketingExpense')}
@@ -1744,8 +1744,8 @@ const IncomeStatementTable: React.FC<{
                   {renderAllCAGRCellsIS('SellingAndMarketingExpense')}
                 </tr>
 
-                <tr className="border-b">
-                  <td className="pl-10 pr-4 py-3 text-gray-600 sticky left-0 z-10 bg-white border-r min-w-[250px] text-xs">General And Administrative</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="pl-10 pr-4 py-3 text-gray-600 dark:text-gray-400 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] text-xs">General And Administrative</td>
                   {incomeYears.map(yk => (
                     <td key={`GeneralAndAdministrative-${String(yk)}`} className="p-2 text-center">
                       {renderCell(yk, 'GeneralAndAdministrativeExpense')}
@@ -1755,9 +1755,9 @@ const IncomeStatementTable: React.FC<{
                   {renderAllCAGRCellsIS('GeneralAndAdministrativeExpense')}
                 </tr>
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Research And Development</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Research And Development</td>
 
                   {incomeYears.map(yk => (
 
@@ -1778,8 +1778,8 @@ const IncomeStatementTable: React.FC<{
                 </tr>
 
                 {/* Additional breakdown rows: Fulfillment, Technology */}
-                <tr className="border-b">
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Fulfillment</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Fulfillment</td>
                   {incomeYears.map(yk => (
                     <td key={`Fulfillment-${String(yk)}`} className="p-2 text-center">
                       {renderCell(yk, 'FulfillmentExpense')}
@@ -1789,8 +1789,8 @@ const IncomeStatementTable: React.FC<{
                   {renderAllCAGRCellsIS('FulfillmentExpense')}
                 </tr>
 
-                <tr className="border-b">
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Technology</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Technology</td>
                   {incomeYears.map(yk => (
                     <td key={`Technology-${String(yk)}`} className="p-2 text-center">
                       {renderCell(yk, 'TechnologyExpense')}
@@ -1800,9 +1800,9 @@ const IncomeStatementTable: React.FC<{
                   {renderAllCAGRCellsIS('TechnologyExpense')}
                 </tr>
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Depreciation</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Depreciation</td>
 
                   {incomeYears.map(yk => (
 
@@ -1830,9 +1830,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* Operating Income */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">Operating Income</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Operating Income</td>
 
               {incomeYears.map(yk => (
 
@@ -1854,9 +1854,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* NonoperatingIncomeExpense group */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 <button onClick={() => toggle('NetNonOperating')} className="w-full text-left">
 
@@ -1884,9 +1884,9 @@ const IncomeStatementTable: React.FC<{
 
               <>
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Interest Income Non Operating</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Interest Income Non Operating</td>
 
                   {incomeYears.map(yk => (
 
@@ -1906,9 +1906,9 @@ const IncomeStatementTable: React.FC<{
 
                 </tr>
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">Interest Expense Non Operating</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Interest Expense Non Operating</td>
 
                   {incomeYears.map(yk => (
 
@@ -1924,9 +1924,9 @@ const IncomeStatementTable: React.FC<{
 
                 </tr>
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]"> Other Income</td>
+                  <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]"> Other Income</td>
 
                   {incomeYears.map(yk => (
 
@@ -1950,9 +1950,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* Pretax Income */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 <button onClick={() => toggle('PretaxIncome')} className="w-full text-left">
 
@@ -1978,9 +1978,9 @@ const IncomeStatementTable: React.FC<{
 
             {expanded['PretaxIncome'] && (
 
-              <tr className="border-b">
+              <tr className="border-b dark:border-gray-600">
 
-                <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">TaxProvision</td>
+                <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">TaxProvision</td>
 
                 {incomeYears.map(yk => (
 
@@ -2002,9 +2002,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* ProfitLossControlling group */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 <button onClick={() => toggle('ProfitLossControlling')} className="w-full text-left">
 
@@ -2030,9 +2030,9 @@ const IncomeStatementTable: React.FC<{
 
             {expanded['ProfitLossControlling'] && (
 
-              <tr className="border-b">
+              <tr className="border-b dark:border-gray-600">
 
-                <td className="pl-6 pr-4 py-3 text-gray-700 sticky left-0 z-10 bg-white border-r min-w-[250px]">NetIncomeNoncontrolling</td>
+                <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">NetIncomeNoncontrolling</td>
 
                 {incomeYears.map(yk => (
 
@@ -2054,9 +2054,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* NetIncome - separate field */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">NetIncome</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">NetIncome</td>
 
               {incomeYears.map(yk => (
 
@@ -2076,9 +2076,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* OperatingLeaseCost - new field */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OperatingLeaseCost</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OperatingLeaseCost</td>
 
               {incomeYears.map(yk => (
 
@@ -2098,9 +2098,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* VariableLeaseCost - new field */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">VariableLeaseCost</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">VariableLeaseCost</td>
 
               {incomeYears.map(yk => (
 
@@ -2120,9 +2120,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* LeasesDiscountRate - new field */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">LeasesDiscountRate</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">LeasesDiscountRate</td>
 
               {incomeYears.map(yk => (
 
@@ -2142,9 +2142,9 @@ const IncomeStatementTable: React.FC<{
 
             {/* ForeignCurrencyAdjustment - new field */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">ForeignCurrencyAdjustment</td>
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">ForeignCurrencyAdjustment</td>
 
               {incomeYears.map(yk => (
 
@@ -2370,7 +2370,7 @@ const NoPATTable: React.FC<{
             }
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -2446,7 +2446,7 @@ const NoPATTable: React.FC<{
             }
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -2460,7 +2460,7 @@ const NoPATTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key))}
 
@@ -2540,7 +2540,7 @@ const NoPATTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageNoPAT(field, years)}
 
@@ -2596,7 +2596,7 @@ const NoPATTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRNoPAT(field, years)}
 
@@ -2640,21 +2640,21 @@ const NoPATTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} NoPAT</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} NoPAT</h3>
 
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -2662,7 +2662,7 @@ const NoPATTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -2670,85 +2670,85 @@ const NoPATTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -2766,11 +2766,11 @@ const NoPATTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -2786,7 +2786,7 @@ const NoPATTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -2965,7 +2965,7 @@ const InvestedCapitalTable: React.FC<{
             }
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -2979,7 +2979,7 @@ const InvestedCapitalTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key))}
 
@@ -3125,7 +3125,7 @@ const InvestedCapitalTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageIC(field, years)}
 
@@ -3197,7 +3197,7 @@ const InvestedCapitalTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRIC(field, years)}
 
@@ -3241,21 +3241,21 @@ const InvestedCapitalTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Invested Capital</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} Invested Capital</h3>
 
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -3263,7 +3263,7 @@ const InvestedCapitalTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -3271,85 +3271,85 @@ const InvestedCapitalTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -3367,11 +3367,11 @@ const InvestedCapitalTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -3387,7 +3387,7 @@ const InvestedCapitalTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -3599,11 +3599,11 @@ const FreeCashFlowTable: React.FC<{
                     }
                   }}
 
-                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 rounded bg-green-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
                 />
 
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">{suffix}</span>
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">{suffix}</span>
 
               </div>
 
@@ -3769,7 +3769,7 @@ const FreeCashFlowTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageFCF(field, years)}
 
@@ -3841,7 +3841,7 @@ const FreeCashFlowTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRFCF(field, years)}
 
@@ -3885,21 +3885,21 @@ const FreeCashFlowTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Free Cash Flow</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} Free Cash Flow</h3>
 
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -3907,7 +3907,7 @@ const FreeCashFlowTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -3915,85 +3915,85 @@ const FreeCashFlowTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -4011,11 +4011,11 @@ const FreeCashFlowTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -4031,7 +4031,7 @@ const FreeCashFlowTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -4185,7 +4185,7 @@ const CashFlowsTable: React.FC<{
             onDataChange('cashFlows', year, key, Number.isFinite(numeric) ? numeric : 0);
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -4199,7 +4199,7 @@ const CashFlowsTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key))}
 
@@ -4375,7 +4375,7 @@ const CashFlowsTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageCF(field, years)}
 
@@ -4453,7 +4453,7 @@ const CashFlowsTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRCF(field, years)}
 
@@ -4497,21 +4497,21 @@ const CashFlowsTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Cash Flows</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} Cash Flows</h3>
 
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -4519,7 +4519,7 @@ const CashFlowsTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -4527,85 +4527,85 @@ const CashFlowsTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -4623,11 +4623,11 @@ const CashFlowsTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -4643,7 +4643,7 @@ const CashFlowsTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -4812,7 +4812,7 @@ const IncomeStatementCommonSizeTable: React.FC<{
             onDataChange('incomeStatementCommonSize', year, key, Number.isFinite(numeric) ? numeric : 0);
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -4826,7 +4826,7 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key))}
 
@@ -4968,7 +4968,7 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageISCS(field, years)}
 
@@ -5040,7 +5040,7 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRISCS(field, years)}
 
@@ -5084,21 +5084,21 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Income Statement Common Size</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} Income Statement Common Size</h3>
 
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -5106,7 +5106,7 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -5114,85 +5114,85 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -5210,11 +5210,11 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -5230,7 +5230,7 @@ const IncomeStatementCommonSizeTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -5362,7 +5362,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
             readOnly
 
-            className="w-full p-2 text-center border border-blue-300 rounded bg-blue-50"
+            className="w-full p-2 text-center border border-blue-300 dark:border-blue-600 rounded bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white"
 
           />
 
@@ -5410,7 +5410,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
             onDataChange('balanceSheetCommonSize', year, key, Number.isFinite(numeric) ? numeric : 0);
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -5424,7 +5424,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {hasData ? formatNumber(getNumeric(year, key)) : ''}
 
@@ -5613,7 +5613,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageBSCS(field, years)}
 
@@ -5685,7 +5685,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRBSCS(field, years)}
 
@@ -5729,21 +5729,21 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
-        <h3 className="text-lg font-semibold text-gray-900">{companyTicker} Balance Sheet Common Size</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} Balance Sheet Common Size</h3>
 
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -5751,7 +5751,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -5759,85 +5759,85 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -5855,11 +5855,11 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -5875,7 +5875,7 @@ const BalanceSheetCommonSizeTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -6028,7 +6028,7 @@ const ROICPerformanceTable: React.FC<{
             onDataChange('roicPerformance', year, key, Number.isFinite(numeric) ? numeric : 0);
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -6042,7 +6042,7 @@ const ROICPerformanceTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key))}
 
@@ -6132,7 +6132,7 @@ const ROICPerformanceTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageROIC(field, years)}
 
@@ -6204,7 +6204,7 @@ const ROICPerformanceTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRROIC(field, years)}
 
@@ -6248,7 +6248,7 @@ const ROICPerformanceTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
         <h3 className="text-lg font-semibold text-gray-900">COST ROIC Performance</h3>
 
@@ -6256,13 +6256,13 @@ const ROICPerformanceTable: React.FC<{
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -6270,7 +6270,7 @@ const ROICPerformanceTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -6278,85 +6278,85 @@ const ROICPerformanceTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -6374,11 +6374,11 @@ const ROICPerformanceTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -6394,7 +6394,7 @@ const ROICPerformanceTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -6549,7 +6549,7 @@ const FinancingHealthTable: React.FC<{
 
           readOnly
 
-          className="w-full p-2 text-center border border-blue-300 rounded bg-blue-50"
+          className="w-full p-2 text-center border border-blue-300 dark:border-blue-600 rounded bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white"
 
         />
 
@@ -6597,7 +6597,7 @@ const FinancingHealthTable: React.FC<{
             onDataChange('financingHealth', year, key, Number.isFinite(numeric) ? numeric : 0);
           }}
 
-          className="w-full p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
         />
 
@@ -6611,7 +6611,7 @@ const FinancingHealthTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key), isCurrency)}
 
@@ -6701,7 +6701,7 @@ const FinancingHealthTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageFH(field, years)}
 
@@ -6763,7 +6763,7 @@ const FinancingHealthTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGRFH(field, years)}
 
@@ -6807,7 +6807,7 @@ const FinancingHealthTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
         <h3 className="text-lg font-semibold text-gray-900">COST Financing Health</h3>
 
@@ -6815,13 +6815,13 @@ const FinancingHealthTable: React.FC<{
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -6829,7 +6829,7 @@ const FinancingHealthTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -6837,85 +6837,85 @@ const FinancingHealthTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -6933,11 +6933,11 @@ const FinancingHealthTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -6953,7 +6953,7 @@ const FinancingHealthTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -7089,7 +7089,7 @@ const OperationalPerformanceTable: React.FC<{
 
           readOnly
 
-          className="w-full p-2 text-center border border-blue-300 rounded bg-blue-50"
+          className="w-full p-2 text-center border border-blue-300 dark:border-blue-600 rounded bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white"
 
         />
 
@@ -7103,7 +7103,7 @@ const OperationalPerformanceTable: React.FC<{
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 text-gray-600">
+      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
 
         {formatNumber(getNumeric(year, key), !isTurnover)}
 
@@ -7195,7 +7195,7 @@ const OperationalPerformanceTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-blue-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
 
         {calculateAverageOps(field, years)}
 
@@ -7265,7 +7265,7 @@ const OperationalPerformanceTable: React.FC<{
 
     return (
 
-      <td className="px-4 py-3 text-center font-medium text-gray-600 border-l bg-green-50">
+      <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white border-l dark:border-gray-600 bg-green-50 dark:bg-green-900/20">
 
         {calculateCAGROps(field, years)}
 
@@ -7309,7 +7309,7 @@ const OperationalPerformanceTable: React.FC<{
 
     <div className="bg-white rounded-lg shadow-sm border">
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
 
         <h3 className="text-lg font-semibold text-gray-900">COST Operational Performance</h3>
 
@@ -7317,13 +7317,13 @@ const OperationalPerformanceTable: React.FC<{
 
       <div className="overflow-x-auto">
 
-        <table className="w-full">
+        <table className="w-full text-gray-900 dark:text-gray-200">
 
           <thead>
 
-            <tr className="border-b bg-gray-50">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 z-20 bg-gray-50 border-r shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -7331,7 +7331,7 @@ const OperationalPerformanceTable: React.FC<{
 
               {yearsList.map(year => (
 
-                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 min-w-[100px]">
+                <th key={year} className="px-2 py-3 text-center font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">
 
                   {year}
 
@@ -7339,85 +7339,85 @@ const OperationalPerformanceTable: React.FC<{
 
               ))}
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="px-4 py-3 text-center font-medium text-gray-700 border-l">
+              <th className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600">
 
                 Last15Y_CAGR
 
@@ -7435,11 +7435,11 @@ const OperationalPerformanceTable: React.FC<{
 
                 key={field} 
 
-                className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
 
               >
 
-                <td className="px-4 py-3 font-semibold text-gray-800 sticky left-0 z-15 bg-white border-r min-w-[250px]">
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                   {field}
 
@@ -7455,7 +7455,7 @@ const OperationalPerformanceTable: React.FC<{
 
                 ))}
 
-                <td className="px-4 py-3 text-center font-medium text-gray-600 border-l">
+                <td className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-400 border-l dark:border-gray-600">
 
                   {fieldTypes[index]}
 
@@ -7981,7 +7981,7 @@ const BalanceSheetTable: React.FC<{
                   });
                 }}
 
-                className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
                 placeholder=""
 
@@ -8230,7 +8230,7 @@ const BalanceSheetTable: React.FC<{
 
     return (
 
-      <td className="p-2 text-center bg-blue-50">
+      <td className="p-2 text-center bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white">
 
         {calculateAverage(field, years)}
 
@@ -8316,7 +8316,7 @@ const BalanceSheetTable: React.FC<{
 
     return (
 
-      <td className="p-2 text-center bg-green-50">
+      <td className="p-2 text-center bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white">
 
         {calculateCAGR(field, years)}
 
@@ -8358,7 +8358,7 @@ const BalanceSheetTable: React.FC<{
 
   return (
 
-    <div className="mb-8 bg-white rounded-lg shadow-sm border">
+    <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
 
       <div className="p-4 border-b bg-gray-50">
 
@@ -8368,13 +8368,13 @@ const BalanceSheetTable: React.FC<{
 
       <div className="overflow-x-auto">
 
-        <table className="w-full text-sm">
+        <table className="w-full text-sm text-gray-900 dark:text-gray-200">
 
           <thead>
 
             <tr className="bg-gray-100 border-b">
 
-              <th className="text-left px-4 py-3 font-medium text-gray-700 sticky left-0 z-30 bg-gray-100 border-r min-w-[250px]">Breakdown</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-30 bg-gray-100 dark:bg-gray-700 border-r dark:border-gray-600 min-w-[250px]">Breakdown</th>
 
               {yearsList.map(y => (
 
@@ -8382,85 +8382,85 @@ const BalanceSheetTable: React.FC<{
 
               ))}
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last1Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last2Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last3Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last4Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last5Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last10Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-blue-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-blue-50 dark:bg-blue-900/20">
 
                 Last15Y_AVG
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last1Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last2Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last3Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last4Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last5Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last10Y_CAGR
 
               </th>
 
-              <th className="text-center px-3 py-3 font-medium text-gray-700 min-w-[160px] bg-green-50">
+              <th className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] bg-green-50 dark:bg-green-900/20">
 
                 Last15Y_CAGR
 
@@ -8474,9 +8474,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* Total Assets */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="p-3 font-bold text-gray-800 sticky left-0 z-20 bg-white border-r">
+              <td className="p-3 font-bold text-gray-800 dark:text-white sticky left-0 z-20 bg-white dark:bg-gray-800 border-r dark:border-gray-600">
 
                 Total Assets
 
@@ -8502,7 +8502,7 @@ const BalanceSheetTable: React.FC<{
 
             <tr className="border-b-2 border-gray-200">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 <button onClick={() => toggle('CurrentAssets')} className="w-full text-left">
 
@@ -8534,9 +8534,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* CashAndCashEquivalents */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">CashAndCashEquivalents</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">CashAndCashEquivalents</td>
 
                       {yearsList.map(y => (
 
@@ -8552,9 +8552,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* ShortTermInvestments */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">ShortTermInvestments</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">ShortTermInvestments</td>
 
                       {yearsList.map(y => (
 
@@ -8570,9 +8570,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* Receivables */}
 
-                  <tr className="border-b">
+                  <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">Receivables</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Receivables</td>
 
                     {yearsList.map(y => (
 
@@ -8588,9 +8588,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* Inventory */}
 
-                  <tr className="border-b">
+                  <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">Inventory</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Inventory</td>
 
                     {yearsList.map(y => (
 
@@ -8610,9 +8610,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* OtherAssetsCurrent */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OtherAssetsCurrent</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OtherAssetsCurrent</td>
 
                   {yearsList.map(y => (
 
@@ -8632,9 +8632,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* Non-current Assets */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="p-3 font-bold text-gray-800 sticky left-0 bg-white border-r">
+              <td className="p-3 font-bold text-gray-800 dark:text-white sticky left-0 bg-white dark:bg-gray-800 border-r dark:border-gray-600">
 
                 <button onClick={() => toggle('NonCurrentAssets')} className="w-full text-left">
 
@@ -8666,9 +8666,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* PropertyPlantAndEquipmentNet */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">PropertyPlantAndEquipmentNet</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">PropertyPlantAndEquipmentNet</td>
 
                   {yearsList.map(y => (
 
@@ -8684,9 +8684,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* OperatingLeaseRightOfUseAsset */}
 
-                        <tr className="border-b">
+                        <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OperatingLeaseRightOfUseAsset</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OperatingLeaseRightOfUseAsset</td>
 
                           {yearsList.map(y => (
 
@@ -8702,9 +8702,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* LeaseFinanceAssetsNoncurrent */}
 
-                        <tr className="border-b">
+                        <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">LeaseFinanceAssetsNoncurrent</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">LeaseFinanceAssetsNoncurrent</td>
 
                           {yearsList.map(y => (
 
@@ -8720,9 +8720,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* Goodwill */}
 
-                        <tr className="border-b">
+                        <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">Goodwill</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">Goodwill</td>
 
                           {yearsList.map(y => (
 
@@ -8738,9 +8738,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* OtherAssetsNoncurrent */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OtherAssetsNoncurrent</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OtherAssetsNoncurrent</td>
 
                   {yearsList.map(y => (
 
@@ -8756,9 +8756,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* ReceivablesNoncurrent */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">ReceivablesNoncurrent</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">ReceivablesNoncurrent</td>
 
                   {yearsList.map(y => (
 
@@ -8774,9 +8774,9 @@ const BalanceSheetTable: React.FC<{
 
                 {/* VariableLeaseAssets */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">VariableLeaseAssets</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">VariableLeaseAssets</td>
 
                   {yearsList.map(y => (
 
@@ -8796,9 +8796,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* Total Liabilities */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="p-3 font-bold text-gray-800 sticky left-0 z-20 bg-white border-r">
+              <td className="p-3 font-bold text-gray-800 dark:text-white sticky left-0 z-20 bg-white dark:bg-gray-800 border-r dark:border-gray-600">
 
                 <button onClick={() => toggle('TotalLiabilities')} className="w-full text-left">
 
@@ -8832,7 +8832,7 @@ const BalanceSheetTable: React.FC<{
 
                 <tr className="border-b-2 border-gray-200">
 
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                     <button onClick={() => toggle('CurrentLiabilities')} className="w-full text-left">
 
@@ -8864,9 +8864,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* AccountsPayableCurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">AccountsPayableCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">AccountsPayableCurrent</td>
 
                       {yearsList.map(y => (
 
@@ -8882,9 +8882,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* EmployeeRelatedLiabilitiesCurrent */}
 
-                          <tr className="border-b">
+                          <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">EmployeeRelatedLiabilitiesCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">EmployeeRelatedLiabilitiesCurrent</td>
 
                             {yearsList.map(y => (
 
@@ -8900,9 +8900,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* AccruedLiabilitiesCurrent */}
 
-                        <tr className="border-b">
+                        <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">AccruedLiabilitiesCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">AccruedLiabilitiesCurrent</td>
 
                           {yearsList.map(y => (
 
@@ -8915,8 +8915,8 @@ const BalanceSheetTable: React.FC<{
                     </tr>
 
                     {/* AccruedIncomeTaxesCurrent */}
-                    <tr className="border-b">
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">AccruedIncomeTaxesCurrent</td>
+                    <tr className="border-b dark:border-gray-600">
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">AccruedIncomeTaxesCurrent</td>
                       {yearsList.map(y => (
                         <td key={`AccruedIncomeTaxesCurrent-${y}`} className="p-2 text-center">{renderCell(y, 'AccruedIncomeTaxesCurrent')}</td>
                       ))}{renderAllAverageCells('AccruedIncomeTaxesCurrent')}
@@ -8925,9 +8925,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* DeferredRevenueCurrent */}
 
-                      <tr className="border-b">
+                      <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">DeferredRevenueCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">DeferredRevenueCurrent</td>
 
                         {yearsList.map(y => (
 
@@ -8943,9 +8943,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* LongTermDebtCurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">LongTermDebtCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">LongTermDebtCurrent</td>
 
                       {yearsList.map(y => (
 
@@ -8961,9 +8961,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* OperatingLeaseLiabilitiesCurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OperatingLeaseLiabilitiesCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OperatingLeaseLiabilitiesCurrent</td>
 
                       {yearsList.map(y => (
 
@@ -8979,9 +8979,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* FinanceLeaseLiabilitiesCurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">FinanceLeaseLiabilitiesCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">FinanceLeaseLiabilitiesCurrent</td>
 
                   {yearsList.map(y => (
 
@@ -8997,9 +8997,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* OtherLiabilitiesCurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OtherLiabilitiesCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OtherLiabilitiesCurrent</td>
 
                       {yearsList.map(y => (
 
@@ -9021,7 +9021,7 @@ const BalanceSheetTable: React.FC<{
 
                 <tr className="border-b-2 border-gray-200">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                     <button onClick={() => toggle('LiabilitiesNoncurrent')} className="w-full text-left">
 
@@ -9053,9 +9053,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* LongTermDebtNoncurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">LongTermDebtNoncurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">LongTermDebtNoncurrent</td>
 
                       {yearsList.map(y => (
 
@@ -9071,9 +9071,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* OperatingLeaseLiabilityNoncurrent */}
 
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OperatingLeaseLiabilityNoncurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OperatingLeaseLiabilityNoncurrent</td>
 
                       {yearsList.map(y => (
 
@@ -9089,9 +9089,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* FinanceLeaseLiabilitiesNonCurrent */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">FinanceLeaseLiabilitiesNonCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">FinanceLeaseLiabilitiesNonCurrent</td>
 
                   {yearsList.map(y => (
 
@@ -9107,9 +9107,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* DeferredIncomeTaxLiabilitiesNonCurrent */}
 
-                <tr className="border-b">
+                <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">DeferredIncomeTaxLiabilitiesNonCurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">DeferredIncomeTaxLiabilitiesNonCurrent</td>
 
                   {yearsList.map(y => (
 
@@ -9125,9 +9125,9 @@ const BalanceSheetTable: React.FC<{
 
                     {/* OtherLiabilitiesNoncurrent */}
 
-                  <tr className="border-b">
+                  <tr className="border-b dark:border-gray-600">
 
-                      <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">OtherLiabilitiesNoncurrent</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">OtherLiabilitiesNoncurrent</td>
 
                     {yearsList.map(y => (
 
@@ -9151,9 +9151,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* Total Stockholders' Equity */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 <button onClick={() => toggle('StockholdersEquity')} className="w-full text-left">
                   {expanded['StockholdersEquity'] ? 'v' : '^'} Stockholders' Equity
@@ -9177,32 +9177,32 @@ const BalanceSheetTable: React.FC<{
 
             {expanded['StockholdersEquity'] && (
               <>
-                <tr className="border-b">
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">CommonStockEquity</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">CommonStockEquity</td>
                   {yearsList.map(y => (
                     <td key={`CommonStockEquity-${y}`} className="p-2 text-center">{renderCell(y, 'CommonStockEquity')}</td>
                   ))}{renderAllAverageCells('CommonStockEquity')}
                   {renderAllCAGRCells('CommonStockEquity')}
                 </tr>
 
-                <tr className="border-b">
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">PaidInCapitalCommonStock</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">PaidInCapitalCommonStock</td>
                   {yearsList.map(y => (
                     <td key={`PaidInCapitalCommonStock-${y}`} className="p-2 text-center">{renderCell(y, 'PaidInCapitalCommonStock')}</td>
                   ))}{renderAllAverageCells('PaidInCapitalCommonStock')}
                   {renderAllCAGRCells('PaidInCapitalCommonStock')}
                 </tr>
 
-                <tr className="border-b">
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">AccumulatedOtherComprehensiveIncomeLossNetOfTax</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">AccumulatedOtherComprehensiveIncomeLossNetOfTax</td>
                   {yearsList.map(y => (
                     <td key={`AccumulatedOtherComprehensiveIncomeLossNetOfTax-${y}`} className="p-2 text-center">{renderCell(y, 'AccumulatedOtherComprehensiveIncomeLossNetOfTax')}</td>
                   ))}{renderAllAverageCells('AccumulatedOtherComprehensiveIncomeLossNetOfTax')}
                   {renderAllCAGRCells('AccumulatedOtherComprehensiveIncomeLossNetOfTax')}
                 </tr>
 
-                <tr className="border-b">
-                  <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">RetainedEarningsAccumulated</td>
+                <tr className="border-b dark:border-gray-600">
+                  <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">RetainedEarningsAccumulated</td>
                   {yearsList.map(y => (
                     <td key={`RetainedEarningsAccumulated-${y}`} className="p-2 text-center">{renderCell(y, 'RetainedEarningsAccumulated')}</td>
                   ))}{renderAllAverageCells('RetainedEarningsAccumulated')}
@@ -9215,9 +9215,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* NoncontrollingInterests */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 NoncontrollingInterests
 
@@ -9241,9 +9241,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* LiabilitiesAndStockholdersEquity */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 LiabilitiesAndStockholdersEquity
 
@@ -9267,9 +9267,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* Additional Metrics Section */}
 
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px] font-bold">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] font-bold">
 
                 Additional Metrics
 
@@ -9307,9 +9307,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* RetainedEarningsAccumulated */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 RetainedEarningsAccumulated
 
@@ -9333,9 +9333,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* Debt */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 Debt
 
@@ -9359,9 +9359,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* ForeignTaxCreditCarryForward */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 ForeignTaxCreditCarryForward
 
@@ -9385,9 +9385,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* CapitalExpenditures */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 CapitalExpenditures
 
@@ -9411,9 +9411,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* OperatingCash */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 OperatingCash
 
@@ -9437,9 +9437,9 @@ const BalanceSheetTable: React.FC<{
 
             {/* ExcessCash */}
 
-            <tr className="border-b">
+            <tr className="border-b dark:border-gray-600">
 
-              <td className="px-4 py-3 text-gray-800 sticky left-0 z-10 bg-white border-r min-w-[250px]">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px]">
 
                 ExcessCash
 
@@ -12058,11 +12058,11 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
   return (
 
-    <div className="bg-white rounded-lg w-full min-h-full flex flex-col">
+    <div className="bg-white dark:bg-[#0B0F0E] rounded-lg w-full min-h-full flex flex-col">
 
       {/* Header */}
 
-      <div className="bg-white border-b flex-shrink-0">
+      <div className="bg-white dark:bg-[#0B0F0E] border-b dark:border-[#161C1A] flex-shrink-0">
 
         <div className="px-4 py-4">
 
@@ -12070,9 +12070,9 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
             <div>
 
-              <h1 className="text-2xl font-bold text-gray-900">Company Valuation & Analysis</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-[#E0E6E4]">Company Valuation & Analysis</h1>
 
-              <p className="text-gray-600 mt-1">Interactive financial modeling and valuation</p>
+              <p className="text-gray-600 dark:text-[#889691] mt-1">Interactive financial modeling and valuation</p>
 
             </div>
 
@@ -12084,7 +12084,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
               <div className="flex items-center gap-2">
 
-                <label className="text-sm font-medium text-gray-700">Company:</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">Company:</label>
 
                 <div className="relative" ref={companyDropdownRef}>
                   <input
@@ -12105,21 +12105,21 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
                       setCompanyInput('');
                     }}
                     placeholder={companiesLoading ? "Loading..." : "Select company..."}
-                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                    className="px-3 py-2 pr-8 border border-gray-300 dark:border-[#161C1A] rounded-lg bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:ring-2 focus:ring-[#144D37] min-w-[200px]"
                     disabled={companiesLoading}
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
 
                   {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-[50vh] overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-[50vh] overflow-auto">
                       {companiesLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Loading companies...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
                       ) : availableCompanies.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No companies available</div>
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
                       ) : (
                         availableCompanies
                           .filter(company => 
@@ -12137,8 +12137,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
                                 setShowCompanyDropdown(false);
                                 onCompanyChange?.(company.ticker);
                               }}
-                              className={`px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer ${
-                                selectedCompany === company.ticker ? 'bg-blue-50' : ''
+                              className={`px-3 py-2 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
+                                selectedCompany === company.ticker ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
                               }`}
                             >
                               {company.display_name || company.name} ({company.ticker})
@@ -12159,7 +12159,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
                 onClick={handleReset}
 
-                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                className="px-3 py-2 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors flex items-center gap-2"
 
               >
 
@@ -12192,7 +12192,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
                   onClick={onClose}
 
-                  className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  className="px-3 py-2 bg-gray-600 dark:bg-[#161C1A] text-white dark:text-[#E0E6E4] rounded-lg hover:bg-gray-700 dark:hover:bg-[#1C2220] transition-colors flex items-center gap-2"
 
                 >
 
@@ -12222,29 +12222,77 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
       <div className="px-4 py-6">
 
-        {/* Info Box */}
+        {/* Summary Section */}
 
-        <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mb-8 p-6 bg-white dark:bg-[#0B0F0E] rounded-lg shadow-sm border dark:border-[#161C1A]">
 
-          <div className="flex items-start gap-3">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-[#E0E6E4] mb-4">Valuation Summary</h3>
 
-            <svg className="w-5 h-5 text-gray-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
 
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <div className="p-4 bg-blue-50 dark:bg-[#161C1A] rounded-lg">
 
-            </svg>
+              <h4 className="font-medium text-blue-800 dark:text-[#889691] text-sm mb-2">Equity Value</h4>
 
-            <div>
+              <p className="text-2xl font-bold text-blue-900 dark:text-[#E0E6E4]">
 
-              <h3 className="text-sm font-medium text-blue-800">Excel-like Functionality</h3>
+                ${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(
 
-              <p className="text-sm text-blue-700 mt-1">
+                  (calculatedData.freeCashFlow?.[2025]?.FreeCashFlow as number) || 0
 
-                <strong>Historical data (2024 and earlier):</strong> Protected and cannot be edited (gray background). <br/>
+                )}
 
-                <strong>Forecasted years (2025+):</strong> Input tables are editable (green background), calculated tables remain read-only (blue background). <br/>
+              </p>
 
-                Changes will automatically update linked calculations across all tables.
+            </div>
+
+            <div className="p-4 bg-green-50 dark:bg-[#161C1A] rounded-lg">
+
+              <h4 className="font-medium text-green-800 dark:text-[#889691] text-sm mb-2">Market Cap</h4>
+
+              <p className="text-2xl font-bold text-green-900 dark:text-[#E0E6E4]">
+
+                ${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(
+
+                  (calculatedData.nopat?.[2025]?.NOPAT as number) || 0
+
+                )}
+
+              </p>
+
+            </div>
+
+            <div className="p-4 bg-purple-50 dark:bg-[#161C1A] rounded-lg">
+
+              <h4 className="font-medium text-purple-800 dark:text-[#889691] text-sm mb-2">ROIC</h4>
+
+              <p className="text-2xl font-bold text-purple-900 dark:text-[#E0E6E4]">
+
+                {((calculatedData.roicPerformance?.[2024]?.ROIC as number) || 0).toFixed(1)}%
+
+              </p>
+
+            </div>
+
+            <div className="p-4 bg-orange-50 dark:bg-[#161C1A] rounded-lg">
+
+              <h4 className="font-medium text-orange-800 dark:text-[#889691] text-sm mb-2">Earnings Yield</h4>
+
+              <p className="text-2xl font-bold text-orange-900 dark:text-[#E0E6E4]">
+
+                {((calculatedData.nopat?.[2024]?.NOPAT as number) || 0).toFixed(1)}%
+
+              </p>
+
+            </div>
+
+            <div className="p-4 bg-teal-50 dark:bg-[#161C1A] rounded-lg">
+
+              <h4 className="font-medium text-teal-800 dark:text-[#889691] text-sm mb-2">Margin of Safety</h4>
+
+              <p className="text-2xl font-bold text-teal-900 dark:text-[#E0E6E4]">
+
+                {((calculatedData.investedCapital?.[2025]?.TotalInvestedCapital as number) || 0).toFixed(1)}%
 
               </p>
 
@@ -12264,37 +12312,13 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
             {/* First Row of Tabs */}
 
-            <TabsList className="grid w-full grid-cols-6 gap-1">
-
-              <TabsTrigger value="incomeStatement" className="text-xs px-2 py-1">income statement</TabsTrigger>
-
-              <TabsTrigger value="balanceSheet" className="text-xs px-2 py-1">balance sheet</TabsTrigger>
-
-              <TabsTrigger value="ppeChanges" className="text-xs px-2 py-1">cash flows</TabsTrigger>
-
-              <TabsTrigger value="nopat" className="text-xs px-2 py-1">NOPAT</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 gap-1">
 
               <TabsTrigger value="investedCapital" className="text-xs px-2 py-1">capital</TabsTrigger>
 
               <TabsTrigger value="cashFlow" className="text-xs px-2 py-1">Free Cash Flow</TabsTrigger>
 
-            </TabsList>
-
-            
-
-            {/* Second Row of Tabs */}
-
-            <TabsList className="grid w-full grid-cols-5 gap-1">
-
-              <TabsTrigger value="roicPerformance" className="text-xs px-2 py-1">ROIC breakdown</TabsTrigger>
-
-              <TabsTrigger value="operationalPerformance" className="text-xs px-2 py-1">ops perform</TabsTrigger>
-
-              <TabsTrigger value="financingHealth" className="text-xs px-2 py-1">financing health</TabsTrigger>
-
-              <TabsTrigger value="incomeStatementCommonSize" className="text-xs px-2 py-1">common size IS</TabsTrigger>
-
-              <TabsTrigger value="balanceSheetCommonSize" className="text-xs px-2 py-1">common size BS</TabsTrigger>
+              <TabsTrigger value="forecastedStatements" className="text-xs px-2 py-1">ForecastedStatements</TabsTrigger>
 
             </TabsList>
 
@@ -12304,13 +12328,13 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
           <TabsContent value="incomeStatement" className="mt-6">
             {!hasIncomeStatementData && (
-               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+               <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 mb-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <span className="text-yellow-400">⚠</span>
+                      <span className="text-yellow-400 dark:text-yellow-500">⚠</span>
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-yellow-700">
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300">
                         No income statement data available for {selectedCompany}. The API returned no historical records.
                       </p>
                     </div>
@@ -12556,59 +12580,29 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
         </Tabs>
 
+        {/* Info Box */}
 
+        <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
 
-        {/* Summary Section */}
+          <div className="flex items-start gap-3">
 
-        <div className="mt-12 p-6 bg-white rounded-lg shadow-sm border">
+            <svg className="w-5 h-5 text-gray-600 dark:text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Valuation Summary</h3>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            </svg>
 
-            <div className="p-4 bg-blue-50 rounded-lg">
+            <div>
 
-              <h4 className="font-medium text-blue-800">2025 Free Cash Flow (Forecast)</h4>
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Excel-like Functionality</h3>
 
-              <p className="text-2xl font-bold text-blue-900">
+              <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
 
-                ${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(
+                <strong>Historical data (2024 and earlier):</strong> Protected and cannot be edited (gray background). <br/>
 
-                  (calculatedData.freeCashFlow?.[2025]?.FreeCashFlow as number) || 0
+                <strong>Forecasted years (2025+):</strong> Input tables are editable (green background), calculated tables remain read-only (blue background). <br/>
 
-                )}
-
-              </p>
-
-            </div>
-
-            <div className="p-4 bg-green-50 rounded-lg">
-
-              <h4 className="font-medium text-green-800">2025 NOPAT (Forecast)</h4>
-
-              <p className="text-2xl font-bold text-green-900">
-
-                ${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(
-
-                  (calculatedData.nopat?.[2025]?.NOPAT as number) || 0
-
-                )}
-
-              </p>
-
-            </div>
-
-            <div className="p-4 bg-purple-50 rounded-lg">
-
-              <h4 className="font-medium text-purple-800">2025 Invested Capital (Forecast)</h4>
-
-              <p className="text-2xl font-bold text-purple-900">
-
-                ${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(
-
-                  (calculatedData.investedCapital?.[2025]?.TotalInvestedCapital as number) || 0
-
-                )}
+                Changes will automatically update linked calculations across all tables.
 
               </p>
 

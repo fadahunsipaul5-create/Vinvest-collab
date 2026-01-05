@@ -118,3 +118,48 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Logo styling - use different logos for light and dark mode */
+/* Light mode: logo.svg (original colors - #032237 text, #144d37 checkmark) */
+/* Dark mode: vshape.svg (green checkmark #144d37, white text #ffffff) */
+/* Logos are conditionally shown/hidden using Tailwind dark: classes in components */
+
+/* Google One Tap Button Dark Mode Styling */
+/* Note: Google One Tap buttons are rendered in iframes, so direct styling is limited */
+/* We use CSS filters to adjust the appearance */
+
+/* Target Google One Tap container and iframe */
+.dark #credential_picker_container,
+.dark #credential_picker_iframe,
+.dark iframe[src*="accounts.google.com"][src*="onetap"],
+.dark iframe[id*="credential"],
+.dark div[id*="credential_picker"] {
+  filter: brightness(0.85) contrast(1.15) invert(0.05);
+}
+
+/* Alternative: Use a darker filter for better dark mode appearance */
+.dark body > div[style*="position: fixed"][style*="z-index"] iframe,
+.dark body > div[style*="position: fixed"][style*="z-index"] > div {
+  /* Target the One Tap prompt container */
+  filter: brightness(0.9) contrast(1.1);
+}
+
+/* Style any Google sign-in button containers */
+.dark [class*="g_id"],
+.dark [id*="g_id"] {
+  filter: brightness(0.9) contrast(1.1);
+}
+
+/* For the regular Google sign-in button (not One Tap) */
+.dark .google-signin-button,
+.dark [data-google-signin] {
+  background-color: #161C1A !important;
+  color: #E0E6E4 !important;
+  border-color: #161C1A !important;
+}
+
+/* Ensure text is visible in dark mode */
+.dark [class*="google"] *,
+.dark [id*="google"] * {
+  color: #E0E6E4 !important;
+}

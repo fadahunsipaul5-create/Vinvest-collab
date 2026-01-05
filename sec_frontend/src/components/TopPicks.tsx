@@ -616,20 +616,20 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6">
+    <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm p-4 lg:p-6">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Top Picks Analysis</h2>
+        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-4">Top Picks Analysis</h2>
         
         {/* Mode Selection Buttons */}
-        <div className="flex space-x-2 mb-6 border-b border-gray-200">
+        <div className="flex space-x-2 mb-6 border-b border-gray-200 dark:border-[#161C1A]">
           <button
             onClick={() => {
                 setActiveMode('today');
             }}
             className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
               activeMode === 'today'
-                ? 'text-[#1B5A7D] border-b-2 border-[#1B5A7D]'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-[#144D37] dark:text-[#144D37] border-b-2 border-[#144D37] dark:border-[#144D37]'
+                : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
             }`}
           >
             Today's Pick
@@ -638,8 +638,8 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             onClick={() => setActiveMode('historical')}
             className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
               activeMode === 'historical'
-                ? 'text-[#1B5A7D] border-b-2 border-[#1B5A7D]'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-[#144D37] dark:text-[#144D37] border-b-2 border-[#144D37] dark:border-[#144D37]'
+                : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
             }`}
           >
             Historical Ranking
@@ -654,12 +654,12 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             <>
              {/* Ranking Type Filter */}
              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ranking Type</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Ranking Type</label>
                 <div className="relative">
                   <select
                     value={selectedRankingType}
                     onChange={(e) => setSelectedRankingType(e.target.value)}
-                    className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] appearance-none bg-white"
+                    className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37] appearance-none"
                   >
                     {rankingTypes.length > 0 ? (
                         rankingTypes.map(type => (
@@ -670,7 +670,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                     )}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -688,7 +688,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
           <>
           {/* Industry Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Industry</label>
             <div className="relative" ref={industryDropdownRef}>
 
               <input
@@ -710,7 +710,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                   }
                   setShowIndustryDropdown(true);
                 }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
               />
               {(selectedIndustry || industrySearch) && (
                 <button
@@ -719,7 +719,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                     setIndustrySearch('');
                     setShowIndustryDropdown(false);
                   }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
                 >
                   <svg
                     className="w-4 h-4"
@@ -737,23 +737,23 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 </button>
               )}
               <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
               
               {showIndustryDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                   {filteredIndustries.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">No industries found</div>
+                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No industries found</div>
                   ) : (
                     <>
                       {filteredIndustries.map(ind => (
                         <div
                           key={ind}
                           onClick={() => handleIndustryChange(ind)}
-                          className={`px-3 py-1 text-sm hover:bg-gray-100 cursor-pointer ${
-                            selectedIndustry === ind ? 'bg-blue-50' : ''
+                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
+                            selectedIndustry === ind ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
                           }`}
                         >
                           {ind}
@@ -768,7 +768,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
 
           {/* Sector Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Sector</label>
             <div className="relative" ref={sectorDropdownRef}>
               <input
                 type="text"
@@ -789,7 +789,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                   }
                   setShowSectorDropdown(true);
                 }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
               />
               {(selectedSector || sectorSearch) && (
                 <button
@@ -798,7 +798,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                     setSectorSearch('');
                     setShowSectorDropdown(false);
                   }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
                 >
                   <svg
                     className="w-4 h-4"
@@ -816,23 +816,23 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 </button>
               )}
               <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
               
               {showSectorDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                   {filteredSectors.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">No sectors found</div>
+                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No sectors found</div>
                   ) : (
                     <>
                       {filteredSectors.map(sec => (
                         <div
                           key={sec}
                           onClick={() => handleSectorChange(sec)}
-                          className={`px-3 py-1 text-sm hover:bg-gray-100 cursor-pointer ${
-                            selectedSector === sec ? 'bg-blue-50' : ''
+                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
+                            selectedSector === sec ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
                           }`}
                         >
                           {sec}
@@ -849,7 +849,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
 
           {/* Company Filter - Available in both modes now */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Company</label>
             <div className="relative" ref={companyDropdownRef}>
               <input
                 type="text"
@@ -874,7 +874,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                   }
                   setShowCompanyDropdown(true);
                 }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
               />
               {(selectedCompany || companySearch) && (
                 <button
@@ -883,7 +883,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                     setCompanySearch('');
                     setShowCompanyDropdown(false);
                   }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
                 >
                   <svg
                     className="w-4 h-4"
@@ -901,23 +901,23 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 </button>
               )}
               <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
               
               {showCompanyDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                   {filteredCompaniesForSearch.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">No companies found</div>
+                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies found</div>
                   ) : (
                     <>
                       {filteredCompaniesForSearch.map(comp => (
                         <div
                           key={comp.ticker}
                           onClick={() => handleCompanyChange(comp.ticker)}
-                          className={`px-3 py-1 text-sm hover:bg-gray-100 cursor-pointer ${
-                            selectedCompany === comp.ticker ? 'bg-blue-50' : ''
+                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
+                            selectedCompany === comp.ticker ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
                           }`}
                         >
                           {comp.name} ({comp.ticker})
@@ -937,7 +937,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             // Historical Chart View
             <div className="h-[400px] w-full mt-4">
                 {historicalChartLoading ? (
-                    <div className="flex items-center justify-center h-full text-gray-500">Loading chart data...</div>
+                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">Loading chart data...</div>
                 ) : historicalChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={historicalChartData}>
@@ -963,7 +963,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                             <Line 
                                 type="monotone" 
                                 dataKey="rank" 
-                                stroke="#1B5A7D" 
+                                stroke="#144D37" 
                                 strokeWidth={2}
                                 name={`${selectedCompany} - ${rankingTypes.find(t => t.id === selectedRankingType)?.label || 'Rank'}`}
                                 dot={false}
@@ -972,7 +972,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                         </LineChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
                         No historical ranking data available for {selectedCompany} ({selectedRankingType}).
                     </div>
                 )}
@@ -980,62 +980,62 @@ const TopPicks: React.FC<TopPicksProps> = () => {
         ) : (
             // Standard Table View (Today's Pick Only)
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-[#161C1A] border border-gray-200 dark:border-[#161C1A]">
+          <thead className="bg-gray-50 dark:bg-[#1C2220]">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
                 Overall Rank
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
                 Ticker
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
                 ROIC 5Y Avg <br/>
-                <span className="text-gray-400 font-normal">(Value | Rank)</span>
+                <span className="text-gray-400 dark:text-[#889691] font-normal">(Value | Rank)</span>
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
                 Earnings Yield <br/>
-                <span className="text-gray-400 font-normal">(Value | Rank)</span>
+                <span className="text-gray-400 dark:text-[#889691] font-normal">(Value | Rank)</span>
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
                 Intrinsic to Market Cap <br/>
-                <span className="text-gray-400 font-normal">(Value | Rank)</span>
+                <span className="text-gray-400 dark:text-[#889691] font-normal">(Value | Rank)</span>
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-[#161C1A] divide-y divide-gray-200 dark:divide-[#161C1A]">
             {filteredData.length > 0 ? (
               filteredData.map((item) => (
-                <tr key={item.ticker} className="hover:bg-gray-50 transition-colors">
+                <tr key={item.ticker} className="hover:bg-gray-50 dark:hover:bg-[#1C2220] transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1B5A7D] text-white font-bold text-sm">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#144D37] dark:bg-[#144D37] text-white font-bold text-sm">
                       {item.ranks.overall}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{item.ticker}</div>
-                    <div className="text-xs text-gray-500">{item.name}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-[#E0E6E4]">{item.ticker}</div>
+                    <div className="text-xs text-gray-500 dark:text-[#889691]">{item.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-gray-900 dark:text-[#E0E6E4]">
                       {formatPercent(item.roic5YAvg)} 
-                      <span className="text-gray-500 ml-1 text-xs">
+                      <span className="text-gray-500 dark:text-[#889691] ml-1 text-xs">
                         (Rank: {item.ranks.roic})
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-gray-900 dark:text-[#E0E6E4]">
                       {formatPercent(item.earningsYield)}
-                      <span className="text-gray-500 ml-1 text-xs">
+                      <span className="text-gray-500 dark:text-[#889691] ml-1 text-xs">
                         (Rank: {item.ranks.earnings})
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-gray-900 dark:text-[#E0E6E4]">
                       {formatRatio(item.intrinsicToMarketCap)}
-                      <span className="text-gray-500 ml-1 text-xs">
+                      <span className="text-gray-500 dark:text-[#889691] ml-1 text-xs">
                         (Rank: {item.ranks.intrinsic})
                       </span>
                     </div>
@@ -1044,7 +1044,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
+                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
                   No companies found matching the selected filters.
                 </td>
               </tr>
@@ -1054,13 +1054,13 @@ const TopPicks: React.FC<TopPicksProps> = () => {
       </div>
         )}
       
-      <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded">
-        <p className="font-semibold mb-1">Methodology:</p>
+      <div className="mt-4 text-xs text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#1C2220] p-3 rounded">
+        <p className="font-semibold mb-1 text-gray-700 dark:text-[#E0E6E4]">Methodology:</p>
         <ul className="list-disc pl-4 space-y-1">
-          <li><strong>Overall Rank:</strong> Calculated by summing the ranks of ROIC, Earnings Yield, and Intrinsic/Market Cap (Lowest sum = Rank 1).</li>
-          <li><strong>ROIC 5Y Avg:</strong> 5-year average Return on Invested Capital.</li>
-          <li><strong>Earnings Yield:</strong> (Net Income 5Y Avg / Shares Outstanding) / Stock Price.</li>
-          <li><strong>Intrinsic to Market Cap:</strong> Intrinsic Value / Current Market Cap.</li>
+          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">Overall Rank:</strong> Calculated by summing the ranks of ROIC, Earnings Yield, and Intrinsic/Market Cap (Lowest sum = Rank 1).</li>
+          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">ROIC 5Y Avg:</strong> 5-year average Return on Invested Capital.</li>
+          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">Earnings Yield:</strong> (Net Income 5Y Avg / Shares Outstanding) / Stock Price.</li>
+          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">Intrinsic to Market Cap:</strong> Intrinsic Value / Current Market Cap.</li>
           <li>Values are updated daily from API.</li>
         </ul>
       </div>

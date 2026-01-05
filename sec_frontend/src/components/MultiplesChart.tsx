@@ -43,7 +43,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white border border-gray-300 rounded p-2 shadow-lg">
+      <div className="bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-[#161C1A] rounded p-2 shadow-lg text-gray-900 dark:text-[#E0E6E4]">
         <p className="font-semibold">{data.ticker}</p>
         {data.revenueGrowth !== undefined && (
           <p className="text-xs">Revenue Growth: {typeof data.revenueGrowth === 'number' ? data.revenueGrowth.toFixed(2) : data.revenueGrowth}%</p>
@@ -76,22 +76,22 @@ const MultiplesSelectors: React.FC<MultiplesSelectorsProps> = ({
   return (
     <div className="space-y-2 sm:space-y-3">
       <div className="flex items-center gap-2">
-        <div className="text-xs sm:text-sm text-gray-600 w-24 sm:w-24">Numerator</div>
+        <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691] w-24 sm:w-24">Numerator</div>
         <select
           value={numerator}
           onChange={(e) => onNumeratorChange(e.target.value)}
-          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 bg-white text-gray-700"
+          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
         >
           <option value="EV foundational">EV foundational</option>
           <option value="Market Cap">Market Cap</option>
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <div className="text-xs sm:text-sm text-gray-600 w-24 sm:w-24">Denominator</div>
+        <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691] w-24 sm:w-24">Denominator</div>
         <select
           value={denominator}
           onChange={(e) => onDenominatorChange(e.target.value)}
-          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 bg-white text-gray-700"
+          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
         >
           {DENOMINATOR_OPTIONS.map(opt => (
             <option key={opt} value={opt}>{opt === 'NOPAT' ? 'NOPAT' : opt}</option>
@@ -384,28 +384,28 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
   }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears, realMarketCaps]);
 
   return (
-    <div className={`bg-white rounded-lg border shadow-sm p-3 sm:p-4 ${className}`}>
+    <div className={`bg-white dark:bg-[#161C1A] rounded-lg border dark:border-[#161C1A] shadow-sm p-3 sm:p-4 ${className}`}>
       {/* Header and controls */}
       <div className="flex flex-col gap-3 sm:gap-4">
         <div className="flex items-center justify-between">
-          <div className="text-base sm:text-lg font-semibold text-gray-800">Multiples</div>
+          <div className="text-base sm:text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">Multiples</div>
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setViewMode('holistic')}
-              className={`px-3 py-1 text-xs sm:text-sm rounded-full border ${
+              className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
                 viewMode === 'holistic' 
-                  ? 'bg-[#1B5A7D] text-white border-[#1B5A7D]' 
-                  : 'border-gray-300 bg-gray-50 text-gray-700'
+                  ? 'bg-[#144D37] text-white border-[#144D37]' 
+                  : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
               }`}
             >
               Holistic
             </button>
             <button 
               onClick={() => setViewMode('simple')}
-              className={`px-3 py-1 text-xs sm:text-sm rounded-full border ${
+              className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
                 viewMode === 'simple' 
-                  ? 'bg-[#1B5A7D] text-white border-[#1B5A7D]' 
-                  : 'border-gray-300 bg-gray-50 text-gray-700'
+                  ? 'bg-[#144D37] text-white border-[#144D37]' 
+                  : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
               }`}
             >
               Simple
@@ -424,18 +424,18 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         {/* Company Multi-Select Search - Hidden for presentation */}
         {SHOW_COMPANY_SELECTOR && (
           <div className="relative" ref={companyDropdownRef}>
-            <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded min-h-[42px]">
+            <div className="flex flex-wrap gap-2 p-2 border border-gray-200 dark:border-[#161C1A] rounded min-h-[42px] bg-white dark:bg-[#1C2220]">
               {selectedCompanies.map((company, index) => (
                 <div 
                   key={index} 
-                  className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                  className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
                 >
                   {company.display_name || company.name || company.ticker}
                   <button
                     onClick={() => setSelectedCompanies(companies => 
                       companies.filter((_, i) => i !== index)
                     )}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
                   >
                     <svg
                       className="w-3 h-3"
@@ -459,16 +459,16 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                 onChange={(e) => setCompanyInput(e.target.value)}
                 onFocus={() => setShowCompanyDropdown(true)}
                 placeholder="Search companies..."
-                className="flex-1 min-w-[100px] outline-none text-xs sm:text-sm"
+                className="flex-1 min-w-[100px] outline-none text-xs sm:text-sm bg-transparent dark:text-[#E0E6E4] dark:placeholder-[#889691]"
               />
             </div>
             
             {showCompanyDropdown && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                 {companiesLoading ? (
-                  <div className="px-3 py-2 text-xs sm:text-sm text-gray-500">Loading companies...</div>
+                  <div className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
                 ) : availableCompanies.length === 0 ? (
-                  <div className="px-3 py-2 text-xs sm:text-sm text-gray-500">No companies available</div>
+                  <div className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
                 ) : (
                   availableCompanies
                     .filter(company => {
@@ -491,7 +491,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                           setCompanyInput('');
                           setShowCompanyDropdown(false);
                         }}
-                        className="px-3 py-2 text-xs sm:text-sm hover:bg-gray-100 cursor-pointer"
+                        className="px-3 py-2 text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
                       >
                         {company.name} ({company.ticker})
                       </div>
@@ -506,11 +506,11 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
       {/* Chart */}
       <div className="mt-4 h-[220px] sm:h-[260px]">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
             Loading data...
           </div>
         ) : selectedCompanies.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400">
+          <div className="flex items-center justify-center h-full text-gray-400 dark:text-[#889691]">
             Select companies to view multiples
           </div>
         ) : viewMode === 'simple' ? (
@@ -575,13 +575,13 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                 gap: '4px'
               }}
             >
-              <span className="text-xs font-medium text-gray-700">Revenue Growth</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-[#E0E6E4]">Revenue Growth</span>
               
               {/* Year Selector Dropdown */}
               <div ref={yearDropdownRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => setShowYearDropdown(!showYearDropdown)}
-                  className="text-xs font-medium text-[#1B5A7D] bg-white px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
+                  className="text-xs font-medium text-[#1B5A7D] dark:text-[#144D37] bg-white dark:bg-[#1C2220] px-2 py-1 rounded border border-gray-300 dark:border-[#161C1A] hover:bg-gray-50 dark:hover:bg-[#161C1A] flex items-center gap-1"
                 >
                   ({selectedYears})
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -590,7 +590,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                 </button>
                 
                 {showYearDropdown && (
-                  <div className="absolute top-full mt-1 left-0 bg-white border border-gray-200 rounded shadow-lg z-20">
+                  <div className="absolute top-full mt-1 left-0 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg z-20">
                     {YEAR_PERIODS.map(period => (
                       <div
                         key={period}
@@ -598,8 +598,8 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                           setSelectedYears(period);
                           setShowYearDropdown(false);
                         }}
-                        className={`px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 whitespace-nowrap ${
-                          selectedYears === period ? 'bg-[#E5F0F6] text-[#1B5A7D]' : 'text-gray-700'
+                        className={`px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-[#1C2220] whitespace-nowrap ${
+                          selectedYears === period ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-700 dark:text-[#E0E6E4]'
                         }`}
                       >
                         {period}

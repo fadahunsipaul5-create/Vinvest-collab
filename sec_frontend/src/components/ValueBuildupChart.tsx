@@ -142,21 +142,21 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
   return (
     <div className={`w-full h-full ${className}`}>
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">Value Build-up</h3>
-        <div className="text-sm text-gray-600">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4] mb-2">Value Build-up</h3>
+        <div className="text-sm text-gray-600 dark:text-[#889691]">
           Financial valuation components breakdown
         </div>
       </div>
       
       {isLoading && (
         <div className="h-[300px] flex items-center justify-center">
-          <div className="text-sm text-gray-500">Loading valuation data...</div>
+          <div className="text-sm text-gray-500 dark:text-[#889691]">Loading valuation data...</div>
         </div>
       )}
       
       {error && !isLoading && (
         <div className="h-[300px] flex items-center justify-center">
-          <div className="text-sm text-red-500">Error loading data: {error}</div>
+          <div className="text-sm text-red-500 dark:text-red-400">Error loading data: {error}</div>
         </div>
       )}
       
@@ -195,8 +195,9 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
                   return [`$${value.toFixed(2)}B`, 'Value'];
                 }}
                 contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
+                  backgroundColor: 'var(--tooltip-bg, white)',
+                  color: 'var(--tooltip-text, #111827)',
+                  border: '1px solid var(--tooltip-border, #e5e7eb)',
                   borderRadius: '6px',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                 }}
@@ -211,18 +212,18 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
           {/* 0.5x annotation */}
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center gap-2">
             <div className="flex items-center">
-              <div className="w-8 h-px bg-gray-400"></div>
-              <div className="w-px h-4 bg-gray-400"></div>
-              <div className="w-8 h-px bg-gray-400"></div>
+              <div className="w-8 h-px bg-gray-400 dark:bg-gray-500"></div>
+              <div className="w-px h-4 bg-gray-400 dark:bg-gray-500"></div>
+              <div className="w-8 h-px bg-gray-400 dark:bg-gray-500"></div>
             </div>
-            <span className="text-sm font-medium text-gray-700">{ratio.toFixed(2)}x</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">{ratio.toFixed(2)}x</span>
           </div>
         </div>
       )}
       
       {!isLoading && !error && !hasData && (
         <div className="h-[300px] flex items-center justify-center">
-            <div className="text-sm text-gray-500">No data available for this company</div>
+            <div className="text-sm text-gray-500 dark:text-[#889691]">No data available for this company</div>
         </div>
       )}
       

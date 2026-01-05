@@ -52,6 +52,11 @@ export const tableConfigs = [
     id: 'financingHealth',
     title: 'COST Financing Health',
     isEditable: false
+  },
+  {
+    id: 'forecastedStatements',
+    title: 'COST Forecasted Statements',
+    isEditable: false
   }
 ];
 
