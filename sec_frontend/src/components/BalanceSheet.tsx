@@ -189,7 +189,7 @@ const BalanceSheetTable: React.FC<{ data: TableData; onDataChange: (year: number
 						<tr className="bg-gray-100 border-b">
 							<th className="text-left p-3 font-medium text-gray-700 sticky left-0 bg-gray-100 border-r min-w-[220px]">Breakdown</th>
 							{yearsList.map(y => (
-								<th key={y} className="text-center p-3 font-medium text-gray-700 min-w-[140px]">{`8/31/${y}`}</th>
+								<th key={y} className="text-center p-3 font-medium text-gray-700 min-w-[140px]">{`${y}`}</th>
 							))}
 						</tr>
 					</thead>

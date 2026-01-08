@@ -35,6 +35,7 @@ from .models.sector import Sector
 from .serializer import CompanyMultiplesSerializer
 
 logger = logging.getLogger(__name__)
+_MULTIPLES_DATA_LOADED = False
 from .utility.bot import *
 from django.db import transaction
 from django.http import JsonResponse,HttpResponse
@@ -1728,6 +1729,7 @@ class CompanyMultiplesAPIView(APIView):
     
     def get(self, request, ticker=None):         
         try:
+            global _MULTIPLES_DATA_LOADED
             if ticker:
                 # Get specific company
                 try:
@@ -1735,12 +1737,29 @@ class CompanyMultiplesAPIView(APIView):
                     serializer = CompanyMultiplesSerializer(multiples)
                     return Response(serializer.data, status=200)
                 except CompanyMultiples.DoesNotExist:
+                    # Lazy-load from CSVs if the DB hasn't been populated yet (dev convenience).
+                    if not _MULTIPLES_DATA_LOADED:
+                        try:
+                            call_command('load_multiples_data')
+                            _MULTIPLES_DATA_LOADED = True
+                            multiples = CompanyMultiples.objects.get(ticker=ticker.upper())
+                            serializer = CompanyMultiplesSerializer(multiples)
+                            return Response(serializer.data, status=200)
+                        except Exception as e:
+                            logger.warning(f"Lazy load multiples data failed: {str(e)}")
                     return Response({
                         'error': f'Multiples data not found for ticker: {ticker}'
                     }, status=404)
             else:
                 # List all companies
                 multiples = CompanyMultiples.objects.all()
+                if not multiples.exists() and not _MULTIPLES_DATA_LOADED:
+                    try:
+                        call_command('load_multiples_data')
+                        _MULTIPLES_DATA_LOADED = True
+                        multiples = CompanyMultiples.objects.all()
+                    except Exception as e:
+                        logger.warning(f"Lazy load multiples data failed (list): {str(e)}")
                 serializer = CompanyMultiplesSerializer(multiples, many=True)
                 return Response(serializer.data, status=200)
                 

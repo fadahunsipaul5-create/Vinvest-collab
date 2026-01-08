@@ -173,6 +173,11 @@ async function loadCompanyData(ticker: string): Promise<MultiplesData> {
   }
 }
 
+// Public wrapper: load data for a single ticker (on-demand)
+export async function loadMultiplesDataForTicker(ticker: string): Promise<MultiplesData> {
+  return await loadCompanyData(ticker);
+}
+
 function getEmptyData(ticker: string): MultiplesData {
   const emptyData: MultiplesData = {
     ticker,
@@ -244,6 +249,19 @@ export async function loadAllMultiplesData(): Promise<{ [ticker: string]: Multip
   
   console.log(`Successfully loaded multiples data for ${Object.keys(results).length} companies`);
   
+  return results;
+}
+
+// Load multiples data for a specific set of tickers (preferred for performance)
+export async function loadMultiplesDataForTickers(tickers: string[]): Promise<{ [ticker: string]: MultiplesData }> {
+  const results: { [ticker: string]: MultiplesData } = {};
+  const unique = Array.from(new Set((tickers || []).map(t => String(t || '').trim().toUpperCase()).filter(Boolean)));
+  await Promise.all(
+    unique.map(async (ticker) => {
+      const data = await loadCompanyData(ticker);
+      results[ticker] = data;
+    })
+  );
   return results;
 }
 

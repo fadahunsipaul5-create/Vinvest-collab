@@ -83,6 +83,17 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
                     intrinsicToMcVal = val;
                 }
             }
+        } else if (intrinsicToMcResponse.status === 404) {
+            // Handle 404 error response format per API docs: { "detail": { "message": "...", "reasons": {...} } }
+            try {
+                const errorData = await intrinsicToMcResponse.json();
+                if (errorData?.detail?.message) {
+                    console.warn(`[Intrinsic to MC] ${errorData.detail.message}`, errorData.detail.reasons || {});
+                }
+            } catch (e) {
+                console.warn(`[Intrinsic to MC] No data available for ${ticker} (404)`);
+            }
+            // Fallback: will calculate ratio from equityValue/marketCap if available
         }
 
         setEquityValue(equityVal);

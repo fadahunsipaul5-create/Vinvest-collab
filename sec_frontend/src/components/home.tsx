@@ -10,6 +10,7 @@ import ValuationPage from './ValuationPage';
 import ValueBuildupChart from './ValueBuildupChart';
 import MultiplesChart from './MultiplesChart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import BoxPlot from './BoxPlot';
 import TopPicks from './TopPicks';
 import { useChat } from './chatbox';
 import { TooltipProps } from 'recharts';
@@ -1271,7 +1272,8 @@ const Dashboard: React.FC = () => {
   // const [selectedIndustryCompanies, setSelectedIndustryCompanies] = useState<CompanyTicker[]>([]);
   const [selectedIndustryMetrics, setSelectedIndustryMetrics] = useState<string[]>([]);
   const [industryMetricInput, setIndustryMetricInput] = useState('');
-  const [industryChartData, setIndustryChartData] = useState<any[]>([]);
+  const [industryChartData, setIndustryChartData] = useState<Record<string, (number | null)[]>>({});
+  const [industryCompanyNames, setIndustryCompanyNames] = useState<Record<string, string[]>>({});
   const [industryLoading, setIndustryLoading] = useState(false);
   const [industryError, setIndustryError] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState('');
@@ -1783,76 +1785,108 @@ const Dashboard: React.FC = () => {
     setIndustryError(null);
     
     try {
-      console.log('Fetching industry comparison data:', selectedIndustry, selectedIndustryMetrics);
+      console.log('Fetching industry distribution data (box plot):', selectedIndustry, selectedIndustryMetrics, selectedPeriod);
 
-      const yearMap: { [year: string]: any } = {};
+      // Industry tab periods are AVG-only; map UI label to API params
+      const avgMatch = selectedPeriod.match(/^Last\s+(\d+)Y\s+AVG$/);
+      if (!avgMatch) {
+        setIndustryError('Invalid period for industry comparison. Please choose a "Last xY AVG" period.');
+        setIndustryChartData({});
+        return;
+      }
 
-      // Fetch data for each metric
-      const promises = selectedIndustryMetrics.map(async (metric) => {
-        try {
-          // Use new industry-comparison endpoint
-          // Note: period=ALL to get historical trend
-          // Important: Use selectedIndustry directly as it matches the API expected format (e.g. "Discount Stores")
-          // Do NOT slugify it or lowercase it unless the API specifically requires it.
-          // Based on availableIndustries, the value is "Discount Stores", "Software - Infrastructure", etc.
-          const url = `${baseUrl}/api/sec/central/industry-comparison?industries=${encodeURIComponent(selectedIndustry)}&metric=${encodeURIComponent(metric)}&period=ALL`;
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-            console.warn(`Failed to fetch industry comparison for ${metric}: ${response.status}`);
-            return; // Gracefully skip if data is missing (404)
-            }
-            
+      const periodYears = `${avgMatch[1]}Y`;
+      const periodType = 'Average';
+
+      // Find the selected industry's tickers from the Central industries list
+      const industryObj = availableIndustries.find(ind => ind.value === selectedIndustry);
+      const tickers: string[] = (industryObj?.companies || []).filter(Boolean);
+
+      if (tickers.length === 0) {
+        setIndustryError('No companies found for the selected industry.');
+        setIndustryChartData({});
+        return;
+      }
+
+      // Chunk tickers to avoid overly long URLs
+      const chunkSize = 100;
+      const tickerChunks: string[][] = [];
+      for (let i = 0; i < tickers.length; i += chunkSize) {
+        tickerChunks.push(tickers.slice(i, i + chunkSize));
+      }
+
+      const results: Record<string, (number | null)[]> = {};
+      const companyNamesByMetric: Record<string, string[]> = {};
+
+      // Fetch distribution for each metric: aggregated-data across all tickers in the industry
+      await Promise.all(selectedIndustryMetrics.map(async (metric) => {
+        const values: (number | null)[] = [];
+        const companyNames: string[] = [];
+
+        // The API can return 404 for a multi-ticker request if ANY ticker has no data.
+        // So we do an adaptive split: try the batch, and if it fails, bisect until we isolate the tickers with data.
+        const fetchChunkAdaptive = async (chunk: string[]): Promise<any[]> => {
+          if (chunk.length === 0) return [];
+          const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(chunk.join(','))}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(periodYears)}&periodType=${encodeURIComponent(periodType)}`;
+          const response = await fetch(url);
+
+          if (response.ok) {
             const data = await response.json();
-          // Expected format: { industries: [...], comparisons: [{ period: "2023", "Industry_Name_total": 123 }, ...] }
-          
-          if (data.comparisons && Array.isArray(data.comparisons)) {
-            data.comparisons.forEach((item: any) => {
-              const year = item.period;
-              if (!year) return;
-
-              if (!yearMap[year]) {
-                yearMap[year] = { 
-                  name: year,
-                  year: parseInt(year) || 0 
-                };
-              }
-              
-              // Find the value key (not 'period')
-              // We assume one industry is selected, so we take the first available value key
-              const valueKey = Object.keys(item).find(k => k !== 'period');
-              if (valueKey && item[valueKey] !== null) {
-                yearMap[year][metric] = item[valueKey];
-              }
-            });
+            return Array.isArray(data) ? data : [];
           }
-          } catch (error) {
-          console.error(`Error fetching ${metric} for industry:`, error);
+
+          // If a single ticker fails, there's nothing to salvage.
+          if (chunk.length === 1) {
+            console.warn(`No data for ${metric} (${periodYears} AVG) ticker=${chunk[0]}: ${response.status}`);
+            return [];
           }
-        });
 
-      await Promise.all(promises);
-        
-      // Convert map to sorted array
-      const sortedData = Object.values(yearMap).sort((a, b) => a.year - b.year);
-      
-      console.log('Industry comparison data:', sortedData);
+          // Split and retry to salvage tickers that DO have data.
+          if (response.status === 404) {
+            const mid = Math.floor(chunk.length / 2);
+            const left = await fetchChunkAdaptive(chunk.slice(0, mid));
+            const right = await fetchChunkAdaptive(chunk.slice(mid));
+            return [...left, ...right];
+          }
 
-      if (sortedData.length === 0) {
-        setIndustryError('No data available for the selected industry and metrics.');
-        setIndustryChartData([]);
+          console.warn(`Failed to fetch industry aggregated-data for ${metric}: ${response.status}`);
+          return [];
+        };
+
+        for (const chunk of tickerChunks) {
+          const data = await fetchChunkAdaptive(chunk);
+          data.forEach((item: any) => {
+            const t = String(item?.ticker || '').toUpperCase();
+            const raw = item?.value;
+            const v = Number(raw);
+            companyNames.push(t || 'Unknown');
+            values.push(raw === null || raw === undefined || !Number.isFinite(v) ? null : v);
+          });
+        }
+
+        results[metric] = values;
+        companyNamesByMetric[metric] = companyNames;
+      }));
+
+      const hasAny = Object.values(results).some(arr => Array.isArray(arr) && arr.length > 0);
+      if (!hasAny) {
+        setIndustryError('No data available for the selected industry, metrics, and period.');
+        setIndustryChartData({});
+        setIndustryCompanyNames({});
       } else {
-        setIndustryChartData(sortedData);
+        setIndustryChartData(results);
+        setIndustryCompanyNames(companyNamesByMetric);
       }
 
     } catch (error) {
       console.error('Error fetching industry data:', error);
       setIndustryError('Failed to fetch industry data. Please try again.');
-      setIndustryChartData([]);
+      setIndustryChartData({});
+      setIndustryCompanyNames({});
     } finally {
       setIndustryLoading(false);
     }
-  }, [selectedIndustryMetrics, selectedIndustry, baseUrl]);
+  }, [selectedIndustryMetrics, selectedIndustry, selectedPeriod, availableIndustries, baseUrl]);
 
   const fetchAvailableIndustries = async () => {
     try {
@@ -1901,7 +1935,8 @@ const Dashboard: React.FC = () => {
     if (resetTrigger > 0) { // Only clear if resetTrigger has been set (not initial 0)
       setChartData([]);
       setPeerChartData([]);
-      setIndustryChartData([]);
+      setIndustryChartData({});
+      setIndustryCompanyNames({});
       setFixed2024Data(null);
       setError(null);
       setPeerError(null);
@@ -2218,7 +2253,7 @@ const Dashboard: React.FC = () => {
           <div className="flex-1"></div> {/* Spacer for center alignment */}
           
           <div className="w-6 xm:w-7 xs:w-8 sm:w-9 md:w-10"></div> {/* Spacer for balance */}
-        </div>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1">
@@ -2266,7 +2301,7 @@ const Dashboard: React.FC = () => {
                   </>
                 )}
               </button>
-
+              
               {/* User Profile - hidden on mobile */}
               <div className="absolute right-3 lg:right-4 xl:right-6" ref={profileDropdownRef}>
                 <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
@@ -2373,15 +2408,15 @@ const Dashboard: React.FC = () => {
                       </>
                     )}
                   </button>
-                  <button
-                    onClick={() => setIsMobileSidebarOpen(false)}
+                <button
+                  onClick={() => setIsMobileSidebarOpen(false)}
                     className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
-                    aria-label="Close menu"
-                  >
+                  aria-label="Close menu"
+                >
                     <svg className="w-6 h-6 dark:text-[#E0E6E4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
                 </div>
               </div>
               
@@ -2391,6 +2426,7 @@ const Dashboard: React.FC = () => {
                   <button 
                     onClick={() => {
                       setShowValuationModal(true);
+                      setIsChatbotMinimized(true); // full-width like Performance double-click
                       setIsMobileSidebarOpen(false);
                     }}
                     className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
@@ -2698,10 +2734,23 @@ const Dashboard: React.FC = () => {
         {/* Main Grid */}
         <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:p-6 xl:p-8 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-5 xl:gap-6 items-stretch">
-            {/* Chart Section - full width on mobile */}
-            {!isPerformanceMinimized && (
-              <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-7'} transition-all duration-300 flex flex-col`}>
-              <div className="bg-white dark:bg-[#161C1A] rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm flex-1 flex flex-col" ref={performanceCardRef} id="bp-print-area">
+            {showValuationModal ? (
+              <div className="lg:col-span-12">
+                <ValuationPage
+                  onClose={() => {
+                    setShowValuationModal(false);
+                    setIsChatbotMinimized(false);
+                  }}
+                  initialCompany={searchValue}
+                  onCompanyChange={(company) => setSearchValue(company)}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Chart Section - full width on mobile */}
+                {!isPerformanceMinimized && (
+                  <div className={`${isChatbotMinimized ? 'lg:col-span-12' : 'lg:col-span-7'} transition-all duration-300 flex flex-col`}>
+                  <div className="bg-white dark:bg-[#161C1A] rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm flex-1 flex flex-col" ref={performanceCardRef} id="bp-print-area">
 
                 {/* Business Performance Tabs */}
                 <div className="flex gap-2 mb-3">
@@ -2744,7 +2793,10 @@ const Dashboard: React.FC = () => {
                     Performance
                   </button>
                   <button
-                    onClick={() => setShowValuationModal(true)}
+                    onClick={() => {
+                      setShowValuationModal(true);
+                      setIsChatbotMinimized(true); // full-width like Performance double-click
+                    }}
                     className="px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]"
                   >
                     Valuation Model
@@ -4002,38 +4054,14 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center justify-center h-full text-red-500">
                         {industryError}
                       </div>
-                    ) : industryChartData && industryChartData.length > 0 ? (
+                    ) : industryChartData && Object.keys(industryChartData).length > 0 ? (
                       <div className="w-full min-h-[400px]" style={{ position: 'relative' }}>
-                        <ResponsiveContainer width="100%" height={400}>
-                          <LineChart data={industryChartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                            <XAxis dataKey="name" />
-                            <YAxis 
-                              tickFormatter={(value) => new Intl.NumberFormat('en-US', {
-                                notation: 'compact',
-                                maximumFractionDigits: 1
-                              }).format(value)}
-                            />
-                            <Tooltip 
-                              formatter={(value: number) => new Intl.NumberFormat('en-US', {
-                                  notation: 'compact',
-                                  maximumFractionDigits: 1
-                              }).format(value)}
-                            />
-                            <Legend />
-                            {selectedIndustryMetrics.map((metric, idx) => (
-                              <Line
-                                key={metric}
-                                type="monotone"
-                                dataKey={metric}
-                                stroke={generateColorPalette(selectedIndustryMetrics.length)[idx]}
-                                name={availableMetrics.find(m => m.value === metric)?.label || metric}
-                                strokeWidth={2}
-                                dot={{ r: 4 }}
-                              />
-                            ))}
-                          </LineChart>
-                        </ResponsiveContainer>
+                        <BoxPlot
+                          data={industryChartData}
+                          title={`${selectedIndustry} • ${selectedPeriod}`}
+                          companyNames={industryCompanyNames}
+                          selectedTicker={searchValue ? searchValue.split(':')[0].trim().toUpperCase() : ''}
+                        />
                       </div>
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
@@ -4126,24 +4154,24 @@ const Dashboard: React.FC = () => {
                           {isSavingReport ? 'Saving...' : 'Save Report'}
                         </button>
                       ) : (
-                        <button 
-                          onClick={saveConversation}
-                          disabled={isSavingConversation || messages.length <= 1}
-                          className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
-                            isSavingConversation || messages.length <= 1
-                              ? 'bg-gray-400 cursor-not-allowed' 
+                      <button 
+                        onClick={saveConversation}
+                        disabled={isSavingConversation || messages.length <= 1}
+                        className={`px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors ${
+                          isSavingConversation || messages.length <= 1
+                            ? 'bg-gray-400 cursor-not-allowed' 
                               : 'bg-[#144D37] text-white hover:bg-[#0F3A28]'
-                          }`}
-                          title={
-                            isSavingConversation 
-                              ? 'Generating PDF...' 
-                              : messages.length <= 1
-                              ? 'No conversation to save'
-                              : 'Save conversation as PDF report'
-                          }
-                        >
-                          {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
-                        </button>
+                        }`}
+                        title={
+                          isSavingConversation 
+                            ? 'Generating PDF...' 
+                            : messages.length <= 1
+                            ? 'No conversation to save'
+                            : 'Save conversation as PDF report'
+                        }
+                      >
+                        {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
+                      </button>
                       )}
                     </div>
                     <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium dark:text-white">
@@ -4420,6 +4448,8 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           )}
+              </>
+            )}
         
           </div>
         </div>
@@ -4941,19 +4971,6 @@ const Dashboard: React.FC = () => {
                 setShowContactModal(true);
               }} />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Valuation Modal */}
-      {showValuationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
-            <ValuationPage 
-              onClose={() => setShowValuationModal(false)}
-              initialCompany={searchValue}
-              onCompanyChange={(company) => setSearchValue(company)}
-            />
           </div>
         </div>
       )}

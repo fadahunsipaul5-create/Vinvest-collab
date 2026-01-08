@@ -12,7 +12,7 @@ import {
   Label,
   Cell
 } from 'recharts';
-import { loadAllMultiplesData, calculateMultiple, getNumericValue, MultiplesData } from '../utils/multiplesDataLoader';
+import { loadMultiplesDataForTickers, calculateMultiple, getNumericValue, MultiplesData } from '../utils/multiplesDataLoader';
 import baseUrl from './api';
 
 interface MultiplesChartProps {
@@ -208,17 +208,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
   
   // Load data on mount
   useEffect(() => {
-    setIsLoading(true);
-    loadAllMultiplesData()
-      .then(data => {
-        setMultiplesData(data);
-        setIsLoading(false);
-        console.log('Multiples data loaded:', data);
-      })
-      .catch(error => {
-        console.error('Failed to load multiples data:', error);
-        setIsLoading(false);
-      });
+    setIsLoading(false);
   }, []);
 
   // Close dropdown when clicking outside
@@ -240,14 +230,48 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
 
   // Auto-select company when initialCompany prop changes
   useEffect(() => {
-    if (initialCompany && multiplesData && availableCompanies.length > 0) {
-      const company = availableCompanies.find(c => c.ticker.toUpperCase() === initialCompany.toUpperCase());
+    if (initialCompany && availableCompanies.length > 0) {
+      const initialTicker = initialCompany.split(':')[0].trim().toUpperCase();
+      const company = availableCompanies.find(c => c.ticker.toUpperCase() === initialTicker);
       if (company) {
         // Set the company as the selection (replacing previous)
         setSelectedCompanies([company]);
+      } else if (initialTicker) {
+        // Fallback: allow selection even if company list hasn't fully populated or doesn't contain it
+        setSelectedCompanies([{ ticker: initialTicker, name: initialTicker, display_name: initialTicker }]);
       }
     }
-  }, [initialCompany, multiplesData, availableCompanies]);
+  }, [initialCompany, availableCompanies]);
+
+  // Load multiples data on-demand for selected companies (much faster than preloading all)
+  useEffect(() => {
+    if (selectedCompanies.length === 0) return;
+
+    const tickersToLoad = selectedCompanies
+      .map(c => c.ticker.toUpperCase())
+      .filter(t => !multiplesData || !multiplesData[t]);
+
+    if (tickersToLoad.length === 0) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+    loadMultiplesDataForTickers(tickersToLoad)
+      .then((data) => {
+        if (cancelled) return;
+        setMultiplesData(prev => ({ ...(prev || {}), ...data }));
+      })
+      .catch((error) => {
+        console.error('Failed to load multiples data:', error);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCompanies, multiplesData]);
   
   // Helper function to get denominator key
   const getDenominatorKey = (denominator: string): string => {
@@ -472,14 +496,11 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                 ) : (
                   availableCompanies
                     .filter(company => {
-                      // Only show companies that have multiples data
-                      const hasMultiplesData = multiplesData && multiplesData[company.ticker] && 
-                        multiplesData[company.ticker].numerators && 
-                        Object.keys(multiplesData[company.ticker].numerators).length > 0;
-                      return hasMultiplesData && 
+                      return (
                         !selectedCompanies.some(c => c.ticker === company.ticker) &&
-                        (company.ticker.toLowerCase().includes(companyInput.toLowerCase()) || 
-                         company.name.toLowerCase().includes(companyInput.toLowerCase()));
+                        (company.ticker.toLowerCase().includes(companyInput.toLowerCase()) ||
+                          company.name.toLowerCase().includes(companyInput.toLowerCase()))
+                      );
                     })
                     .map(company => (
                       <div

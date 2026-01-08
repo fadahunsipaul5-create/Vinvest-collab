@@ -88,6 +88,8 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   const companyDropdownRef = useRef<HTMLDivElement>(null);
   
   const [picksData, setPicksData] = useState<TopPickData[]>([]);
+  const [rankingStats, setRankingStats] = useState<{ sent: number; ranked: number; rejected: number } | null>(null);
+  const [rankingLoading, setRankingLoading] = useState(false);
   
   // New state for mode selection
   const [activeMode, setActiveMode] = useState<'today' | 'historical'>('today');
@@ -98,6 +100,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   // Historical Chart Data State
   const [historicalChartData, setHistoricalChartData] = useState<any[]>([]);
   const [historicalChartLoading, setHistoricalChartLoading] = useState(false);
+  const [historicalChartError, setHistoricalChartError] = useState<string | null>(null);
 
   // Fetch Ranking Types on Mount
   useEffect(() => {
@@ -120,48 +123,62 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   useEffect(() => {
     if (activeMode === 'historical' && selectedCompany) {
         setHistoricalChartLoading(true);
+        setHistoricalChartError(null);
         // Fetch history for the selected company and ranking type
         // Use 'ALL' period for full history
         const url = `${baseUrl}/api/sec/central/rankings/historical?tickers=${encodeURIComponent(selectedCompany)}&rankingType=${encodeURIComponent(selectedRankingType)}&period=ALL`;
         
         console.log('Fetching historical ranking:', url);
     
-    fetch(url)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-                console.log('Historical ranking data received:', data);
-                // API response format check
-                if (data && data.history && Array.isArray(data.history)) {
-                    // Format: { history: [{ date: "2025-12-13", "AAPL": 5 }, ...] }
-                    // We need to transform this to chart format: [{ date: "...", rank: 5 }]
-                    const tickerKey = selectedCompany; // The key in the object is the ticker
-                    
-                    const chartData = data.history.map((item: any) => ({
-                        date: item.date,
-                        rank: item[tickerKey] // Extract rank using the ticker as key
-                    })).filter((item: any) => item.rank !== null && item.rank !== undefined); // Filter out nulls
-                    
-                    setHistoricalChartData(chartData);
-                } else if (data && data.length > 0 && data[0].rankings) {
-                    // Fallback for previous expected format: [{ ticker: "AAPL", rankings: [...] }]
-                    setHistoricalChartData(data[0].rankings);
-                } else {
-                    console.log('Unexpected data format or empty:', data);
-                    setHistoricalChartData([]);
-                }
-            })
-            .catch(err => {
-                console.error("Failed to fetch historical ranking chart data:", err);
-                setHistoricalChartData([]);
-            })
-            .finally(() => {
-                setHistoricalChartLoading(false);
-            });
+    (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          let detail = '';
+          try {
+            const errJson = await res.json();
+            detail = errJson?.detail ? String(errJson.detail) : '';
+          } catch {
+            // ignore json parse errors
+          }
+          throw new Error(detail || `HTTP error! Status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log('Historical ranking data received:', data);
+
+        // API response format check
+        if (data && data.history && Array.isArray(data.history)) {
+          // Format: { history: [{ date: "2025-12-13", "AAPL": 5 }, ...] }
+          // We need to transform this to chart format: [{ date: "...", rank: 5 }]
+          const tickerKey = selectedCompany; // The key in the object is the ticker
+
+          const chartData = data.history
+            .map((item: any) => ({
+              date: item.date,
+              rank: item[tickerKey] // Extract rank using the ticker as key
+            }))
+            .filter((item: any) => item.rank !== null && item.rank !== undefined); // Filter out nulls
+
+          setHistoricalChartData(chartData);
+        } else if (data && data.length > 0 && data[0].rankings) {
+          // Fallback for previous expected format: [{ ticker: "AAPL", rankings: [...] }]
+          setHistoricalChartData(data[0].rankings);
+        } else {
+          console.log('Unexpected data format or empty:', data);
+          setHistoricalChartData([]);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch historical ranking chart data:", err);
+        setHistoricalChartError(err?.message ? String(err.message) : 'Failed to fetch historical ranking data.');
+        setHistoricalChartData([]);
+      } finally {
+        setHistoricalChartLoading(false);
+      }
+    })();
     } else {
         setHistoricalChartData([]);
+        setHistoricalChartError(null);
     }
   }, [activeMode, selectedCompany, selectedRankingType]);
 
@@ -290,7 +307,12 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                return res.json();
            })
            .then(data => {
-               setFetchedCompanies(data);
+               // GraphDB returns `companyName` (not `name`) - normalize to CompanyTicker for the UI
+               const normalized: CompanyTicker[] = (data || []).map((c: any) => ({
+                   ticker: c.ticker,
+                   name: c.name ?? c.companyName ?? c.ticker
+               }));
+               setFetchedCompanies(normalized);
                // Loading state removed(false);
            })
            .catch(err => {
@@ -336,7 +358,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
     // Only applies if in 'today' mode or if we want historical to behave similarly initially
     if (activeMode === 'today' && !selectedSector && !selectedIndustry) {
         const fetchAllRankings = async () => {
-            // Loading state removed(true);
+            setRankingLoading(true);
             try {
                 const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table_for_all_companies`);
                 if (!response.ok) {
@@ -374,13 +396,22 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 }));
                 
                 setPicksData(newPicksData);
+                setRankingStats({ sent: rankings.length, ranked: rankings.length, rejected: 0 });
             } catch (err) {
                 console.error("Failed to fetch all rankings:", err);
             } finally {
-                // Loading state removed(false);
+                setRankingLoading(false);
             }
         };
         fetchAllRankings();
+        return;
+    }
+
+    // Option A: Sector selected first, do NOT call rankings until an Industry is selected.
+    if (activeMode === 'today' && selectedSector && !selectedIndustry) {
+        setPicksData([]);
+        setRankingStats(null);
+        setRankingLoading(false);
         return;
     }
 
@@ -395,20 +426,32 @@ const TopPicks: React.FC<TopPicksProps> = () => {
         return; 
     }
 
-    if (fetchedCompanies.length === 0) {
+    // Determine industry-scoped companies to rank:
+    // - Central industries may have an explicit `companies` ticker list
+    // - GraphDB flow populates `fetchedCompanies` with industry companies
+    const industryObj = fetchedIndustries.find(ind => ind.industryName === selectedIndustry);
+    const industryTickersFromCentral = (industryObj as any)?.companies;
+    const companiesToRank: CompanyTicker[] =
+        Array.isArray(industryTickersFromCentral) && industryTickersFromCentral.length > 0
+            ? allCompanies.filter(c => industryTickersFromCentral.includes(c.ticker))
+            : fetchedCompanies;
+
+    if (selectedIndustry && companiesToRank.length === 0) {
         setPicksData([]);
+        setRankingStats({ sent: 0, ranked: 0, rejected: 0 });
+        setRankingLoading(false);
         return;
     }
 
     const fetchRankingData = async () => {
-        // Loading state removed(true);
+        setRankingLoading(true);
         try {
             const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ tickers: fetchedCompanies.map(c => c.ticker) }),
+                body: JSON.stringify({ tickers: companiesToRank.map(c => c.ticker) }),
             });
 
             if (!response.ok) {
@@ -417,63 +460,89 @@ const TopPicks: React.FC<TopPicksProps> = () => {
 
             const data = await response.json();
             
-            // Parse the API response table
-            const tableRows = data.table || [];
-            
-            // Helper to parse "Value (Rank)" string
-            // Examples: "7442211765.4334 (1)", "0.0153 (1)"
+            // Support BOTH possible API response schemas:
+            // - Legacy (observed): { table: [{ "Ticker": "TGT", "Overall Rank": 1, "ROIC 5Y Avg": "0.1671 (3)", ... }] }
+            // - Docs/new: { table: [{ ticker, overall_rank, roic_5y_avg, roic_rank, ... }], rejected: [...] }
+            const tableRows: any[] = data.table || [];
+            const rejectedRows: any[] = data.rejected || [];
+            const isLegacyTable =
+                tableRows.length > 0 &&
+                (tableRows[0]?.['Ticker'] !== undefined || tableRows[0]?.['Overall Rank'] !== undefined);
+
             const parseValueRank = (str: string) => {
                 if (!str) return { value: 0, rank: 0 };
-                const match = str.match(/^([\d.-]+)\s*\((\d+)\)$/);
-                if (match) {
-                    return { value: parseFloat(match[1]), rank: parseInt(match[2]) };
-                }
-                return { value: 0, rank: 0 };
+                const match = String(str).match(/^([\d.-]+)\s*\((\d+)\)$/);
+                if (match) return { value: parseFloat(match[1]), rank: parseInt(match[2], 10) };
+                // If it's a plain number string, treat it as value with unknown rank
+                const asNum = Number(str);
+                return Number.isFinite(asNum) ? { value: asNum, rank: 0 } : { value: 0, rank: 0 };
             };
 
-            // Map over ALL fetched companies to ensure they appear in table even if rejected by ranking API
-            const newPicksData: TopPickData[] = fetchedCompanies.map((company) => {
-                const row = tableRows.find((r: any) => r['Ticker'] === company.ticker);
-                
-                let roicData = { value: 0, rank: 0 };
-                let earningsData = { value: 0, rank: 0 };
-                let intrinsicData = { value: 0, rank: 0 };
+            // Track counts; if nothing is rankable, avoid rendering placeholder "0 rank" rows.
+            setRankingStats({ sent: companiesToRank.length, ranked: tableRows.length, rejected: rejectedRows.length });
+            if (tableRows.length === 0) {
+                setPicksData([]);
+                return;
+            }
+
+            const companyNameByTicker = new Map<string, string>(
+                companiesToRank.map(c => [String(c.ticker || '').toUpperCase(), c.name ?? String(c.ticker || '').toUpperCase()])
+            );
+
+            // Render ONLY ranked rows returned by the API.
+            const newPicksData: TopPickData[] = tableRows.map((row: any) => {
+                const ticker = String(isLegacyTable ? row?.['Ticker'] : row?.ticker || '').toUpperCase();
+
+                let roicValue = 0, roicRank = 0;
+                let earningsValue = 0, earningsRank = 0;
+                let intrinsicValue = 0, intrinsicRank = 0;
                 let overallRank = 0;
 
-                if (row) {
-                    roicData = parseValueRank(row['ROIC 5Y Avg']);
-                    earningsData = parseValueRank(row['Earnings Yield']);
-                    intrinsicData = parseValueRank(row['Intrinsic to Market Cap']);
-                    overallRank = row['Overall Rank'];
+                if (isLegacyTable) {
+                    const roic = parseValueRank(row['ROIC 5Y Avg']);
+                    const earn = parseValueRank(row['Earnings Yield']);
+                    const intr = parseValueRank(row['Intrinsic to Market Cap']);
+                    roicValue = roic.value; roicRank = roic.rank;
+                    earningsValue = earn.value; earningsRank = earn.rank;
+                    intrinsicValue = intr.value; intrinsicRank = intr.rank;
+                    overallRank = Number(row['Overall Rank']) || 0;
+                } else {
+                    roicValue = row.roic_5y_avg ?? 0;
+                    roicRank = row.roic_rank ?? 0;
+                    earningsValue = row.earnings_yield ?? 0;
+                    earningsRank = row.earnings_yield_rank ?? 0;
+                    intrinsicValue = row.intrinsic_to_mc ?? 0;
+                    intrinsicRank = row.intrinsic_to_mc_rank ?? 0;
+                    overallRank = row.overall_rank ?? 0;
                 }
 
-        return {
-          ticker: company.ticker,
-          name: company.name,
+                return {
+                    ticker,
+                    name: companyNameByTicker.get(ticker) ?? ticker,
                     industry: selectedIndustry || "Unknown",
                     sector: selectedSector || "Unknown",
-                    
-                    // Parsed values
-                    roic5YAvg: roicData.value,
-                    earningsYield: earningsData.value,
-                    intrinsicToMarketCap: intrinsicData.value,
-                    
+
+                    // Values
+                    roic5YAvg: roicValue,
+                    earningsYield: earningsValue,
+                    intrinsicToMarketCap: intrinsicValue,
+
                     // Ranks
-          ranks: {
-                        roic: roicData.rank,
-                        earnings: earningsData.rank,
-                        intrinsic: intrinsicData.rank,
+                    ranks: {
+                        roic: roicRank,
+                        earnings: earningsRank,
+                        intrinsic: intrinsicRank,
                         overall: overallRank
                     },
 
-                    // Missing fields in ranking API
+                    // Fields not provided by ranking endpoint
                     netIncome5YAvg: 0,
                     sharesOutstanding: 0,
                     stockPrice: 0,
                     intrinsicValue: 0,
                     marketCap: 0
-        };
-      });
+                };
+            });
       
             setPicksData(newPicksData);
 
@@ -482,12 +551,12 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             // Fallback to empty or keep previous?
             // setPicksData([]); 
         } finally {
-            // Loading state removed(false);
+            setRankingLoading(false);
         }
     };
 
     fetchRankingData();
-  }, [fetchedCompanies, selectedSector, selectedIndustry, activeMode]); // Re-run when companies list or filters change
+  }, [fetchedCompanies, allCompanies, fetchedIndustries, selectedSector, selectedIndustry, activeMode]); // Re-run when companies list or filters change
 
   // Format Helper override for ROIC if needed
   // If ROIC comes as huge number (e.g. 7442211765), formatPercent might be wrong.
@@ -504,7 +573,11 @@ const TopPicks: React.FC<TopPicksProps> = () => {
     });
 
     // Default sort by overall rank for Today's Pick
-    data = data.sort((a, b) => a.ranks.overall - b.ranks.overall);
+    data = data.sort((a, b) => {
+      const ar = a.ranks.overall || Number.POSITIVE_INFINITY;
+      const br = b.ranks.overall || Number.POSITIVE_INFINITY;
+      return ar - br;
+    });
     
     return data;
   }, [picksData, selectedIndustry, selectedSector, selectedCompany]);
@@ -547,9 +620,12 @@ const TopPicks: React.FC<TopPicksProps> = () => {
     // sourceCompanies is array of {ticker, name}
     
     // Check if industryObj has companies property (added in previous step)
-    const validTickers = (industryObj as any).companies || [];
-    
-    return sourceCompanies.filter(comp => validTickers.includes(comp.ticker));
+    const validTickers = (industryObj as any).companies;
+    if (Array.isArray(validTickers) && validTickers.length > 0) {
+      return sourceCompanies.filter(comp => validTickers.includes(comp.ticker));
+    }
+    // GraphDB industries do not include `companies`; in that flow `fetchedCompanies` is already industry-scoped.
+    return sourceCompanies;
   }, [fetchedCompanies, fetchedIndustries, selectedIndustry]);
 
   // Filtered Companies for Search (based on search input)
@@ -686,6 +762,85 @@ const TopPicks: React.FC<TopPicksProps> = () => {
           
           {activeMode === 'today' && (
           <>
+          {/* Sector Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Sector</label>
+            <div className="relative" ref={sectorDropdownRef}>
+              <input
+                type="text"
+                placeholder="Select Sector"
+                value={selectedSector ? selectedSector : sectorSearch}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSectorSearch(value);
+                  if (value) {
+                    setSelectedSector('');
+                  }
+                  setShowSectorDropdown(true);
+                }}
+                onFocus={() => {
+                  if (selectedSector) {
+                    setSectorSearch(selectedSector);
+                    setSelectedSector('');
+                  }
+                  setShowSectorDropdown(true);
+                }}
+                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
+              />
+              {(selectedSector || sectorSearch) && (
+                <button
+                  onClick={() => {
+                    setSelectedSector('');
+                    setSectorSearch('');
+                    setShowSectorDropdown(false);
+                  }}
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              
+              {showSectorDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                  {filteredSectors.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No sectors found</div>
+                  ) : (
+                    <>
+                      {filteredSectors.map(sec => (
+                        <div
+                          key={sec}
+                          onClick={() => handleSectorChange(sec)}
+                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
+                            selectedSector === sec ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
+                          }`}
+                        >
+                          {sec}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Industry Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Industry</label>
@@ -757,85 +912,6 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                           }`}
                         >
                           {ind}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sector Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Sector</label>
-            <div className="relative" ref={sectorDropdownRef}>
-              <input
-                type="text"
-                placeholder="Select Sector"
-                value={selectedSector ? selectedSector : sectorSearch}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSectorSearch(value);
-                  if (value) {
-                    setSelectedSector('');
-                  }
-                  setShowSectorDropdown(true);
-                }}
-                onFocus={() => {
-                  if (selectedSector) {
-                    setSectorSearch(selectedSector);
-                    setSelectedSector('');
-                  }
-                  setShowSectorDropdown(true);
-                }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
-              />
-              {(selectedSector || sectorSearch) && (
-                <button
-                  onClick={() => {
-                    setSelectedSector('');
-                    setSectorSearch('');
-                    setShowSectorDropdown(false);
-                  }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              
-              {showSectorDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                  {filteredSectors.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No sectors found</div>
-                  ) : (
-                    <>
-                      {filteredSectors.map(sec => (
-                        <div
-                          key={sec}
-                          onClick={() => handleSectorChange(sec)}
-                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
-                            selectedSector === sec ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
-                          }`}
-                        >
-                          {sec}
                         </div>
                       ))}
                     </>
@@ -938,6 +1014,10 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             <div className="h-[400px] w-full mt-4">
                 {historicalChartLoading ? (
                     <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">Loading chart data...</div>
+                ) : historicalChartError ? (
+                    <div className="flex items-center justify-center h-full text-red-600 dark:text-red-400 text-center px-4">
+                        {historicalChartError}
+                    </div>
                 ) : historicalChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={historicalChartData}>
@@ -1004,7 +1084,16 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-[#161C1A] divide-y divide-gray-200 dark:divide-[#161C1A]">
-            {filteredData.length > 0 ? (
+            {rankingLoading ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="h-4 w-4 rounded-full border-2 border-gray-300 dark:border-[#2A332F] border-t-[#144D37] animate-spin" />
+                    <span>Generating ranking table…</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredData.length > 0 ? (
               filteredData.map((item) => (
                 <tr key={item.ticker} className="hover:bg-gray-50 dark:hover:bg-[#1C2220] transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -1045,7 +1134,9 @@ const TopPicks: React.FC<TopPicksProps> = () => {
             ) : (
               <tr>
                 <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
-                  No companies found matching the selected filters.
+                  {rankingStats && rankingStats.sent > 0 && rankingStats.ranked === 0
+                    ? `No ranked companies returned by the API for this filter (rejected ${rankingStats.rejected}/${rankingStats.sent}).`
+                    : 'No companies found matching the selected filters.'}
                 </td>
               </tr>
             )}

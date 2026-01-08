@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import Plot from 'react-plotly.js';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface BoxPlotProps {
   data: { [metric: string]: (number | null)[] };
@@ -9,6 +10,20 @@ interface BoxPlotProps {
 }
 
 const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTicker }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const colors = {
+    bg: isDark ? '#161C1A' : '#FFFFFF',
+    plotBg: isDark ? '#161C1A' : '#FFFFFF',
+    grid: isDark ? '#2A332F' : '#E5E7EB',
+    text: isDark ? '#E0E6E4' : '#111827',
+    axis: isDark ? '#889691' : '#6B7280',
+    accent: '#1B5A7D',
+    highlight: '#FF6B6B',
+    markerStroke: isDark ? '#161C1A' : '#FFFFFF'
+  };
+
   useEffect(() => {
     console.log('Box Plot Data:', data);
     console.log('Company Names:', companyNames);
@@ -82,7 +97,7 @@ const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTi
     const pointsData = industryCompanies.map((company, index) => ({
       value: completeValues[index],
       name: company,
-      color: company === selectedTicker ? '#FF6B6B' : '#1B5A7D'
+      color: company === selectedTicker ? colors.highlight : colors.accent
     }));
 
     const scatterTrace = {
@@ -97,7 +112,7 @@ const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTi
         color: pointsData.map(p => p.color),
         opacity: pointsData.map(p => p.value === null ? 0.3 : 0.8),
         line: {
-          color: '#FFFFFF',
+          color: colors.markerStroke,
           width: 1.5
         }
       },
@@ -116,15 +131,21 @@ const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTi
   const layout = {
     title: {
       text: title,
-      font: { size: 16 }
+      font: { size: 16, color: colors.text }
     },
     width: 700,
     height: 370,  // Adjusted height
     margin: { l: 50, r: 50, t: 50, b: 50 },
+    paper_bgcolor: colors.bg,
+    plot_bgcolor: colors.plotBg,
+    font: { color: colors.text },
     xaxis: {
       ticktext: Object.keys(data),
       tickvals: Object.keys(data).map((_, i) => i),
       showgrid: false,
+      tickfont: { color: colors.axis },
+      linecolor: colors.grid,
+      zerolinecolor: colors.grid,
       domain: [0.1, 0.9]  // Give space on both sides for y-axes
     },
     // Configure y-axes to appear beside the boxes
@@ -139,10 +160,15 @@ const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTi
           ...acc,
           yaxis: {
             title: metric,
+            titlefont: { color: colors.axis },
             side: 'left',
             position: xPos - 0.05,  // Slightly to the left of its box plot
             anchor: 'free',
-            showgrid: false
+            showgrid: true,
+            gridcolor: colors.grid,
+            tickfont: { color: colors.axis },
+            linecolor: colors.grid,
+            zerolinecolor: colors.grid
           }
         };
       }
@@ -152,11 +178,16 @@ const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTi
         ...acc,
         [`yaxis${index + 1}`]: {
           title: metric,
+          titlefont: { color: colors.axis },
           side: index % 2 === 0 ? 'left' : 'right',  // Alternate sides
           position: index % 2 === 0 ? xPos - 0.05 : xPos + 0.05,  // Adjust position based on side
           overlaying: 'y',
           anchor: 'free',
-          showgrid: false
+          showgrid: true,
+          gridcolor: colors.grid,
+          tickfont: { color: colors.axis },
+          linecolor: colors.grid,
+          zerolinecolor: colors.grid
         }
       };
     }, {})
@@ -167,6 +198,7 @@ const BoxPlot: React.FC<BoxPlotProps> = ({ data, title, companyNames, selectedTi
       data={traces}
       layout={layout}
       style={{ width: '100%', height: '100%' }}
+      config={{ displayModeBar: false, responsive: true }}
     />
   );
 };
