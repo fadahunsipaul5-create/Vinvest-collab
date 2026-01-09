@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import InsightsGenerators from './InsightsGenerators';
 import AIOTPlatformSolutions from './AIOTPlatformSolutions';
 import OperationsVirtualization from './OperationsVirtualization';
@@ -37,6 +38,23 @@ declare global {
 interface Message {
   role: 'assistant' | 'user';
   content: string;
+}
+
+// Helper function to get CSRF token
+function getCookie(name: string): string | null {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      // Does this cookie string begin with the name we want?
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
 }
 
 // Add this utility function at the top of the file
@@ -174,6 +192,10 @@ const Dashboard: React.FC = () => {
   const [reportMessages, setReportMessages] = useState<Message[]>([]);
   const [reportFormKey, setReportFormKey] = useState(0); // Key to force reset of ReportGenerationForm
   const [isSavingReport, setIsSavingReport] = useState(false);
+  // Maps "figure keys" (often fig_description-...) to a resolved image src (http(s) URL or data:image/*)
+  // We store normalized keys to be resilient to minor formatting differences between placeholder text and stream metadata.
+  const [reportMediaByKey, setReportMediaByKey] = useState<Record<string, string>>({});
+  const reportExportRef = useRef<HTMLDivElement>(null);
   
   // Report Chat History State
   const [reportChatHistory, setReportChatHistory] = useState<any[]>([]);
@@ -294,141 +316,62 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      // Convert to PDF using jsPDF
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const marginLeft = 20;
-      const marginTop = 20;
-      const marginRight = 20;
-      const marginBottom = 20;
-      const usableWidth = pageWidth - marginLeft - marginRight;
-      const lineHeight = 12;
-      if ((doc as any).setLineHeightFactor) {
-        (doc as any).setLineHeightFactor(1.0);
+      // Convert to PDF using the rendered report DOM so tables/images/charts are preserved
+      const exportRoot = reportExportRef.current;
+      if (!exportRoot) {
+        throw new Error('Report export area is not available yet. Please try again.');
       }
 
-      let currentY = marginTop;
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
-      const ensureSpace = (requiredHeight: number) => {
-        if (currentY + requiredHeight > pageHeight - marginBottom) {
-          doc.addPage();
-          currentY = marginTop;
-        }
-      };
+      // Create a temporary DOM node to render cleanly for PDF export
+      const wrapper = document.createElement('div');
+      wrapper.style.background = '#ffffff';
+      wrapper.style.color = '#111827';
+      wrapper.style.padding = '24px';
+      wrapper.style.width = '794px'; // approx A4 width in CSS px at 96dpi
+      wrapper.style.boxSizing = 'border-box';
+      wrapper.style.fontFamily = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
 
-      const writeHeading = (text: string, fontSize: number = 20) => {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(fontSize);
-        ensureSpace(fontSize + 8);
-        doc.text(text, marginLeft, currentY);
-        currentY += fontSize + 4;
-      };
+      const titleEl = document.createElement('div');
+      titleEl.innerHTML = `
+        <div style="font-size:22px;font-weight:700;margin:0 0 8px 0;">${reportTitle}</div>
+        <div style="font-size:12px;color:#6b7280;margin:0 0 16px 0;">Generated on: ${new Date().toLocaleString()}</div>
+      `;
 
-      // Unused function - removed to fix TypeScript error
-      // const writeSubheading = (text: string) => {
-      //   doc.setFont('helvetica', 'bold');
-      //   doc.setFontSize(14);
-      //   ensureSpace(20);
-      //   doc.text(text, marginLeft, currentY);
-      //   currentY += 10;
-      // };
+      const contentEl = exportRoot.cloneNode(true) as HTMLElement;
+      // Ensure images fit nicely in export
+      contentEl.querySelectorAll('img').forEach((img) => {
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.style.objectFit = 'contain';
+      });
 
-      const writeParagraph = (text: string) => {
-        if (!text) return;
-        const normalized = text.replace(/\r\n/g, '\n');
-        const lines = normalized.split(/\n/);
-        
-        lines.forEach((line) => {
-          const trimmed = line.trim();
-          
-          if (trimmed.length === 0) {
-            currentY += 3;
-            return;
-          }
-          
-          // Check if it's a markdown heading
-          if (trimmed.startsWith('#')) {
-            const level = trimmed.match(/^#+/)?.[0].length || 1;
-            const headingText = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '');
-            const headingSize = level === 1 ? 18 : level === 2 ? 16 : 14;
-            writeHeading(headingText, headingSize);
-            return;
-          }
-          
-          // Check if it's a list item
-          if (trimmed.match(/^[-*]\s+/) || trimmed.match(/^\d+\.\s+/)) {
-            const listText = trimmed.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '');
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(11);
-            const wrapped = doc.splitTextToSize(`• ${listText}`, usableWidth);
-            ensureSpace(wrapped.length * lineHeight);
-            wrapped.forEach((wLine: string) => {
-              doc.text(wLine, marginLeft + 5, currentY);
-              currentY += lineHeight;
-            });
-            return;
-          }
-          
-          // Process text with inline bold markers
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(11);
-          let remainingText = trimmed;
-          let xPos = marginLeft;
-          
-          // Split by bold markers and process
-          const parts = remainingText.split(/(\*\*.*?\*\*)/g);
-          parts.forEach((part) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              // Bold text
-              const boldText = part.replace(/\*\*/g, '');
-              doc.setFont('helvetica', 'bold');
-              const wrapped = doc.splitTextToSize(boldText, usableWidth - (xPos - marginLeft));
-              if (wrapped.length > 0) {
-                ensureSpace(wrapped.length * lineHeight);
-                wrapped.forEach((wLine: string) => {
-                  doc.text(wLine, xPos, currentY);
-                  currentY += lineHeight;
-                  xPos = marginLeft;
-                });
-              }
-              doc.setFont('helvetica', 'normal');
-            } else if (part.trim()) {
-              // Regular text
-              const wrapped = doc.splitTextToSize(part, usableWidth - (xPos - marginLeft));
-              if (wrapped.length > 0) {
-                ensureSpace(wrapped.length * lineHeight);
-                wrapped.forEach((wLine: string) => {
-                  doc.text(wLine, xPos, currentY);
-                  currentY += lineHeight;
-                  xPos = marginLeft;
-                });
-              }
-            }
-          });
-          
-          currentY += 2; // Small spacing between lines
+      wrapper.appendChild(titleEl);
+      wrapper.appendChild(contentEl);
+      wrapper.style.position = 'fixed';
+      wrapper.style.left = '-10000px';
+      wrapper.style.top = '0';
+
+      document.body.appendChild(wrapper);
+
+      try {
+        const pdfFileName = `${fileName}_report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+        await (doc as any).html(wrapper, {
+          autoPaging: 'text',
+          html2canvas: {
+            scale: 0.9,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+          },
+          margin: [24, 24, 24, 24],
+          callback: (d: any) => d.save(pdfFileName),
         });
-      };
-
-      // Write report title
-      writeHeading(reportTitle, 20);
-
-      // Write timestamp
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      ensureSpace(12);
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, marginLeft, currentY);
-      currentY += 12;
-
-      // Write report content
-      writeParagraph(reportContent);
-
-      // Save the PDF
-      const pdfFileName = `${fileName}_report_${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(pdfFileName);
+      } finally {
+        document.body.removeChild(wrapper);
+      }
       
       // Show success message
       alert('Report saved as PDF successfully!');
@@ -976,6 +919,71 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const normalizeReportMediaSrc = (raw: any): string | null => {
+    if (!raw) return null;
+    if (typeof raw !== 'string') {
+      try {
+        raw = String(raw);
+      } catch {
+        return null;
+      }
+    }
+    const src = raw.trim();
+    if (!src) return null;
+    if (src.startsWith('data:image/')) return src;
+    if (/^https?:\/\//i.test(src)) return src;
+    if (src.startsWith('/')) return `${baseUrl}${src}`;
+
+    const looksLikeBase64 =
+      src.length >= 100 &&
+      !src.includes(' ') &&
+      /^[A-Za-z0-9+/]+={0,2}$/.test(src);
+    if (looksLikeBase64) return `data:image/png;base64,${src}`;
+
+    if (src.startsWith('base64,')) return `data:image/png;${src}`;
+    return src;
+  };
+
+  const normalizeFigKey = (rawKey: any): string | null => {
+    if (!rawKey) return null;
+    const s = String(rawKey).trim();
+    if (!s) return null;
+    return s
+      .replace(/\s+/g, ' ')
+      .replace(/\u2019/g, "'") // smart apostrophe → '
+      .replace(/\u2013|\u2014/g, '-') // en/em dash → hyphen
+      .toLowerCase();
+  };
+
+  const figKeyCandidates = (rawKey: any): string[] => {
+    const k = String(rawKey ?? '').trim();
+    if (!k) return [];
+    const normalized = normalizeFigKey(k);
+    const stripped = k.replace(/^fig_description-?/i, '').trim();
+    const strippedNormalized = normalizeFigKey(stripped);
+    const withPrefixNormalized = normalizeFigKey(`fig_description-${stripped}`);
+
+    return Array.from(
+      new Set(
+        [normalized, strippedNormalized, withPrefixNormalized]
+          .filter((x): x is string => Boolean(x))
+      )
+    );
+  };
+
+  const expandFigurePlaceholders = (markdown: string): string => {
+    if (!markdown) return markdown;
+    // Replace [fig_description-XYZ] with a real markdown image if we have a matching media key
+    return markdown.replace(/\[(fig_description-[^\]]+)\]/g, (match, key) => {
+      const candidates = figKeyCandidates(key);
+      const src =
+        candidates.map(c => reportMediaByKey?.[c]).find(Boolean) ||
+        reportMediaByKey?.[key];
+      if (!src) return match;
+      return `\n\n![${key}](${src})\n\n`;
+    });
+  };
+
   const handleReportGenerate = async (data: {
     reportType: string;
     company: { ticker: string; name: string };
@@ -1037,6 +1045,7 @@ const Dashboard: React.FC = () => {
 
       // Call the report generation API (Streaming for ALL types)
       const token = localStorage.getItem('access');
+      const csrfToken = getCookie('csrftoken');
       
       // Add user message immediately
       const userContent = data.reportType === 'custom_instructions' 
@@ -1057,12 +1066,13 @@ const Dashboard: React.FC = () => {
       // Refresh history after starting stream
       setTimeout(fetchReportSessions, 2000);
 
-      try {
+          try {
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : '',
+              'X-CSRFToken': csrfToken || '',
             },
             body: JSON.stringify(payload),
           });
@@ -1107,8 +1117,29 @@ const Dashboard: React.FC = () => {
                               });
                           } else if (eventData.type === 'image' || eventData.type === 'chart' || eventData.type === 'figure') {
                               // Handle image/chart data - append as markdown image syntax
-                              const imageUrl = eventData.url || eventData.data || eventData.content;
-                              const imageAlt = eventData.alt || eventData.caption || 'Report image';
+                              const rawUrl = eventData.url || eventData.data || eventData.content;
+                              const imageUrl = normalizeReportMediaSrc(rawUrl);
+                              const imageAlt = eventData.alt || eventData.caption || eventData.id || eventData.key || 'Report image';
+
+                              // Keep a lookup map so we can replace [fig_description-*] placeholders later
+                              // Note: the placeholder key in the markdown often differs slightly from stream metadata,
+                              // so we store multiple normalized key variants.
+                              const mediaKey = eventData.key || eventData.id || eventData.alt || eventData.caption;
+                              if (mediaKey && imageUrl) {
+                                  const keysToStore = figKeyCandidates(mediaKey);
+                                  // Also store the raw key as-is (backward compat)
+                                  keysToStore.push(String(mediaKey));
+                                  setReportMediaByKey(prev => {
+                                    const next = { ...prev };
+                                    keysToStore.forEach((k) => {
+                                      const nk = normalizeFigKey(k) || k;
+                                      next[nk] = imageUrl;
+                                    });
+                                    return next;
+                                  });
+                                  console.debug('[report] received media', { mediaKey, keysToStore, hasUrl: Boolean(imageUrl) });
+                              }
+
                               if (imageUrl) {
                                   setReportMessages(prev => {
                                       const newMsgs = [...prev];
@@ -4378,9 +4409,10 @@ const Dashboard: React.FC = () => {
                         ref={chatMessagesRef}
                         className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
                       >
-                        {reportMessages.map((message, index) => 
-                          message.role === 'assistant' ? (
-                            <div key={index} className="flex gap-3 xl:gap-4">
+                        <div ref={reportExportRef} className="space-y-3 sm:space-y-4">
+                          {reportMessages.map((message, index) => 
+                            message.role === 'assistant' ? (
+                              <div key={index} className="flex gap-3 xl:gap-4">
                               <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
                                 AI
                               </div>
@@ -4392,6 +4424,7 @@ const Dashboard: React.FC = () => {
                                     message.content
                                   ) : (
                                     <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
                                       components={{
                                         h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
                                         h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
@@ -4403,15 +4436,49 @@ const Dashboard: React.FC = () => {
                                         li: ({node, ...props}) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
                                         hr: ({node, ...props}) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
                                         blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
+                                        table: ({node, ...props}) => (
+                                          <div className="overflow-x-auto my-4">
+                                            <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg" {...props} />
+                                          </div>
+                                        ),
+                                        thead: ({node, ...props}) => <thead className="bg-gray-50 dark:bg-gray-900/40" {...props} />,
+                                        tbody: ({node, ...props}) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700" {...props} />,
+                                        tr: ({node, ...props}) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-900/30" {...props} />,
+                                        th: ({node, ...props}) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap" {...props} />,
+                                        td: ({node, ...props}) => <td className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 align-top whitespace-nowrap" {...props} />,
+                                        a: ({node, href, ...props}) => (
+                                          href ? (
+                                            <a
+                                              href={href}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-blue-600 dark:text-blue-400 underline underline-offset-2 break-words"
+                                              {...props}
+                                            />
+                                          ) : (
+                                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300" {...props} />
+                                          )
+                                        ),
                                         img: ({node, ...props}: any) => (
-                                          <img 
-                                            {...props} 
-                                            className="max-w-full h-auto rounded-lg my-4 shadow-md" 
-                                            alt={props.alt || 'Report image'}
-                                            onError={(e: any) => {
-                                              e.target.style.display = 'none';
-                                            }}
-                                          />
+                                          <figure className="my-5">
+                                            <img 
+                                              {...props}
+                                              src={normalizeReportMediaSrc(props.src) || props.src}
+                                              className="w-full max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white"
+                                              alt={props.alt || 'Report image'}
+                                              loading="lazy"
+                                              onClick={() => {
+                                                const s = normalizeReportMediaSrc(props.src) || props.src;
+                                                if (s) window.open(s, '_blank', 'noopener,noreferrer');
+                                              }}
+                                              style={{ cursor: 'zoom-in' }}
+                                            />
+                                            {props.alt ? (
+                                              <figcaption className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                                {props.alt}
+                                              </figcaption>
+                                            ) : null}
+                                          </figure>
                                         ),
                                         code: ({node, inline, ...props}: any) => 
                                           inline ? (
@@ -4421,7 +4488,7 @@ const Dashboard: React.FC = () => {
                                           ),
                                       }}
                                     >
-                                      {message.content}
+                                      {expandFigurePlaceholders(message.content)}
                                     </ReactMarkdown>
                                   )}
                                 </div>
@@ -4439,7 +4506,8 @@ const Dashboard: React.FC = () => {
                               </div>
                             </div>
                           )
-                        )}
+                          )}
+                        </div>
                       </div>
                     </>
                   )}
