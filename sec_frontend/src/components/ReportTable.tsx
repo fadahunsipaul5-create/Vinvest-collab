@@ -68,3 +68,4 @@ const ReportTable: React.FC<ReportTableProps> = ({ content }) => {
 
 export default ReportTable;
 
+

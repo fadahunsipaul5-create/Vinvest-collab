@@ -18,6 +18,8 @@ interface CompanyModifiedData {
 interface CompanyDataContextType {
   modifiedData: { [ticker: string]: CompanyModifiedData };
   resetTrigger: number; // Timestamp that changes whenever any reset occurs
+  isSandboxMode: boolean;
+  toggleSandboxMode: () => void;
   updateCompanyData: (ticker: string, tableId: string, year: number, field: string, value: number | string) => void;
   updateCompanyTableData: (ticker: string, tableId: string, tableData: TableData) => void;
   getModifiedCompanyData: (ticker: string) => CompanyModifiedData | null;
@@ -30,6 +32,11 @@ const CompanyDataContext = createContext<CompanyDataContextType | undefined>(und
 export const CompanyDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modifiedData, setModifiedData] = useState<{ [ticker: string]: CompanyModifiedData }>({});
   const [resetTrigger, setResetTrigger] = useState<number>(0);
+  const [isSandboxMode, setIsSandboxMode] = useState(false);
+
+  const toggleSandboxMode = useCallback(() => {
+    setIsSandboxMode(prev => !prev);
+  }, []);
 
   // Update a specific field in a table for a company
   const updateCompanyData = useCallback((
@@ -124,6 +131,8 @@ export const CompanyDataProvider: React.FC<{ children: ReactNode }> = ({ childre
       value={{
         modifiedData,
         resetTrigger,
+        isSandboxMode,
+        toggleSandboxMode,
         updateCompanyData,
         updateCompanyTableData,
         getModifiedCompanyData,
