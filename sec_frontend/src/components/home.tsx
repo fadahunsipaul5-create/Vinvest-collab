@@ -24,6 +24,8 @@ import ReportGenerationForm from './ReportGenerationForm';
 import baseUrl from './api';
 console.log("Using baseUrl:", baseUrl);
 
+import { getEffectiveChartData } from '../utils/sandboxUtils';
+
 // Add TypeScript declarations for Speech Recognition
 declare global {
   interface Window {
@@ -162,6 +164,7 @@ const HARDCODED_INDUSTRIES = [
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { modifiedData, resetTrigger, isSandboxMode, toggleSandboxMode } = useCompanyData();
+  const [effectiveChartData, setEffectiveChartData] = useState<ChartDataPoint[]>([]);
   const { theme, toggleTheme } = useTheme();
   
   // Initialize Stripe
@@ -1353,7 +1356,7 @@ const Dashboard: React.FC = () => {
             metric,
             values
           }))
-        : chartData,
+        : effectiveChartData,
     searchValue,
     selectedPeriod,
     selectedMetrics: activeChart === 'peers' ? selectedPeerMetrics : 
@@ -1985,20 +1988,60 @@ const Dashboard: React.FC = () => {
     if (activeChart === 'metrics') {
       fetchMetricData();
     }
-  }, [searchValue, selectedSearchMetrics, activeChart, selectedPeriod, fetchMetricData, modifiedData, resetTrigger]);
+  }, [searchValue, selectedSearchMetrics, activeChart, selectedPeriod, fetchMetricData, resetTrigger]); // Removed modifiedData from deps, we handle it in effective data effect
+
+    // Recalculate effective data whenever chartData, modifiedData, or isSandboxMode changes
+  useEffect(() => {
+    // Only apply if we have a valid ticker
+    if (!searchValue) {
+      setEffectiveChartData(chartData);
+      return;
+    }
+
+    const ticker = searchValue.split(':')[0].trim();
+    const currentCompanyModData = modifiedData[ticker] || null;
+
+    // Apply the merge logic
+    const merged = getEffectiveChartData(
+      chartData,
+      currentCompanyModData,
+      isSandboxMode,
+      ticker
+    );
+
+    // Also handle the "Single Metric" case where the value is stored in 'value' key
+    // We need to know WHICH metric that 'value' represents
+    if (isSandboxMode && currentCompanyModData && selectedSearchMetrics.length === 1) {
+        const metricName = selectedSearchMetrics[0];
+        // The util function handles named keys (e.g. point['Revenue'])
+        // But for single-metric charts, the value is often just in point['value']
+        // We need to manually override 'value' if the metric matches
+        
+        // Let's iterate and fix 'value' specifically for the single metric case
+        merged.forEach(point => {
+             // Check if point has the named metric (which getEffectiveChartData would have updated)
+             // If so, sync 'value' to it.
+             if (point[metricName] !== undefined && typeof point[metricName] === 'number') {
+                 point.value = point[metricName] as number;
+             }
+        });
+    }
+
+    setEffectiveChartData(merged);
+  }, [chartData, modifiedData, isSandboxMode, searchValue, selectedSearchMetrics]);
 
   // Update the useEffect that sets fixed2024Data
   useEffect(() => {
-    if (activeChart === 'metrics' && chartData.length > 0) {
+    if (activeChart === 'metrics' && effectiveChartData.length > 0) {
       // For annual view, keep the 2024 logic
       if (selectedPeriod === 'Annual') {
-        const data2024 = chartData.find(d => d.name.startsWith('2024'));
+        const data2024 = effectiveChartData.find(d => d.name.startsWith('2024'));
         if (data2024) {
           setFixed2024Data(data2024);
         }
       } else {
         // For other periods (2Y, 3Y, etc.), use the last period
-        const lastPeriod = chartData[chartData.length - 1];
+        const lastPeriod = effectiveChartData[effectiveChartData.length - 1];
         if (lastPeriod) {
           setFixed2024Data(lastPeriod);
         }
@@ -2016,7 +2059,7 @@ const Dashboard: React.FC = () => {
         }
       }
     }
-  }, [chartData, peerChartData, activeChart, selectedPeriod]);
+  }, [effectiveChartData, peerChartData, activeChart, selectedPeriod]);
 
   useEffect(() => {
     if (activeChart === 'peers' && selectedPeerMetric && selectedCompanies.length > 0) {
@@ -3650,7 +3693,7 @@ const Dashboard: React.FC = () => {
                       <div ref={chartContainerRef} className="w-full min-h-[400px]" style={{ position: 'relative' }}>
                         <ResponsiveContainer width="100%" height={400}>
                           <LineChart 
-                            data={chartData}
+                            data={effectiveChartData}
                             onMouseMove={e => {
                               if (e && e.activePayload && e.activePayload.length > 0) {
                                 const payload = e.activePayload[0].payload;

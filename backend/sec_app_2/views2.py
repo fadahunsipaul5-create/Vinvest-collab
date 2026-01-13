@@ -306,42 +306,6 @@ class FinancialsFreeCashFlowView(APIView):
         except requests.RequestException as e:
              return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-class FinancialsROICView(APIView):
-    permission_classes = [AllowAny]
-    
-    def get(self, request, ticker):
-        """Get ROIC breakdown data for a company (Central API #14)"""
-        try:
-            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/roic/{ticker}"
-            response = requests.get(url, timeout=10)
-            return Response(response.json(), status=response.status_code)
-        except requests.RequestException as e:
-             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-class FinancialsOperationalPerformanceView(APIView):
-    permission_classes = [AllowAny]
-    
-    def get(self, request, ticker):
-        """Get operational performance metrics for a company (Central API #15)"""
-        try:
-            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/operational-performance/{ticker}"
-            response = requests.get(url, timeout=10)
-            return Response(response.json(), status=response.status_code)
-        except requests.RequestException as e:
-             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-class FinancialsFinancingHealthView(APIView):
-    permission_classes = [AllowAny]
-    
-    def get(self, request, ticker):
-        """Get financing health metrics for a company (Central API #16)"""
-        try:
-            url = f"{EXTERNAL_API_BASE_URL}/api/central/analysis/financing-health/{ticker}"
-            response = requests.get(url, timeout=10)
-            return Response(response.json(), status=response.status_code)
-        except requests.RequestException as e:
-             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
 class DeepQABotReportView(APIView):
     permission_classes = [AllowAny]
     

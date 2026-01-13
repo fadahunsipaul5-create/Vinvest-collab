@@ -32,9 +32,6 @@ from .views2 import (
     FinancialsNOPATView,
     FinancialsInvestedCapitalView,
     FinancialsFreeCashFlowView,
-    FinancialsROICView,
-    FinancialsOperationalPerformanceView,
-    FinancialsFinancingHealthView,
     DeepQABotReportView,
     DeepQABotView,
     DeepQABotStreamView,
@@ -84,9 +81,6 @@ urlpatterns = [
     path('central/analysis/nopat/<str:ticker>', FinancialsNOPATView.as_view(), name='central_analysis_nopat'),
     path('central/analysis/invested-capital/<str:ticker>', FinancialsInvestedCapitalView.as_view(), name='central_analysis_invested_capital'),
     path('central/analysis/free-cash-flow/<str:ticker>', FinancialsFreeCashFlowView.as_view(), name='central_analysis_free_cash_flow'),
-    path('central/analysis/roic/<str:ticker>', FinancialsROICView.as_view(), name='central_analysis_roic'),
-    path('central/analysis/operational-performance/<str:ticker>', FinancialsOperationalPerformanceView.as_view(), name='central_analysis_operational_performance'),
-    path('central/analysis/financing-health/<str:ticker>', FinancialsFinancingHealthView.as_view(), name='central_analysis_financing_health'),
     
     # Report Generation API Endpoint
     path('deep_qa_bot_report', DeepQABotReportView.as_view(), name='deep_qa_bot_report'),
