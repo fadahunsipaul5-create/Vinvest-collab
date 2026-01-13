@@ -25,9 +25,9 @@ const SandboxWarningModal: React.FC<SandboxWarningModalProps> = ({
       <div className="relative bg-white dark:bg-[#161C1A] rounded-xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all border border-gray-200 dark:border-[#1C2220]">
         {/* Header with Icon */}
         <div className="p-6 pb-0 flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
+          <div className="w-16 h-16 bg-[#144D37]/10 dark:bg-[#144D37]/20 rounded-full flex items-center justify-center mb-4">
             <svg 
-              className="w-8 h-8 text-blue-600 dark:text-blue-400" 
+              className="w-8 h-8 text-[#144D37] dark:text-[#1A6B4F]" 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"
@@ -56,7 +56,7 @@ const SandboxWarningModal: React.FC<SandboxWarningModalProps> = ({
               onEnableSandbox();
               onClose();
             }}
-            className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-2.5 bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors font-medium text-sm shadow-sm flex items-center justify-center gap-2"
           >
             Enable Sandbox
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

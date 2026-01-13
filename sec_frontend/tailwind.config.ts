@@ -17,7 +17,11 @@ const config: Config = {
       '2xl': '1530px',
       '3xl': '2500px',
     },
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['Satoshi', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }

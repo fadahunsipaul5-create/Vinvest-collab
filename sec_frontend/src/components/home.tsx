@@ -335,7 +335,7 @@ const Dashboard: React.FC = () => {
       wrapper.style.padding = '24px';
       wrapper.style.width = '794px'; // approx A4 width in CSS px at 96dpi
       wrapper.style.boxSizing = 'border-box';
-      wrapper.style.fontFamily = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+      wrapper.style.fontFamily = 'Satoshi, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
 
       const titleEl = document.createElement('div');
       titleEl.innerHTML = `
@@ -1393,13 +1393,14 @@ const Dashboard: React.FC = () => {
         const firstName = user.first_name || '';
         const lastName = user.last_name || '';
         const fullName = `${firstName} ${lastName}`.trim();
+        const displayName = firstName ? `Hello, ${firstName}` : 'Hello, Guest';
         
         console.log('First name:', firstName);
         console.log('Last name:', lastName);
         console.log('Full name:', fullName);
         
         if (fullName) {
-          setUserName(fullName);
+          setUserName(displayName);
           setUserInitials(`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase());
         } else {
           console.log('No name found in user info');
@@ -2404,7 +2405,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
                   <div className="text-right relative">
                     <button
-                      className="text-lg lg:text-xl xl:text-2xl font-medium focus:outline-none dark:text-[#E0E6E4]"
+                      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4] focus:outline-none"
                       onClick={() => setProfileDropdownOpen((open) => !open)}
                     >
                       {userName}

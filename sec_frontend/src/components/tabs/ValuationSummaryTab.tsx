@@ -32,6 +32,8 @@ interface ValuationSummaryTabProps {
   tooltipPosition: { x: number; y: number };
   setTooltipPosition: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
   valuationSummaryTooltips: { [key: string]: string };
+  isSandboxMode: boolean;
+  setShowSandboxWarning: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
@@ -42,8 +44,18 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
   setHoveredMetric,
   tooltipPosition,
   setTooltipPosition,
-  valuationSummaryTooltips
+  valuationSummaryTooltips,
+  isSandboxMode,
+  setShowSandboxWarning
 }) => {
+  
+  const handleInputChange = (field: string, value: string) => {
+    if (!isSandboxMode) {
+      setShowSandboxWarning(true);
+      return;
+    }
+    setValuationSummaryData(prev => ({ ...prev, [field]: value }));
+  };
   return (
     <div className="p-6 bg-white dark:bg-[#0B0F0E] rounded-lg shadow-sm border dark:border-[#161C1A] relative">
       <h3 className="text-xl font-semibold text-gray-800 dark:text-[#E0E6E4] mb-4">Valuation Summary</h3>
@@ -105,7 +117,7 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                 <input
                   type="text"
                   value={valuationSummaryData.nopatGrowthRate}
-                  onChange={(e) => setValuationSummaryData(prev => ({ ...prev, nopatGrowthRate: e.target.value }))}
+                  onChange={(e) => handleInputChange('nopatGrowthRate', e.target.value)}
                   className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0B0F0E] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
                   placeholder="-"
                 />
@@ -137,7 +149,7 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                 <input
                   type="text"
                   value={valuationSummaryData.returnOnNewInvestedCapital}
-                  onChange={(e) => setValuationSummaryData(prev => ({ ...prev, returnOnNewInvestedCapital: e.target.value }))}
+                  onChange={(e) => handleInputChange('returnOnNewInvestedCapital', e.target.value)}
                   className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0B0F0E] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
                   placeholder="-"
                 />
@@ -169,7 +181,7 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                 <input
                   type="text"
                   value={valuationSummaryData.weightedAverageCostOfCapital}
-                  onChange={(e) => setValuationSummaryData(prev => ({ ...prev, weightedAverageCostOfCapital: e.target.value }))}
+                  onChange={(e) => handleInputChange('weightedAverageCostOfCapital', e.target.value)}
                   className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0B0F0E] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
                   placeholder="-"
                 />
@@ -338,7 +350,7 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                 <input
                   type="text"
                   value={valuationSummaryData.valueOfCarryForwardCredits}
-                  onChange={(e) => setValuationSummaryData(prev => ({ ...prev, valueOfCarryForwardCredits: e.target.value }))}
+                  onChange={(e) => handleInputChange('valueOfCarryForwardCredits', e.target.value)}
                   className="w-full px-2 py-1 text-center text-red-600 dark:text-red-400 bg-white dark:bg-[#0B0F0E] border border-red-300 dark:border-red-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-500"
                   placeholder="-"
                 />

@@ -2394,6 +2394,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
               tooltipPosition={tooltipPosition}
               setTooltipPosition={setTooltipPosition}
               valuationSummaryTooltips={valuationSummaryTooltips}
+              isSandboxMode={isSandboxMode}
+              setShowSandboxWarning={setShowSandboxWarning}
             />
           </TabsContent>
 
