@@ -55,7 +55,7 @@ export const getEffectiveChartData = (
   apiData: ChartDataPoint[],
   modifiedData: CompanyModifiedData | null,
   isSandboxMode: boolean,
-  currentTicker: string
+  _currentTicker: string
 ): ChartDataPoint[] => {
   // 1. If Sandbox Mode is OFF or no modified data exists, return original data
   if (!isSandboxMode || !modifiedData) {

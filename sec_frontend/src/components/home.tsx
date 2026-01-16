@@ -116,7 +116,7 @@ interface CompanyTicker {
 }
 
 // First, add this interface for the chart data
-interface ChartDataPoint {
+export interface ChartDataPoint {
   name: string;
   ticker: string;
   value: number | null;  // Allow null for value

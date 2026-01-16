@@ -85,10 +85,8 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
   // Handle industry search input (show dropdown when typing or focused)
   useEffect(() => {
     if (reportType === 'industry_deep_drive' && allIndustries.length > 0) {
-      // Show dropdown if there's search text OR if user focused the input (when empty, show all)
-      const hasText = industryName.trim().length > 0;
       // We'll control dropdown visibility from onFocus handler instead
-      // This effect just ensures filtered results are ready
+      // This effect just ensures filtered results are ready when industries are loaded
     }
   }, [industryName, allIndustries, reportType]);
 

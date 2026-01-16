@@ -12,7 +12,7 @@ interface MetricsData {
   marginOfSafety: number;
 }
 
-const ValuationMetricsBoxes: React.FC<ValuationMetricsBoxesProps> = ({ ticker }) => {
+const ValuationMetricsBoxes: React.FC<ValuationMetricsBoxesProps> = ({ ticker: _ticker }) => {
   // Dummy data for now - will be replaced with real API calls later
   const metrics: MetricsData = {
     equityValue: 4.3,      // in billions
@@ -21,8 +21,6 @@ const ValuationMetricsBoxes: React.FC<ValuationMetricsBoxesProps> = ({ ticker })
     earningsYield: 8.2,   // percentage
     marginOfSafety: 15.3, // percentage
   };
-
-  const loading = false;
 
   const formatValue = (value: number, prefix: string = '', suffix: string = '', decimals: number = 1) => {
     return `${prefix}${value.toFixed(decimals)}${suffix}`;
