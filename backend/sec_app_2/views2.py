@@ -373,12 +373,13 @@ class DeepQABotStreamView(APIView):
             url = f"{EXTERNAL_API_BASE_URL}/api/deep_qa_bot_stream"
             
             # Forward the request to the external API with stream=True
+            # Increased timeout significantly for custom instructions/deep dives
             external_response = requests.post(
                 url,
                 json=request.data,
                 headers={'Content-Type': 'application/json'},
                 stream=True,
-                timeout=60
+                timeout=600  # 10 minutes timeout
             )
             
             # Create a generator to yield chunks from the external response
@@ -420,7 +421,7 @@ class DeepQABotReportStreamView(APIView):
                 json=request.data,
                 headers={'Content-Type': 'application/json'},
                 stream=True,
-                timeout=60
+                timeout=300  # Increased to 5 minutes
             )
             
             # Create a generator to yield chunks from the external response

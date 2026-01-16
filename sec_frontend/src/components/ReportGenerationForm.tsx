@@ -84,13 +84,11 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
 
   // Handle industry search input (show dropdown when typing or focused)
   useEffect(() => {
-    if (industryName.trim().length > 0 && reportType === 'industry_deep_drive') {
-      const filtered = allIndustries.filter(
-        (ind) => ind.industryName.toLowerCase().includes(industryName.toLowerCase())
-      );
-      setShowIndustryDropdown(filtered.length > 0);
-    } else {
-      setShowIndustryDropdown(false);
+    if (reportType === 'industry_deep_drive' && allIndustries.length > 0) {
+      // Show dropdown if there's search text OR if user focused the input (when empty, show all)
+      const hasText = industryName.trim().length > 0;
+      // We'll control dropdown visibility from onFocus handler instead
+      // This effect just ensures filtered results are ready
     }
   }, [industryName, allIndustries, reportType]);
 
@@ -117,8 +115,18 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
       const response = await fetch(`${baseUrl}/api/sec/central/industries`);
       if (!response.ok) throw new Error('Failed to fetch industries');
       const data = await response.json();
-      // Ensure data is array of Industry objects
-      setAllIndustries(Array.isArray(data) ? data : []);
+      // API returns { industries: [...] } structure, handle both formats
+      const industries = Array.isArray(data) 
+        ? data 
+        : (data.industries || []);
+      // Map to Industry interface format if needed
+      const mappedIndustries = industries.map((ind: any) => ({
+        industryId: ind.industryId || ind.name || ind.industryName,
+        industryName: ind.industryName || ind.name || ind.label,
+        label: ind.label || ind.industryName || ind.name,
+        countOfCompanies: ind.countOfCompanies || 0
+      }));
+      setAllIndustries(mappedIndustries);
     } catch (error) {
       console.error('Error fetching industries:', error);
       setAllIndustries([]);
@@ -187,9 +195,11 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
       company.ticker.toLowerCase().includes(directSearchValue.toLowerCase())
   ).slice(0, 10); // Limit to 10 results
 
-  const filteredIndustries = allIndustries.filter(
-    (ind) => ind.industryName.toLowerCase().includes(industryName.toLowerCase())
-  ).slice(0, 10);
+  const filteredIndustries = industryName.trim().length > 0
+    ? allIndustries.filter(
+        (ind) => ind.industryName.toLowerCase().includes(industryName.toLowerCase())
+      ).slice(0, 10)
+    : allIndustries.slice(0, 20); // Show first 20 when no filter text
 
   // If only showing instructions, render just that
   if (showInstructions && !showFormFields) {
@@ -244,11 +254,12 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                     value={industryName}
                     onChange={(e) => {
                       setIndustryName(e.target.value);
-                      if (e.target.value.length > 0) setShowIndustryDropdown(true);
+                      setShowIndustryDropdown(allIndustries.length > 0);
                     }}
                     onFocus={() => {
-                      if (industryName.length > 0) setShowIndustryDropdown(true);
-                      else if (allIndustries.length > 0) setShowIndustryDropdown(true);
+                      if (allIndustries.length > 0) {
+                        setShowIndustryDropdown(true);
+                      }
                     }}
                     placeholder="e.g. Artificial Intelligence, EV, Retail"
                     className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
@@ -374,11 +385,12 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                   value={industryName}
                   onChange={(e) => {
                     setIndustryName(e.target.value);
-                    if (e.target.value.length > 0) setShowIndustryDropdown(true);
+                    setShowIndustryDropdown(allIndustries.length > 0);
                   }}
                   onFocus={() => {
-                    if (industryName.length > 0) setShowIndustryDropdown(true);
-                    else if (allIndustries.length > 0) setShowIndustryDropdown(true);
+                    if (allIndustries.length > 0) {
+                      setShowIndustryDropdown(true);
+                    }
                   }}
                   placeholder="e.g. Artificial Intelligence, EV, Retail"
                   className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"

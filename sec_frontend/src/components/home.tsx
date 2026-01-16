@@ -1022,6 +1022,7 @@ const Dashboard: React.FC = () => {
             base64_files: [],
             base64_audios: []
         };
+        console.log('[custom instructions] Payload:', payload);
       } else {
           // Standard Report Types (Company/Industry) - Now using Streaming
           endpoint = `${baseUrl}/api/sec/deep_qa_bot_stream_report`;
@@ -1070,6 +1071,14 @@ const Dashboard: React.FC = () => {
       setTimeout(fetchReportSessions, 2000);
 
           try {
+          // Create abort controller for timeout handling (but allow streaming to continue)
+          const controller = new AbortController();
+          // Set a longer timeout for initial connection, but don't abort the stream
+          const timeoutId = setTimeout(() => {
+              // Only log warning, don't abort - streaming responses can take time
+              console.warn('Initial connection timeout - stream may still be active');
+          }, 30000); // 30 seconds for initial connection
+          
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -1078,7 +1087,11 @@ const Dashboard: React.FC = () => {
               'X-CSRFToken': csrfToken || '',
             },
             body: JSON.stringify(payload),
+            signal: controller.signal,
           });
+          
+          // Clear timeout once connection is established
+          clearTimeout(timeoutId);
 
           if (!response.ok) {
               throw new Error(`Stream connection failed: ${response.status}`);
@@ -1089,6 +1102,7 @@ const Dashboard: React.FC = () => {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
+          let currentEventType: string | null = null; // Track current SSE event type
 
           while (true) {
               const { done, value } = await reader.read();
@@ -1100,25 +1114,87 @@ const Dashboard: React.FC = () => {
               buffer = lines.pop() || '';
 
               for (const line of lines) {
-                  if (line.startsWith('data: ')) {
+                  const trimmedLine = line.trim();
+                  
+                  // Handle SSE format: "event: xxx" followed by "data: {...}"
+                  if (trimmedLine.startsWith('event: ')) {
+                      // Extract event type (e.g., "token", "session", "error")
+                      currentEventType = trimmedLine.substring(7).trim();
+                      continue;
+                  }
+                  
+                  // Handle data line
+                  if (trimmedLine.startsWith('data: ')) {
                       try {
-                          const jsonStr = line.substring(6);
+                          const jsonStr = trimmedLine.substring(6).trim();
+                          if (!jsonStr || jsonStr === '[DONE]') {
+                              currentEventType = null; // Reset event type on done
+                              continue;
+                          }
+                          
                           const eventData = JSON.parse(jsonStr);
+                          console.debug('[report stream]', { eventType: currentEventType, data: eventData }); // Debug logging
 
-                          if (eventData.type === 'token' && eventData.content) {
+                          // Handle different SSE event types
+                          let contentToAppend = '';
+                          
+                          // Handle "token" events (from deep_qa_bot_stream API)
+                          if (currentEventType === 'token' || eventData.type === 'token') {
+                              // Format: { type: 'token', agent: '...', role: '...', content: '...' }
+                              if (eventData.content && typeof eventData.content === 'string') {
+                                  contentToAppend = eventData.content;
+                              }
+                          }
+                          // Handle "session" events (just acknowledge, no content)
+                          else if (currentEventType === 'session' || eventData.session_id) {
+                              console.debug('[report stream] Session:', eventData.session_id);
+                              // Don't append session events to content
+                              currentEventType = null; // Reset after processing
+                              continue;
+                          }
+                          // Handle generic response formats (fallback)
+                          else if (eventData.type === 'token' && eventData.content) {
+                              contentToAppend = eventData.content;
+                          } else if (eventData.content && typeof eventData.content === 'string') {
+                              // Direct content field
+                              contentToAppend = eventData.content;
+                          } else if (eventData.answer && typeof eventData.answer === 'string') {
+                              // Full response with answer field
+                              contentToAppend = eventData.answer;
+                          } else if (eventData.data && typeof eventData.data === 'string') {
+                              // Nested data field
+                              contentToAppend = eventData.data;
+                          } else if (typeof eventData === 'string') {
+                              // Sometimes the data itself is a string
+                              contentToAppend = eventData;
+                          }
+                          
+                          if (contentToAppend) {
                               // Append token to the last assistant message
                               setReportMessages(prev => {
                                   const newMsgs = [...prev];
                                   const lastIdx = newMsgs.length - 1;
                                   if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
-                                      newMsgs[lastIdx] = {
-                                          ...newMsgs[lastIdx],
-                                          content: newMsgs[lastIdx].content + eventData.content
-                                      };
+                                      const currentContent = newMsgs[lastIdx].content;
+                                      // Replace "Thinking..." placeholder if present
+                                      if (currentContent === 'Thinking...' || currentContent === '') {
+                                          newMsgs[lastIdx] = {
+                                              ...newMsgs[lastIdx],
+                                              content: contentToAppend
+                                          };
+                                      } else {
+                                          newMsgs[lastIdx] = {
+                                              ...newMsgs[lastIdx],
+                                              content: currentContent + contentToAppend
+                                          };
+                                      }
                                   }
                                   return newMsgs;
                               });
-                          } else if (eventData.type === 'image' || eventData.type === 'chart' || eventData.type === 'figure') {
+                          }
+                          
+                          // Handle images/charts/figures
+                          if (eventData.type === 'image' || eventData.type === 'chart' || eventData.type === 'figure') {
                               // Handle image/chart data - append as markdown image syntax
                               const rawUrl = eventData.url || eventData.data || eventData.content;
                               const imageUrl = normalizeReportMediaSrc(rawUrl);
@@ -1158,13 +1234,47 @@ const Dashboard: React.FC = () => {
                                       return newMsgs;
                                   });
                               }
-                          } else if (eventData.type === 'error') {
-                              console.error('Stream error:', eventData.error);
-                              // Optionally append error to chat
+                          }
+                          
+                          // Handle errors
+                          if (eventData.type === 'error' || eventData.error || (!eventData.success && eventData.detail)) {
+                              const errorMsg = eventData.error || eventData.detail?.error || eventData.message || 'An error occurred';
+                              console.error('Stream error:', errorMsg, eventData);
+                              setReportMessages(prev => {
+                                  const newMsgs = [...prev];
+                                  const lastIdx = newMsgs.length - 1;
+                                  if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
+                                      const currentContent = newMsgs[lastIdx].content;
+                                      if (currentContent === 'Thinking...' || currentContent === '') {
+                                          newMsgs[lastIdx] = {
+                                              ...newMsgs[lastIdx],
+                                              content: `\n\n**Error:** ${errorMsg}`
+                                          };
+                                      } else {
+                                          newMsgs[lastIdx] = {
+                                              ...newMsgs[lastIdx],
+                                              content: currentContent + `\n\n**Error:** ${errorMsg}`
+                                          };
+                                      }
+                                  }
+                                  return newMsgs;
+                              });
+                          }
+                          // Reset event type after processing (empty line will separate next event)
+                          if (trimmedLine === '') {
+                              currentEventType = null;
                           }
                       } catch (e) {
-                          console.warn('Failed to parse SSE data:', line);
+                          console.warn('Failed to parse SSE data:', trimmedLine, e);
+                          // Log the raw line for debugging custom instructions
+                          if (trimmedLine.length > 0 && !trimmedLine.startsWith('data: ') && !trimmedLine.startsWith('event: ')) {
+                              console.debug('[report stream] Unexpected line format:', trimmedLine);
+                          }
                       }
+                  } else if (trimmedLine === '') {
+                      // Empty line separates SSE messages - reset event type
+                      currentEventType = null;
+                      continue;
                   }
               }
           }

@@ -45,6 +45,7 @@ import ThreeStatementModelTab from './tabs/ThreeStatementModelTab';
 import InvestedCapitalTab from './tabs/InvestedCapitalTab';
 import FreeCashFlowsTab from './tabs/FreeCashFlowsTab';
 import ValuationSummaryTab from './tabs/ValuationSummaryTab';
+import ValuationMetricsBoxes from './ValuationMetricsBoxes';
 
 import IncomeStatementTable from './tables/IncomeStatementTable';
 import InvestedCapitalTable from './tables/InvestedCapitalTable';
@@ -2323,7 +2324,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
       <div className="px-4 py-6">
 
-
+        {/* Valuation Metrics Summary Boxes */}
+        <ValuationMetricsBoxes ticker={selectedCompany} />
 
         {/* Tables with Individual Tabs */}
 
