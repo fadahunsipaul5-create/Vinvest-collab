@@ -208,9 +208,15 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
-          rows={3}
+          rows={2}
           className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
         />
+        {/* Disclaimer when generating */}
+        {isLoading && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-[#889691] italic">
+            ⏳ The report is generating, this might take up to 30-60 seconds...
+          </p>
+        )}
       </div>
     );
   }
@@ -324,7 +330,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
-            rows={3}
+            rows={2}
             className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
           />
         </div>
@@ -452,9 +458,15 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
-          rows={3}
+          rows={2}
           className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
         />
+        {/* Disclaimer when generating */}
+        {isLoading && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-[#889691] italic">
+            ⏳ The report is generating, this might take up to 30-60 seconds...
+          </p>
+        )}
       </div>
 
       {/* Generate Button */}

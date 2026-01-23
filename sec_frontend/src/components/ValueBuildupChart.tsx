@@ -30,15 +30,21 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
     setError(null);
 
     Promise.all([
-      fetch(`${baseUrl}/api/equity-value/${ticker}/`),
-      fetch(`${baseUrl}/api/sec/special_metrics/market_cap`, {
+      fetch(`${baseUrl}/api/sec/special_metrics/intrinsic_value/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ ticker: ticker }),
       }),
-      fetch(`${baseUrl}/api/sec/special_metrics/intrinsic_to_mc`, {
+      fetch(`${baseUrl}/api/sec/special_metrics/market_cap/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ticker: ticker }),
+      }),
+      fetch(`${baseUrl}/api/sec/special_metrics/intrinsic_to_mc/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -46,17 +52,27 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
         body: JSON.stringify({ ticker: ticker }),
       })
     ])
-      .then(async ([equityResponse, marketCapResponse, intrinsicToMcResponse]) => {
-        // Handle Equity Value response
+      .then(async ([intrinsicResponse, marketCapResponse, intrinsicToMcResponse]) => {
+        // Handle Intrinsic Value response (same as equity value)
         let equityVal = null;
-        if (equityResponse.ok) {
-          const equityData = await equityResponse.json();
-          if (equityData && equityData.equityValue !== undefined && equityData.equityValue !== null) {
+        if (intrinsicResponse.ok) {
+          const intrinsicData = await intrinsicResponse.json();
+          if (intrinsicData && intrinsicData.intrinsic_value !== undefined && intrinsicData.intrinsic_value !== null) {
             // Convert from raw value to billions for display
-            const valueInBillions = Number(equityData.equityValue) / 1000000000;
-            if (!isNaN(valueInBillions) && isFinite(valueInBillions)) {
+            const valueInBillions = Number(intrinsicData.intrinsic_value) / 1000000000;
+            if (!isNaN(valueInBillions) && isFinite(valueInBillions) && valueInBillions > 0) {
               equityVal = valueInBillions;
             }
+          }
+        } else if (intrinsicResponse.status === 404) {
+          // Handle 404 error response
+          try {
+            const errorData = await intrinsicResponse.json();
+            if (errorData?.detail?.message) {
+              console.warn(`[ValueBuildupChart] ${errorData.detail.message}`, errorData.detail.reasons || {});
+            }
+          } catch (e) {
+            console.warn(`[ValueBuildupChart] No intrinsic value data available for ${ticker} (404)`);
           }
         }
 

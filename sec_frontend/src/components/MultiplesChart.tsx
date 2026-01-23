@@ -145,7 +145,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         // Skip if we already have it (optional optimization, maybe we want to refresh?)
         // For now, let's fetch to ensure freshness
         try {
-            const response = await fetch(`${baseUrl}/api/sec/special_metrics/market_cap`, {
+            const response = await fetch(`${baseUrl}/api/sec/special_metrics/market_cap/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ticker: company.ticker }),

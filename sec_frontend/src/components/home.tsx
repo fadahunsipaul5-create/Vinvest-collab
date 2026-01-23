@@ -10,7 +10,7 @@ import Approach from './approach';
 import ValuationPage from './ValuationPage';
 import ValueBuildupChart from './ValueBuildupChart';
 import MultiplesChart from './MultiplesChart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import BoxPlot from './BoxPlot';
 import TopPicks from './TopPicks';
 import { useChat } from './chatbox';
@@ -325,17 +325,84 @@ const Dashboard: React.FC = () => {
         throw new Error('Report export area is not available yet. Please try again.');
       }
 
-      const { jsPDF } = await import('jspdf');
+      const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ]);
       const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
       // Create a temporary DOM node to render cleanly for PDF export
       const wrapper = document.createElement('div');
+      // Ensure html2canvas doesn't choke on modern color functions (e.g. oklch()).
+      // We'll apply the overrides ONLY within this wrapper (and in the cloned document via onclone).
+      wrapper.classList.add('pdf-export');
       wrapper.style.background = '#ffffff';
       wrapper.style.color = '#111827';
       wrapper.style.padding = '24px';
       wrapper.style.width = '794px'; // approx A4 width in CSS px at 96dpi
       wrapper.style.boxSizing = 'border-box';
       wrapper.style.fontFamily = 'Satoshi, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+
+      const exportStyle = document.createElement('style');
+      exportStyle.textContent = `
+        :root {
+          /* Override app theme variables (App.css uses oklch()) with safe hex colors for export */
+          --background: #ffffff !important;
+          --foreground: #111827 !important;
+          --card: #ffffff !important;
+          --card-foreground: #111827 !important;
+          --popover: #ffffff !important;
+          --popover-foreground: #111827 !important;
+          --primary: #144D37 !important;
+          --primary-foreground: #ffffff !important;
+          --secondary: #f3f4f6 !important;
+          --secondary-foreground: #111827 !important;
+          --muted: #f3f4f6 !important;
+          --muted-foreground: #6b7280 !important;
+          --accent: #f3f4f6 !important;
+          --accent-foreground: #111827 !important;
+          --destructive: #dc2626 !important;
+          --border: #e5e7eb !important;
+          --input: #e5e7eb !important;
+          --ring: #144D37 !important;
+        }
+        html, body {
+          background: #ffffff !important;
+          background-color: #ffffff !important;
+          color: #111827 !important;
+        }
+        .pdf-export {
+          /* Override app theme variables (App.css uses oklch()) with safe hex colors for export */
+          --background: #ffffff !important;
+          --foreground: #111827 !important;
+          --card: #ffffff !important;
+          --card-foreground: #111827 !important;
+          --popover: #ffffff !important;
+          --popover-foreground: #111827 !important;
+          --primary: #144D37 !important;
+          --primary-foreground: #ffffff !important;
+          --secondary: #f3f4f6 !important;
+          --secondary-foreground: #111827 !important;
+          --muted: #f3f4f6 !important;
+          --muted-foreground: #6b7280 !important;
+          --accent: #f3f4f6 !important;
+          --accent-foreground: #111827 !important;
+          --destructive: #dc2626 !important;
+          --border: #e5e7eb !important;
+          --input: #e5e7eb !important;
+          --ring: #144D37 !important;
+        }
+        .pdf-export, .pdf-export * {
+          color: #111827 !important;
+          background: #ffffff !important;
+          background-color: #ffffff !important;
+          border-color: #e5e7eb !important;
+          outline-color: #e5e7eb !important;
+          caret-color: #111827 !important;
+          box-shadow: none !important;
+          filter: none !important;
+        }
+      `;
 
       const titleEl = document.createElement('div');
       titleEl.innerHTML = `
@@ -351,27 +418,84 @@ const Dashboard: React.FC = () => {
         img.style.objectFit = 'contain';
       });
 
+      wrapper.appendChild(exportStyle);
       wrapper.appendChild(titleEl);
       wrapper.appendChild(contentEl);
+      // Keep the export DOM in the render tree (so html2canvas can measure/layout it),
+      // but move it slightly offscreen. Extremely large negative positions / transforms
+      // can produce blank renders in some browsers.
       wrapper.style.position = 'fixed';
-      wrapper.style.left = '-10000px';
       wrapper.style.top = '0';
+      wrapper.style.left = '-2000px';
+      wrapper.style.transform = 'none';
+      wrapper.style.pointerEvents = 'none';
 
       document.body.appendChild(wrapper);
 
       try {
         const pdfFileName = `${fileName}_report_${new Date().toISOString().split('T')[0]}.pdf`;
+        // Let layout settle so html2canvas measures correct sizes (prevents blank pages)
+        await new Promise(requestAnimationFrame);
 
-        await (doc as any).html(wrapper, {
-          autoPaging: 'text',
-          html2canvas: {
-            scale: 0.9,
+        const canvas = await html2canvas(wrapper, {
+          scale: 2, // improve text sharpness
             useCORS: true,
             backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: wrapper.scrollWidth || 794,
+          windowHeight: Math.max(wrapper.scrollHeight || 0, 1123),
+          onclone: (clonedDoc) => {
+            // Extra safety: if any global CSS still leaks oklch() into the clone, neutralize it.
+            const style = clonedDoc.createElement('style');
+            style.textContent = `
+              :root {
+                --background: #ffffff !important;
+                --foreground: #111827 !important;
+                --card: #ffffff !important;
+                --card-foreground: #111827 !important;
+                --popover: #ffffff !important;
+                --popover-foreground: #111827 !important;
+                --primary: #144D37 !important;
+                --primary-foreground: #ffffff !important;
+                --secondary: #f3f4f6 !important;
+                --secondary-foreground: #111827 !important;
+                --muted: #f3f4f6 !important;
+                --muted-foreground: #6b7280 !important;
+                --accent: #f3f4f6 !important;
+                --accent-foreground: #111827 !important;
+                --destructive: #dc2626 !important;
+                --border: #e5e7eb !important;
+                --input: #e5e7eb !important;
+                --ring: #144D37 !important;
+              }
+              html, body { background: #ffffff !important; background-color: #ffffff !important; color: #111827 !important; }
+              .pdf-export, .pdf-export * { color: #111827 !important; background: #ffffff !important; background-color: #ffffff !important; border-color: #e5e7eb !important; }
+            `;
+            clonedDoc.head.appendChild(style);
           },
-          margin: [24, 24, 24, 24],
-          callback: (d: any) => d.save(pdfFileName),
         });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        // Fit canvas width to PDF page width
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let y = 0;
+        let remaining = imgHeight;
+        while (remaining > 0) {
+          doc.addImage(imgData, 'PNG', 0, y, imgWidth, imgHeight);
+          remaining -= pageHeight;
+          if (remaining > 0) {
+            doc.addPage();
+            y -= pageHeight;
+          }
+        }
+
+        doc.save(pdfFileName);
       } finally {
         document.body.removeChild(wrapper);
       }
@@ -1178,15 +1302,15 @@ const Dashboard: React.FC = () => {
                                       const currentContent = newMsgs[lastIdx].content;
                                       // Replace "Thinking..." placeholder if present
                                       if (currentContent === 'Thinking...' || currentContent === '') {
-                                          newMsgs[lastIdx] = {
-                                              ...newMsgs[lastIdx],
+                                      newMsgs[lastIdx] = {
+                                          ...newMsgs[lastIdx],
                                               content: contentToAppend
                                           };
                                       } else {
                                           newMsgs[lastIdx] = {
                                               ...newMsgs[lastIdx],
                                               content: currentContent + contentToAppend
-                                          };
+                                      };
                                       }
                                   }
                                   return newMsgs;
@@ -1269,7 +1393,7 @@ const Dashboard: React.FC = () => {
                           // Log the raw line for debugging custom instructions
                           if (trimmedLine.length > 0 && !trimmedLine.startsWith('data: ') && !trimmedLine.startsWith('event: ')) {
                               console.debug('[report stream] Unexpected line format:', trimmedLine);
-                          }
+                      }
                       }
                   } else if (trimmedLine === '') {
                       // Empty line separates SSE messages - reset event type
@@ -1630,55 +1754,115 @@ const Dashboard: React.FC = () => {
   };
 
   const fetchMetricData = useCallback(async () => {
-    if (!searchValue || selectedSearchMetrics.length === 0) return;
+    if (!searchValue) return;
+    
+    // For Annual period, we'll fetch Performance data and auto-select metrics if none selected
+    if (selectedPeriod !== 'Annual' && selectedSearchMetrics.length === 0) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
       const ticker = searchValue.split(':')[0].trim().toUpperCase();
-      console.log('Fetching data from API for ticker:', ticker, 'period:', selectedPeriod);
+      console.log('Fetching Performance data from API for ticker:', ticker, 'period:', selectedPeriod);
 
       let transformedData: ChartDataPoint[] = [];
 
       if (selectedPeriod === 'Annual') {
-        // For Annual: Fetch all available data (historical and future)
-        const yearData: { [year: string]: any } = {};
-        
-        // Fetch data for each metric
-        const promises = selectedSearchMetrics.map(async (metric) => {
-          const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=ALL`;
-          const response = await fetch(url);
+        // Fetch Performance data from dynamic_table endpoint
+        const response = await fetch(`${baseUrl}/api/sec/dynamic_table/Performance?ticker=${ticker}`);
           
           if (!response.ok) {
-            console.warn(`Failed to fetch ${metric} data: ${response.status}`);
-            return { metric, data: [] }; // Return empty data on error instead of throwing
-          }
-          
-          const data = await response.json();
-          return { metric, data };
+          throw new Error(`Failed to fetch Performance data: ${response.status}`);
+        }
+        
+        const performanceData = await response.json();
+        
+        if (!performanceData.rows || performanceData.rows.length === 0) {
+          setError(`No performance data available for ${ticker}.`);
+          setChartData([]);
+          return;
+        }
+        
+        // Update available metrics to include Performance metrics
+        const performanceMetrics = performanceData.rows.map((row: any) => ({
+          value: row.metric,
+          label: row.metric
+            .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+            .replace(/^./, (str: string) => str.toUpperCase()) // Capitalize first letter
+            .trim()
+        }));
+        
+        // Merge with existing metrics, avoiding duplicates
+        setAvailableMetrics((prev: any[]) => {
+          const existingValues = new Set(prev.map(m => m.value));
+          const newMetrics = performanceMetrics.filter((m: any) => !existingValues.has(m.value));
+          return [...prev, ...newMetrics];
         });
 
-        const results = await Promise.all(promises);
+        // Get year columns (exclude 'metric' column)
+        const yearColumns = performanceData.columns.filter((col: string) => col !== 'metric');
         
-        // Transform API response to chart format
-        results.forEach(({ metric, data }) => {
-          data.forEach((item: { name: string; ticker: string; value: number | null }) => {
-            const year = item.name;
-            if (!yearData[year]) {
+        // Filter rows to match selected metrics by exact Performance metric name
+        const rowsToUse = performanceData.rows.filter((row: any) => 
+          selectedSearchMetrics.includes(row.metric)
+        );
+        
+        if (rowsToUse.length === 0) {
+          setError(`No matching metrics found. Please select metrics from the dropdown.`);
+          setChartData([]);
+          return;
+        }
+        
+        const metricsToUse = selectedSearchMetrics;
+        
+        console.log('[Performance] Selected metrics:', metricsToUse);
+        console.log('[Performance] Matched rows count:', rowsToUse.length);
+        console.log('[Performance] Matched rows:', rowsToUse.map((r: any) => r.metric));
+        console.log('[Performance] Year columns:', yearColumns);
+        console.log('[Performance] First row keys:', rowsToUse.length > 0 ? Object.keys(rowsToUse[0]) : 'no rows');
+        
+        // Transform Performance data to chart format
+        const yearData: { [year: string]: any } = {};
+        
+        yearColumns.forEach((year: string) => {
               yearData[year] = {
                 name: year,
                 year: parseInt(year) || year
                 };
-              }
-              
-            // Determine if historical (year <= 2024) or future
+        });
+        
+        console.log('[Performance] rowsToUse count:', rowsToUse.length);
+        console.log('[Performance] First row sample:', rowsToUse.length > 0 ? rowsToUse[0] : 'no rows');
+        console.log('[Performance] Year columns:', yearColumns);
+        
+        // Add metric data for each year
+        rowsToUse.forEach((row: any) => {
+          const metricName = row.metric;
+          console.log(`[Performance] Processing metric: ${metricName}`);
+          
+          yearColumns.forEach((year: string) => {
+            const value = row[year];
+            // Check if value exists (including 0, which is valid)
+            if (value !== undefined && value !== null && value !== '') {
             const yearNum = parseInt(year);
             const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
             const suffix = isHistorical ? '_historical' : '_future';
-            yearData[year][`${metric}${suffix}`] = item.value;
+              
+              // Convert string to number if needed
+              const numValue = typeof value === 'string' ? parseFloat(value) : value;
+              
+              // Only add if it's a valid number
+              if (!isNaN(numValue)) {
+                const dataKey = `${metricName}${suffix}`;
+                yearData[year][dataKey] = numValue;
+                console.log(`[Performance] Added ${dataKey} for ${year}: ${numValue}`);
+              }
+            }
             });
         });
+        
+        console.log('[Performance] Sample yearData after processing:', yearData['2013']);
         
         // Convert to array and sort by year
         transformedData = Object.values(yearData).sort((a, b) => {
@@ -1686,6 +1870,14 @@ const Dashboard: React.FC = () => {
           const yearB = parseInt(b.name) || 0;
           return yearA - yearB;
         });
+        
+        console.log('[Performance] Transformed data sample:', transformedData.slice(0, 3));
+        if (transformedData.length > 0) {
+          const firstYear = transformedData[0];
+          console.log('[Performance] Data keys in first year:', Object.keys(firstYear));
+          console.log('[Performance] First year full data:', firstYear);
+        }
+        console.log('[Performance] Total data points:', transformedData.length);
 
       } else if (selectedPeriod === 'Average') {
         // For Average: Fetch data for each period (1Y, 2Y, 3Y, 4Y, 5Y, 10Y, 15Y)
@@ -1812,64 +2004,68 @@ const Dashboard: React.FC = () => {
       setPeerLoading(true);
       setPeerError(null);
 
-      // Determine periodType and period value based on selectedPeriod
-      let periodTypeParam = '';
-      let periodValue: string = selectedPeriod;
-      
-      if (selectedPeriod === 'Average') {
-        periodTypeParam = '&periodType=Average';
-        periodValue = '1Y'; // Default to 1Y for Average mode
-      } else if (selectedPeriod === 'CAGR') {
-        periodTypeParam = '&periodType=CAGR';
-        periodValue = '1Y'; // Default to 1Y for CAGR mode
-      } else if (selectedPeriod === 'Annual') {
-        // Convert 'Annual' to 'ALL' for backend API to get historical data
-        periodValue = 'ALL';
-      }
-      // For period strings like '1Y', '2Y', etc., use as-is
-      
-      // Fetch data for each company
+      let transformedData: PeerDataPoint[] = [];
+
+      if (selectedPeriod === 'Annual') {
+        // For Annual: Use Performance endpoint to get all years (2012-2036)
       const promises = selectedCompanies.map(async company => {
-        const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(periodValue)}${periodTypeParam}`;
-        console.log('Fetching from:', url);
+          try {
+            const url = `${baseUrl}/api/sec/dynamic_table/Performance?ticker=${company.ticker}`;
+            console.log('Fetching Performance data from:', url);
         const response = await fetch(url);
         
         if (!response.ok) {
-           console.warn(`Failed to fetch peer data for ${company.ticker}: ${response.status}`);
-           return { company, data: [] }; // Return empty data on error
+              console.warn(`Failed to fetch Performance data for ${company.ticker}: ${response.status}`);
+              return { company, performanceData: null };
         }
         
-        const data = await response.json();
-        console.log(`Data for ${company.ticker}:`, data);
-        return { company, data };
+            const performanceData = await response.json();
+            console.log(`Performance data for ${company.ticker}:`, performanceData);
+            return { company, performanceData };
+          } catch (error) {
+            console.error(`Error fetching Performance data for ${company.ticker}:`, error);
+            return { company, performanceData: null };
+          }
       });
 
       const results = await Promise.all(promises);
       
-      if (results.length === 0 || results[0].data.length === 0) {
-        setPeerError('No data available for the selected companies and metric.');
+        // Filter out companies with no data
+        const validResults = results.filter(r => r.performanceData && r.performanceData.rows);
+        
+        if (validResults.length === 0) {
+          setPeerError('No Performance data available for the selected companies.');
         setPeerChartData([]);
         return;
       }
 
-      let transformedData: PeerDataPoint[];
+        // Get year columns from first company (all should have same years)
+        const yearColumns = validResults[0].performanceData.columns.filter((col: string) => col !== 'metric');
 
-      if (selectedPeriod === 'Annual') {
-        // For Annual: Split data into _historical and _future based on year
+        // Find the metric row for each company
         const yearData: { [year: string]: any } = {};
         
-        // Collect all unique time points from all companies
-        results.forEach(({ company, data }) => {
-          data.forEach((item: DataItem) => {
-            const year = item.name;
-            if (!yearData[year]) {
+        yearColumns.forEach((year: string) => {
               yearData[year] = {
                 name: year,
                 year: parseInt(year) || year
               };
-            }
-            
-            // Determine if historical (year <= 2024) or future
+        });
+        
+        // Process each company's Performance data
+        validResults.forEach(({ company, performanceData }) => {
+          // Find the row for the selected metric
+          const metricRow = performanceData.rows.find((row: any) => row.metric === selectedPeerMetric);
+          
+          if (!metricRow) {
+            console.warn(`Metric ${selectedPeerMetric} not found for ${company.ticker}`);
+            return;
+          }
+          
+          // Add data for each year
+          yearColumns.forEach((year: string) => {
+            const value = metricRow[year];
+            if (value !== undefined && value !== null && value !== '') {
             const yearNum = parseInt(year);
             const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
             const suffix = isHistorical ? '_historical' : '_future';
@@ -1880,8 +2076,12 @@ const Dashboard: React.FC = () => {
               yearData[year][metricKey] = {};
             }
             
-            // Add company value
-            yearData[year][metricKey][company.ticker] = item.value;
+              // Convert string to number if needed
+              const numValue = typeof value === 'string' ? parseFloat(value) : value;
+              if (!isNaN(numValue)) {
+                yearData[year][metricKey][company.ticker] = numValue;
+              }
+            }
           });
         });
         
@@ -1892,11 +2092,47 @@ const Dashboard: React.FC = () => {
           return yearA - yearB;
         }) as PeerDataPoint[];
       } else {
+        // For Average/CAGR: Use the old aggregated-data endpoint
+        let periodTypeParam = '';
+        let periodValue: string = selectedPeriod;
+        
+        if (selectedPeriod === 'Average') {
+          periodTypeParam = '&periodType=Average';
+          periodValue = '1Y';
+        } else if (selectedPeriod === 'CAGR') {
+          periodTypeParam = '&periodType=CAGR';
+          periodValue = '1Y';
+        }
+        // For period strings like '1Y', '2Y', etc., use as-is
+        
+        // Fetch data for each company
+        const promises = selectedCompanies.map(async company => {
+          const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(periodValue)}${periodTypeParam}`;
+          console.log('Fetching from:', url);
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+             console.warn(`Failed to fetch peer data for ${company.ticker}: ${response.status}`);
+             return { company, data: [] };
+          }
+          
+          const data = await response.json();
+          console.log(`Data for ${company.ticker}:`, data);
+          return { company, data };
+        });
+
+        const results = await Promise.all(promises);
+        
+        if (results.length === 0 || results[0].data.length === 0) {
+          setPeerError('No data available for the selected companies and metric.');
+          setPeerChartData([]);
+          return;
+        }
+        
         // For Average/CAGR: Create a unified dataset with all companies
         transformedData = results[0].data.map((timePoint: TimePoint) => {
           const point: PeerDataPoint = { 
             name: timePoint.name,
-            // Add metric name as key with company values
             [selectedPeerMetric]: {} 
           };
           
@@ -2974,7 +3210,7 @@ const Dashboard: React.FC = () => {
                   <div className="bg-white dark:bg-[#161C1A] rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm flex-1 flex flex-col" ref={performanceCardRef} id="bp-print-area">
 
                 {/* Business Performance Tabs */}
-                <div className="flex gap-2 mb-3">
+                <div className="flex gap-1 mb-0">
                   <button
                     onClick={() => {
                       setActivePerformanceTab('top-picks');
@@ -2992,7 +3228,7 @@ const Dashboard: React.FC = () => {
                         : 'bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]'
                     }`}
                   >
-                    Top Picks
+                    Value Screener
                   </button>
                   <button
                     onClick={() => {
@@ -3020,7 +3256,7 @@ const Dashboard: React.FC = () => {
                     }}
                     className="px-2 py-1.5 xm:px-2.5 xm:py-1.5 xs:px-3 xs:py-2 sm:px-3 sm:py-2 md:px-3.5 md:py-2 lg:px-3.5 lg:py-2 xl:px-4 xl:py-2 text-xs xm:text-xs xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base rounded transition-colors bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]"
                   >
-                    Valuation Model
+                    Valuation Lab
                   </button>
                 </div>
 
@@ -3874,12 +4110,39 @@ const Dashboard: React.FC = () => {
                                       (selectedPeriod !== 'Annual' && point.name === chartData[chartData.length - 1]?.name)) {
                                     return null;
                                   }
+                                  
+                                  // For Annual period, filter payload to show only historical OR future based on the year
+                                  let filteredPayload = payload;
+                                  if (selectedPeriod === 'Annual' && payload.length > 0) {
+                                    // Determine if the year is historical or future based on the point name
+                                    const year = parseInt(String(point.name || '0'));
+                                    const isHistoricalYear = !isNaN(year) && year <= 2024;
+                                    
+                                    // Filter to show only entries matching the type based on year
+                                    // For historical years (<= 2024), show only historical entries
+                                    // For future years (> 2024), show only future entries
+                                    filteredPayload = payload.filter((entry: any) => {
+                                      const isHistorical = entry.dataKey?.includes('_historical') ?? false;
+                                      const isFuture = entry.dataKey?.includes('_future') ?? false;
+                                      
+                                      if (isHistoricalYear) {
+                                        return isHistorical;
+                                      } else {
+                                        return isFuture;
+                                      }
+                                    });
+                                  }
+                                  
+                                  if (filteredPayload.length === 0) {
+                                    return null;
+                                  }
+                                  
                                   return (
                                     <div className="custom-tooltip bg-white p-2 border rounded shadow">
                                       <p className="label">{label}</p>
-                                      {payload.map((entry: any) => (
+                                      {filteredPayload.map((entry: any) => (
                                         <p key={entry.name} style={{ color: entry.color }}>
-                                          {entry.name}: {entry.value === null ? "N/A" : new Intl.NumberFormat('en-US', {
+                                          {entry.name}: {entry.value === null || entry.value === undefined || isNaN(entry.value) ? "N/A" : new Intl.NumberFormat('en-US', {
                                             notation: 'compact',
                                             maximumFractionDigits: 1
                                           }).format(entry.value)}
@@ -3895,19 +4158,34 @@ const Dashboard: React.FC = () => {
                               filterNull={false}  // Changed to false to show null values
                             />
 
-                            <Legend layout="horizontal" />
                             {selectedPeriod === 'Annual' ? (
                               // For Annual: Render historical and future series separately
-                              selectedSearchMetrics.flatMap((metric, idx) => {
-                                const baseColor = generateColorPalette(selectedSearchMetrics.length)[idx];
-                                const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
+                              // Get the actual Performance metric names from the chart data
+                              (() => {
+                                // Extract unique metric names from chart data (remove _historical and _future suffixes)
+                                const metricNames = new Set<string>();
+                                effectiveChartData.forEach((point: any) => {
+                                  Object.keys(point).forEach(key => {
+                                    if (key.endsWith('_historical') || key.endsWith('_future')) {
+                                      const metricName = key.replace(/_historical$|_future$/, '');
+                                      metricNames.add(metricName);
+                                    }
+                                  });
+                                });
+                                
+                                const metricsToRender = Array.from(metricNames).slice(0, selectedSearchMetrics.length || 10);
+                                
+                                return metricsToRender.flatMap((metricName, idx) => {
+                                  const baseColor = generateColorPalette(metricsToRender.length)[idx];
+                                  const metricLabel = availableMetrics.find(m => m.value === metricName)?.label || 
+                                    metricName.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()).trim();
                                 
                                 return [
-                                  // Historical series (2011-2024)
+                                    // Historical series
                                   <Line
-                                    key={`${metric}_historical`}
+                                      key={`${metricName}_historical`}
                                     type="monotone"
-                                    dataKey={`${metric}_historical`}
+                                      dataKey={`${metricName}_historical`}
                                     stroke={baseColor}
                                     name={`${metricLabel} (Historical)`}
                                     strokeWidth={2}
@@ -3917,11 +4195,11 @@ const Dashboard: React.FC = () => {
                                     }}
                                     connectNulls={false}
                                   />,
-                                  // Future series (2025-2035)
+                                    // Future series
                                   <Line
-                                    key={`${metric}_future`}
+                                      key={`${metricName}_future`}
                                     type="monotone"
-                                    dataKey={`${metric}_future`}
+                                      dataKey={`${metricName}_future`}
                                     stroke={addOpacityToColor(baseColor, 0.5)}
                                     strokeDasharray="5 5"
                                     name={`${metricLabel} (Future)`}
@@ -3933,7 +4211,8 @@ const Dashboard: React.FC = () => {
                                     connectNulls={false}
                                   />
                                 ];
-                              })
+                                });
+                              })()
                             ) : (
                               // For Average and CAGR: Render single series per metric
                               selectedSearchMetrics.map((metric, idx) => {
@@ -3980,7 +4259,12 @@ const Dashboard: React.FC = () => {
                             </div>
                             <div className="space-y-1">
                               {selectedSearchMetrics.map((metric, idx) => {
-                              const value = fixed2024Data[metric];
+                              // For Annual period, metrics are stored with _historical or _future suffix
+                              // For 2024, it should be _historical (since year <= 2024)
+                              // Check both possibilities for robustness
+                              const value = selectedPeriod === 'Annual' 
+                                ? (fixed2024Data[`${metric}_historical`] ?? fixed2024Data[`${metric}_future`] ?? fixed2024Data[metric])
+                                : fixed2024Data[metric];
                               const hoveredValue = (activeTooltip && activeTooltip[metric] != null)
                                 ? Number(activeTooltip[metric])
                                 : null;
@@ -4111,12 +4395,39 @@ const Dashboard: React.FC = () => {
                                       (selectedPeriod !== '1Y' && point.name === peerChartData[peerChartData.length - 1]?.name)) {
                                     return null;
                                   }
+                                  
+                                  // For Annual period, filter payload to show only historical OR future based on the year
+                                  let filteredPayload = payload;
+                                  if (selectedPeriod === 'Annual' && payload.length > 0) {
+                                    // Determine if the year is historical or future based on the point name
+                                    const year = parseInt(String(point.name || '0'));
+                                    const isHistoricalYear = !isNaN(year) && year <= 2024;
+                                    
+                                    // Filter to show only entries matching the type based on year
+                                    // For historical years (<= 2024), show only historical entries
+                                    // For future years (> 2024), show only future entries
+                                    filteredPayload = payload.filter((entry: any) => {
+                                      const isHistorical = entry.dataKey?.includes('_historical') ?? false;
+                                      const isFuture = entry.dataKey?.includes('_future') ?? false;
+                                      
+                                      if (isHistoricalYear) {
+                                        return isHistorical;
+                                      } else {
+                                        return isFuture;
+                                      }
+                                    });
+                                  }
+                                  
+                                  if (filteredPayload.length === 0) {
+                                    return null;
+                                  }
+                                  
                                   return (
                                     <div className="custom-tooltip bg-white p-2 border rounded shadow">
                                       <p className="label">{label}</p>
-                                      {payload.map((entry: any) => (
+                                      {filteredPayload.map((entry: any) => (
                                         <p key={entry.name} style={{ color: entry.color }}>
-                                          {entry.name}: {entry.value === null ? "N/A" : new Intl.NumberFormat('en-US', {
+                                          {entry.name}: {entry.value === null || entry.value === undefined || isNaN(entry.value) ? "N/A" : new Intl.NumberFormat('en-US', {
                                             notation: 'compact',
                                             maximumFractionDigits: 1
                                           }).format(entry.value)}
@@ -4131,7 +4442,6 @@ const Dashboard: React.FC = () => {
                               itemStyle={{ padding: 0 }}
                               filterNull={false}
                             />
-                            <Legend layout="horizontal" />
                             {selectedPeriod === 'Annual' ? (
                               // For Annual: Render historical and future separately
                               selectedCompanies.flatMap((company, idx) => {
@@ -4211,7 +4521,11 @@ const Dashboard: React.FC = () => {
                             </div>
                             <div className="space-y-1">
                             {selectedCompanies.map((company, idx) => {
-                              const value = fixed2024Data[selectedPeerMetric]?.[company.ticker];
+                              // For Annual period, metrics are stored with _historical or _future suffix
+                              // For 2024, it should be _historical (since year <= 2024)
+                              const value = selectedPeriod === 'Annual'
+                                ? (fixed2024Data[`${selectedPeerMetric}_historical`]?.[company.ticker] ?? fixed2024Data[`${selectedPeerMetric}_future`]?.[company.ticker] ?? fixed2024Data[selectedPeerMetric]?.[company.ticker])
+                                : fixed2024Data[selectedPeerMetric]?.[company.ticker];
                               const hoveredValue = (activeTooltip && activeTooltip[selectedPeerMetric]?.[company.ticker] != null)
                                 ? Number(activeTooltip[selectedPeerMetric][company.ticker])
                                 : null;
@@ -4255,7 +4569,11 @@ const Dashboard: React.FC = () => {
 
                       </div>
                     )
-                  ) : activeChart === 'valuation' ? (
+                  ) : null}
+                  
+                  {/* Performance Table - Show below metrics chart when company is selected */}
+                  
+                  {activeChart === 'valuation' ? (
                     // Valuation Charts - Conditional Layout
                     <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
                       <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
@@ -4302,11 +4620,15 @@ const Dashboard: React.FC = () => {
 
             {/* Insights Generation - full width on mobile */}
             {!isChatbotMinimized && (
-              <div className={`${isPerformanceMinimized ? 'lg:col-span-12' : 'lg:col-span-3'} ${isPerformanceMinimized ? '' : 'lg:mr-[-11rem]'} transition-all duration-300 flex flex-col`}>
-                <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4 flex-1 flex flex-col">
-                  <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+              <div className={`${isPerformanceMinimized ? 'lg:col-span-12' : 'lg:col-span-4'} ${isPerformanceMinimized ? '' : 'lg:mr-[-8rem]'} transition-all duration-300 flex flex-col`}>
+                <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4 flex-1 flex flex-col lg:max-h-[calc(100vh--15rem)]">
+                  <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden min-h-0">
                   <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
-                    <div className="flex justify-end items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2 mb-3">
+                    <div className="flex justify-between items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2">
+                      <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium dark:text-white">
+                        Rationalist AI
+                      </h2>
+                      <div className="flex items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2">
                       {/* Maximize Button */}
                       <button
                         onClick={() => {
@@ -4323,9 +4645,18 @@ const Dashboard: React.FC = () => {
                       </button>
                       {/* Minimize/Hide Button */}
                       <button
-                        onClick={() => setIsChatbotMinimized(!isChatbotMinimized)}
+                          onClick={() => {
+                            // If maximized (Performance is minimized), restore to default view (both visible)
+                            if (isPerformanceMinimized) {
+                              setIsPerformanceMinimized(false);
+                              setIsChatbotMinimized(false);
+                            } else {
+                              // Otherwise, toggle Rationalist AI visibility
+                              setIsChatbotMinimized(!isChatbotMinimized);
+                            }
+                          }}
                         className="px-1.5 py-1.5 xm:px-2 xm:py-2 xs:px-2 xs:py-2 sm:px-2 sm:py-2 text-xs xm:text-sm xs:text-sm sm:text-sm md:text-base lg:text-base xl:text-base bg-gray-200 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] rounded hover:bg-gray-300 dark:hover:bg-[#161C1A] transition-colors"
-                        title={isChatbotMinimized ? "Show chatbot" : "Hide chatbot"}
+                          title={isChatbotMinimized ? "Show chatbot" : isPerformanceMinimized ? "Restore to default view" : "Hide chatbot"}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <svg width="14" height="14" className="xm:w-4 xm:h-4 xs:w-4 xs:h-4 sm:w-[18px] sm:h-[18px]" fill="none" viewBox="0 0 20 20">
@@ -4372,7 +4703,7 @@ const Dashboard: React.FC = () => {
                               : 'Download report as text file'
                           }
                         >
-                          {isSavingReport ? 'Saving...' : 'Save Report'}
+                            {isSavingReport ? 'Saving...' : 'Save'}
                         </button>
                       ) : (
                       <button 
@@ -4391,17 +4722,15 @@ const Dashboard: React.FC = () => {
                             : 'Save conversation as PDF report'
                         }
                       >
-                        {isSavingConversation ? 'Generating PDF...' : 'Save Conversation'}
+                          {isSavingConversation ? 'Generating PDF...' : 'Save'}
                       </button>
                       )}
                     </div>
-                    <h2 className="text-sm xm:text-base xs:text-lg sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-medium dark:text-white">
-                      {chatMode === 'insights' ? 'Insights Generation' : 'Report Generation'}
-                    </h2>
+                    </div>
                   </div>
                   
                   {/* Toggle Tabs */}
-                  <div className="flex space-x-2 px-4 xl:px-6 pt-4 border-b border-gray-200 dark:border-[#161C1A]">
+                  <div className="flex space-x-2 px-4 xl:px-6 mt--6 border-b border-gray-200 dark:border-[#161C1A]">
                     <button
                       onClick={() => setChatMode('insights')}
                       className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
@@ -4449,25 +4778,95 @@ const Dashboard: React.FC = () => {
                     {messages.map((message, index) => 
                       message.role === 'assistant' ? (
                         <div key={index} className="flex gap-3 xl:gap-4">
-                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base">
+                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
                             AI
                           </div>
-                          <div className="flex-1">
-                            <div className={`bg-[#E5F0F6] dark:bg-[#1C2220] dark:text-[#E0E6E4] rounded-lg p-3 xl:p-4 text-sm xl:text-base ${
-                              message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-[#889691]' : ''
+                          <div className="flex-1 min-w-0">
+                            <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4 xl:p-6 ${
+                              message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
                             }`}>
+                              {message.content === 'Thinking...' ? (
+                                message.content
+                              ) : (
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
+                                    h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
+                                    h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4" {...props} />,
+                                    p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props} />,
+                                    strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
+                                    ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                    ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                    li: ({node, ...props}) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
+                                    hr: ({node, ...props}) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
+                                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
+                                    table: ({node, ...props}) => (
+                                      <div className="overflow-x-auto my-4">
+                                        <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg" {...props} />
+                                      </div>
+                                    ),
+                                    thead: ({node, ...props}) => <thead className="bg-gray-50 dark:bg-gray-900/40" {...props} />,
+                                    tbody: ({node, ...props}) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700" {...props} />,
+                                    tr: ({node, ...props}) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-900/30" {...props} />,
+                                    th: ({node, ...props}) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap" {...props} />,
+                                    td: ({node, ...props}) => <td className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 align-top whitespace-nowrap" {...props} />,
+                                    a: ({node, href, ...props}) => (
+                                      href ? (
+                                        <a
+                                          href={href}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-blue-600 dark:text-blue-400 underline underline-offset-2 break-words"
+                                          {...props}
+                                        />
+                                      ) : (
+                                        <span className="font-mono text-sm text-gray-700 dark:text-gray-300" {...props} />
+                                      )
+                                    ),
+                                    img: ({node, ...props}: any) => (
+                                      <figure className="my-5">
+                                        <img 
+                                          {...props}
+                                          src={normalizeReportMediaSrc(props.src) || props.src}
+                                          className="w-full max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white"
+                                          alt={props.alt || 'Report image'}
+                                          loading="lazy"
+                                          onClick={() => {
+                                            const s = normalizeReportMediaSrc(props.src) || props.src;
+                                            if (s) window.open(s, '_blank', 'noopener,noreferrer');
+                                          }}
+                                          style={{ cursor: 'zoom-in' }}
+                                        />
+                                        {props.alt ? (
+                                          <figcaption className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                            {props.alt}
+                                          </figcaption>
+                                        ) : null}
+                                      </figure>
+                                    ),
+                                    code: ({node, inline, ...props}: any) => 
+                                      inline ? (
+                                        <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200" {...props} />
+                                      ) : (
+                                        <code className="block bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto my-4" {...props} />
+                                      ),
+                                  }}
+                                >
                               {message.content}
+                                </ReactMarkdown>
+                              )}
                             </div>
                           </div>
                         </div>
                       ) : (
                         <div key={index} className="flex gap-3 justify-end xl:gap-4">
-                          <div className="flex-1">
-                            <div className="bg-gray-100 dark:bg-[#1C2220] dark:text-[#E0E6E4] rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%]">
+                          <div className="flex-1 min-w-0">
+                            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
                               {message.content}
                             </div>
                           </div>
-                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base dark:text-[#E0E6E4]">
+                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
                             {userInitials}
                           </div>
                         </div>
@@ -4584,7 +4983,7 @@ const Dashboard: React.FC = () => {
                   ) : (
                     <>
                       {/* Report Generation Form - At Top */}
-                      <div className="p-4 xl:p-6 border-b dark:border-gray-700 flex-shrink-0">
+                      <div className="px-4 xl:px-6 pt-2 pb-4 xl:pb-6 border-b dark:border-gray-700 flex-shrink-0">
                         <ReportGenerationForm 
                           key={reportFormKey}
                           onGenerate={handleReportGenerate} 

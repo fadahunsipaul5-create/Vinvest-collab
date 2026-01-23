@@ -22,9 +22,11 @@ const IncomeStatementTable: React.FC<{
 
   isCalculatedField?: (field: string) => boolean,
 
-  companyTicker?: string
+  companyTicker?: string,
 
-}> = ({ data, onDataChange, isInputField, isCalculatedField, companyTicker = 'COST' }) => {
+  forecastDriverValues?: any
+
+}> = ({ data, onDataChange, isInputField, isCalculatedField, companyTicker = 'COST', forecastDriverValues }) => {
 
   // Track raw input strings while user is typing (for natural number entry)
   const [editingInputs, setEditingInputs] = useState<{ [key: string]: string }>({});
@@ -128,6 +130,68 @@ const IncomeStatementTable: React.FC<{
     OperatingCash: 'Forecasted: OperatingCashAsPercentOfRevenue * Revenue',
     OperatingLeaseNewAssetsObtained: 'Forecasted: OperatingLeaseIntensity * Revenue',
     FinanceLeaseNewAssetsObtained: 'Forecasted: FinanceLeaseIntensity * Revenue',
+  };
+
+  // Log when forecast driver values change
+  useEffect(() => {
+    if (forecastDriverValues) {
+      console.log(`[IncomeStatementTable] Received forecast driver values for ${companyTicker}:`, {
+        GrossMarginAsPercentOfRevenue: forecastDriverValues.GrossMarginAsPercentOfRevenue,
+        SGAAsPercentOfRevenue: forecastDriverValues.SGAAsPercentOfRevenue,
+        DepreciationAsPercentOfLastYearPPE: forecastDriverValues.DepreciationAsPercentOfLastYearPPE
+      });
+    }
+  }, [forecastDriverValues, companyTicker]);
+
+  // Helper function to get forecast driver value from API data
+  const getForecastDriverValue = (breakdownField: string): string => {
+    if (!forecastDriverValues) {
+      console.log(`[IncomeStatementTable] No forecast driver values available for ${breakdownField}`);
+      return '-';
+    }
+    
+    // Map breakdown field names to API field names (from ValuationForecastDriverValues endpoint)
+    const fieldMapping: Record<string, string> = {
+      'RevenueGrowthRate': 'RevenueGrowthInLast4y',
+      'GrossMargin': 'GrossMarginAsPercentOfRevenue',
+      'SellingGeneralAndAdministration': 'SGAAsPercentOfRevenue',
+      'Depreciation': 'DepreciationAsPercentOfLastYearPPE',
+      'IntangibleAssetAmortization': 'IntangibleAssetAmortizationAsPercentOfRevenue',
+      'FinanceLeaseAmortization': 'FinanceLeaseTerm',
+      'VariableLeaseCost': 'VariableLeaseCostAsPercentOfRevenue',
+      'InterestIncome': 'InterestIncomeAsPercentOfPriorYearExcessCash',
+      'OtherNonoperatingIncome': 'OtherNonoperatingIncomeAsPercentOfRevenue',
+      'TaxProvision': 'TaxProvisionAsPercentOfPretaxIncome',
+      'NetIncomeNoncontrolling': 'NetIncomeNoncontrollingAsPercentOfRevenue',
+      'StockBasedCompensation': 'StockBasedCompensationAsPercentOfRevenue',
+      'CommonStockDividendPayment': 'CommonStockDividendPaymentAsPercentOfNetIncome',
+      'CommonStockRepurchasePayment': 'CommonStockRepurchasePayment',
+      'OperatingLeaseCost': 'OperatingLeaseCostAsPercentOfRevenue',
+      'CapitalExpenditures': 'CapitalExpendituresAsPercentOfRevenue',
+      'ReceivablesCurrent': 'ReceivablesCurrentAsPercentOfRevenue',
+      'Inventory': 'InventoryAsPercentOfRevenue',
+      'PrepaidExpense': 'PrepaidExpenseAsPercentOfRevenue',
+      'OtherAssetsCurrent': 'OtherAssetsCurrentAsPercentOfRevenue',
+      'OtherLiabilitiesCurrent': 'OtherLiabilitiesCurrentAsPercentOfRevenue',
+      'LongTermDebtNoncurrent': 'LongTermDebtNoncurrentAsPercentOfRevenue',
+      'OtherLiabilitiesNoncurrent': 'OtherLiabilitiesNoncurrentAsPercentOfRevenue',
+      'OperatingCash': 'OperatingCashAsPercentOfRevenue',
+      'OperatingLeaseNewAssetsObtained': 'OperatingLeaseIntensity',
+      'FinanceLeaseNewAssetsObtained': 'FinanceLeaseIntensity',
+    };
+    
+    const apiFieldName = fieldMapping[breakdownField];
+    if (!apiFieldName || forecastDriverValues[apiFieldName] === undefined || forecastDriverValues[apiFieldName] === null) {
+      return '-';
+    }
+    
+    // Format as percentage (API returns decimal, e.g., 0.03 -> 3%)
+    const value = forecastDriverValues[apiFieldName];
+    if (typeof value === 'number') {
+      return `${(value * 100).toFixed(1)}%`;
+    }
+    
+    return '-';
   };
 
   // Hover tooltip text for the ForecastDriverValue column (only for breakdowns shown in the screenshot)
@@ -723,7 +787,7 @@ const IncomeStatementTable: React.FC<{
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
                 }}
                 onMouseLeave={() => setHoveredForecastDriverValue(null)}>
-                <span className="text-gray-700 dark:text-gray-200">30%</span>
+                <span className="text-gray-700 dark:text-gray-200">{getForecastDriverValue('GrossMargin')}</span>
               </td>
             </tr>
 
@@ -752,7 +816,7 @@ const IncomeStatementTable: React.FC<{
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
                 }}
                 onMouseLeave={() => setHoveredForecastDriverValue(null)}>
-                <span className="text-gray-700 dark:text-gray-200">10%</span>
+                <span className="text-gray-700 dark:text-gray-200">{getForecastDriverValue('SellingGeneralAndAdministration')}</span>
               </td>
             </tr>
 
@@ -781,7 +845,7 @@ const IncomeStatementTable: React.FC<{
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
                 }}
                 onMouseLeave={() => setHoveredForecastDriverValue(null)}>
-                <span className="text-gray-700 dark:text-gray-200">2%</span>
+                <span className="text-gray-700 dark:text-gray-200">{getForecastDriverValue('Depreciation')}</span>
               </td>
             </tr>
 

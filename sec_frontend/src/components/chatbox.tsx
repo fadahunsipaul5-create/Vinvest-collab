@@ -142,71 +142,47 @@ export const useChat = ({
         ? searchValue.split(':')[1].trim().toUpperCase()
         : searchValue.split(':')[0].trim().toUpperCase();
 
-      // If files are uploaded, first upload them to the file upload endpoint
+      // Convert uploaded files to base64 format
+      const base64_images: string[] = [];
+      const base64_files: string[] = [];
+      const base64_audios: string[] = [];
+
       if (uploadedFiles && uploadedFiles.length > 0) {
         try {
-          const formData = new FormData();
-          
-          // Add files
-          uploadedFiles.forEach((file) => {
-            formData.append('files', file);
-          });
-      
-          // Only allowed field besides 'files'
-          const sessionId = `user_${currentChatSession ?? 'anonymous'}_session`;
-          formData.append('session_id', sessionId);
-      
-          console.log('Uploading files with session_id:', sessionId);
-      
-          const uploadResponse = await fetch(`${baseUrl}/api/file-upload/`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,  // Your backend will proxy this to external API
-            },
-            body: formData,
-          });
-      
-          if (!uploadResponse.ok) {
-            const uploadError = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }));
-            console.warn(`File upload failed (${uploadResponse.status}):`, uploadError);
-            
-            setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
-            setMessages(prev => [...prev, { 
-              role: 'assistant', 
-              content: `📎 **File Upload Failed**: ${uploadError.error || 'Unknown error.'} \n\nI'll continue based on available data.` 
-            }]);
-          } else {
-            const uploadResult = await uploadResponse.json();
-            console.log('Files uploaded successfully:', uploadResult);
-            
-            setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
-            setMessages(prev => [...prev, { 
-              role: 'assistant', 
-              content: `📎 **File Upload Successful**: Your files have been processed.` 
-            }]);
+          for (const file of uploadedFiles) {
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = reader.result as string;
+                // Convert to data URL format: data:mime/type;base64,...
+                resolve(result);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+
+            // Categorize by file type
+            const fileType = file.type.toLowerCase();
+            if (fileType.startsWith('image/')) {
+              base64_images.push(base64);
+            } else if (fileType.startsWith('audio/')) {
+              base64_audios.push(base64);
+            } else {
+              // PDF, TXT, CSV, DOC, DOCX, XLSX, XLS - all go to base64_files
+              base64_files.push(base64);
+            }
           }
-      
-          if (onClearFiles) {
-            console.log('Clearing uploaded files from UI...');
-            onClearFiles();
-          }
-      
-        } catch (uploadError) {
-          console.error('File upload error:', uploadError);
-      
-          if (onClearFiles) {
-            console.log('Clearing uploaded files from UI after upload error...');
-            onClearFiles();
-          }
-      
-          setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
-          setMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: `📎 **File Upload Failed**: Unexpected error.\n\nContinuing without file context.` 
-          }]);
+          console.log(`Converted ${uploadedFiles.length} files to base64: ${base64_images.length} images, ${base64_files.length} documents, ${base64_audios.length} audios`);
+        } catch (error) {
+          console.error('Error converting files to base64:', error);
+          // Continue without files if conversion fails
+        }
+
+        // Clear files from UI after conversion
+        if (onClearFiles) {
+          onClearFiles();
         }
       }
-      
 
       // Prepare chat request payload
       const payload = {
@@ -224,7 +200,7 @@ export const useChat = ({
         value: item.value
       }));
 
-      // Use JSON for chat request (files are now uploaded separately)
+      // Use JSON for chat request with base64 files included
       const requestBody = JSON.stringify({
           question: message,
           payload: payload,
@@ -234,7 +210,11 @@ export const useChat = ({
           chartType: activeChart || 'line',
           chartData: formattedChartData,
           // Include session ID for chat history
-          session_id: currentChatSession || null
+          session_id: currentChatSession || null,
+          // Include base64-encoded files for multimodal input
+          base64_images: base64_images.length > 0 ? base64_images : undefined,
+          base64_files: base64_files.length > 0 ? base64_files : undefined,
+          base64_audios: base64_audios.length > 0 ? base64_audios : undefined
       });
 
       const headers = {

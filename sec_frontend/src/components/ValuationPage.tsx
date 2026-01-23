@@ -223,7 +223,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
     weightedAverageCostOfCapital: number;
   } | null>(null);
 
-  // Initialize static values once
+  // Initialize static values once (without dummy data - will be populated from API)
   useEffect(() => {
     if (!valuationSummaryStaticValues) {
       const yearlyValues: { [year: number]: { fcf: number; discountFactor: number; presentValue: number } } = {};
@@ -246,9 +246,10 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
         financeLeaseLiabilities: (Math.random() * 3000 + 1000) * 1000000,
         variableLeaseLiabilities: (Math.random() * 2000 + 500) * 1000000,
         equityIntrinsicValue: (Math.random() * 80000 + 50000) * 1000000,
-        nopatGrowthRate: (Math.random() * 0.05 + 0.02) * 100,
-        returnOnNewInvestedCapital: (Math.random() * 0.15 + 0.10) * 100,
-        weightedAverageCostOfCapital: (Math.random() * 0.05 + 0.08) * 100
+        // Initialize forecast driver values to 0 - will be populated from API when company loads
+        nopatGrowthRate: 0,
+        returnOnNewInvestedCapital: 0,
+        weightedAverageCostOfCapital: 0
       });
     }
   }, [valuationSummaryStaticValues]);
@@ -357,6 +358,9 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   const [selectedCompany, setSelectedCompany] = useState(initialCompany || 'COST');
 
   const [activeTab, setActiveTab] = useState('incomeStatement');
+
+  // State for forecast driver values from API (for 3 Statement Model)
+  const [forecastDriverValues, setForecastDriverValues] = useState<any>(null);
 
   // Company dropdown state
   const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
@@ -523,41 +527,66 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
   // Fetch income statement data from API
   const fetchIncomeStatementData = useCallback(async (ticker: string): Promise<TableData | null> => {
-    console.log(`[Income Statement] Fetching data for ${ticker}...`);
+    console.log(`[Income Statement] Fetching 3StatementModel data for ${ticker}...`);
     try {
-      // Use new centralized API endpoint
-      const response = await fetch(`${baseUrl}/api/sec/central/financials/income-statement/${ticker}`);
+      // Use new 3StatementModel dynamic table endpoint
+      const response = await fetch(`${baseUrl}/api/sec/dynamic_table/3StatementModel?ticker=${ticker}`);
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn(`[Income Statement] No income statement data found for ${ticker}`);
+          console.warn(`[Income Statement] No 3StatementModel data found for ${ticker}`);
           return null;
         }
-        throw new Error(`Failed to fetch income statement data: ${response.status}`);
+        throw new Error(`Failed to fetch 3StatementModel data: ${response.status}`);
       }
-      const data = await response.json();
-      console.log(`[Income Statement] Raw API response for ${ticker}:`, data);
+      const apiData = await response.json();
+      console.log(`[Income Statement] Raw 3StatementModel API response for ${ticker}:`, apiData);
       
       // Transform API response to TableData format
-      // API returns: { [year: string]: { [metric_name: string]: number } }
+      // API returns: { status, key, ticker, columns: ['metric', '2011', '2012', ...], rows: [{metric: 'Revenue', '2011': value, ...}, ...] }
       // We need: { [year: number]: { [field_name: string]: number } }
       const tableData: TableData = {};
       
-      for (const [yearStr, metrics] of Object.entries(data)) {
-        const year = parseInt(yearStr);
-        if (!isNaN(year)) {
-          const yearData: { [key: string]: number | string } = {};
-          
-          // Map each metric name to frontend field name
-          for (const [csvMetricName, value] of Object.entries(metrics as { [key: string]: number | string })) {
-            const frontendFieldName = mapMetricNameToFrontendField(csvMetricName);
-            yearData[frontendFieldName] = value;
-          }
-          
-          tableData[year] = yearData;
-        }
+      if (!apiData.rows || !apiData.columns) {
+        console.warn(`[Income Statement] Invalid 3StatementModel data structure for ${ticker}`);
+        return null;
       }
       
-      console.log(`[Income Statement] Transformed data for ${ticker}:`, tableData);
+      // Get year columns (exclude 'metric' column)
+      const yearColumns = apiData.columns.filter((col: string) => col !== 'metric');
+      
+      // Initialize year data objects
+      yearColumns.forEach((yearStr: string) => {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          tableData[year] = {};
+        }
+      });
+      
+      // Transform rows into TableData format
+      apiData.rows.forEach((row: any) => {
+        const metricName = row.metric;
+        if (!metricName) return;
+        
+        // Map metric name to frontend field name
+        const frontendFieldName = mapMetricNameToFrontendField(metricName);
+        
+        // Add metric value for each year
+        yearColumns.forEach((yearStr: string) => {
+          const year = parseInt(yearStr);
+          if (!isNaN(year) && tableData[year]) {
+            const value = row[yearStr];
+            if (value !== undefined && value !== null && value !== '') {
+              // Convert string to number if needed
+              const numValue = typeof value === 'string' ? parseFloat(value) : value;
+              if (!isNaN(numValue)) {
+                tableData[year][frontendFieldName] = numValue;
+              }
+            }
+          }
+        });
+      });
+      
+      console.log(`[Income Statement] Transformed 3StatementModel data for ${ticker}:`, tableData);
       console.log(`[Income Statement] Years available:`, Object.keys(tableData));
       if (Object.keys(tableData).length > 0) {
         const firstYear = Object.keys(tableData)[0];
@@ -713,37 +742,73 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
   // Fetch Invested Capital data from API
   const fetchInvestedCapitalData = useCallback(async (ticker: string): Promise<TableData | null> => {
-    console.log(`[Invested Capital] Fetching data for ${ticker}...`);
+    console.log(`[Invested Capital] Fetching InvestedCapital data for ${ticker}...`);
     try {
-      const response = await fetch(`${baseUrl}/api/sec/central/analysis/invested-capital/${ticker}`);
+      // Use new InvestedCapital dynamic table endpoint
+      const response = await fetch(`${baseUrl}/api/sec/dynamic_table/InvestedCapital?ticker=${ticker}`);
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn(`[Invested Capital] No Invested Capital data found for ${ticker}`);
+          console.warn(`[Invested Capital] No InvestedCapital data found for ${ticker}`);
           return null;
         }
-        throw new Error(`Failed to fetch Invested Capital data: ${response.status}`);
+        throw new Error(`Failed to fetch InvestedCapital data: ${response.status}`);
       }
-      const data = await response.json();
-      console.log(`[Invested Capital] Raw API response for ${ticker}:`, data);
+      const apiData = await response.json();
+      console.log(`[Invested Capital] Raw InvestedCapital API response for ${ticker}:`, apiData);
       
+      // Transform API response to TableData format
+      // API returns: { status, key, ticker, columns: ['metric', '2011', '2012', ...], rows: [{metric: 'OperatingCash', '2011': value, ...}, ...] }
+      // We need: { [year: number]: { [field_name: string]: number } }
       const tableData: TableData = {};
       
-      for (const [yearStr, metrics] of Object.entries(data)) {
-        const year = parseInt(yearStr);
-        if (!isNaN(year)) {
-          const yearData: { [key: string]: number | string } = {};
-          const m = metrics as { [key: string]: number | string };
-          
-          // Map API fields to Frontend fields
-          if (m.OperatingWorkingCapital !== undefined) yearData['OperatingWorkingCapital'] = m.OperatingWorkingCapital;
-          if (m['NetPP&E'] !== undefined) yearData['PropertyPlantAndEquipment'] = m['NetPP&E'];
-          if (m.InvestedCapital !== undefined) yearData['InvestedCapitalIncludingGoodwill'] = m.InvestedCapital;
-          
-          tableData[year] = yearData;
-        }
+      if (!apiData.rows || !apiData.columns) {
+        console.warn(`[Invested Capital] Invalid InvestedCapital data structure for ${ticker}`);
+        return null;
       }
       
-      console.log(`[Invested Capital] Transformed data for ${ticker}:`, tableData);
+      // Get year columns (exclude 'metric' column)
+      const yearColumns = apiData.columns.filter((col: string) => col !== 'metric');
+      
+      // Initialize year data objects
+      yearColumns.forEach((yearStr: string) => {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          tableData[year] = {};
+        }
+      });
+      
+      // Transform rows into TableData format
+      apiData.rows.forEach((row: any) => {
+        const metricName = row.metric;
+        if (!metricName) return;
+        
+        // Map metric name to frontend field name (use metric name as-is or map if needed)
+        // The InvestedCapital table uses the metric names directly
+        const frontendFieldName = metricName;
+        
+        // Add metric value for each year
+        yearColumns.forEach((yearStr: string) => {
+          const year = parseInt(yearStr);
+          if (!isNaN(year) && tableData[year]) {
+            const value = row[yearStr];
+            if (value !== undefined && value !== null && value !== '') {
+              // Convert string to number if needed
+              const numValue = typeof value === 'string' ? parseFloat(value) : value;
+              if (!isNaN(numValue)) {
+                tableData[year][frontendFieldName] = numValue;
+              }
+            }
+          }
+        });
+      });
+      
+      console.log(`[Invested Capital] Transformed InvestedCapital data for ${ticker}:`, tableData);
+      console.log(`[Invested Capital] Years available:`, Object.keys(tableData));
+      if (Object.keys(tableData).length > 0) {
+        const firstYear = Object.keys(tableData)[0];
+        console.log(`[Invested Capital] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
+      }
+      
       return tableData;
     } catch (error) {
       console.error(`[Invested Capital] Error fetching Invested Capital data for ${ticker}:`, error);
@@ -753,39 +818,118 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
   // Fetch Free Cash Flow data from API
   const fetchFreeCashFlowData = useCallback(async (ticker: string): Promise<TableData | null> => {
-    console.log(`[Free Cash Flow] Fetching data for ${ticker}...`);
+    console.log(`[Free Cash Flow] Fetching FreeCashFlows data for ${ticker}...`);
     try {
-      const response = await fetch(`${baseUrl}/api/sec/central/analysis/free-cash-flow/${ticker}`);
+      // Use new FreeCashFlows dynamic table endpoint
+      const response = await fetch(`${baseUrl}/api/sec/dynamic_table/FreeCashFlows?ticker=${ticker}`);
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn(`[Free Cash Flow] No Free Cash Flow data found for ${ticker}`);
+          console.warn(`[Free Cash Flow] No FreeCashFlows data found for ${ticker}`);
           return null;
         }
-        throw new Error(`Failed to fetch Free Cash Flow data: ${response.status}`);
+        throw new Error(`Failed to fetch FreeCashFlows data: ${response.status}`);
       }
-      const data = await response.json();
-      console.log(`[Free Cash Flow] Raw API response for ${ticker}:`, data);
+      const apiData = await response.json();
+      console.log(`[Free Cash Flow] Raw FreeCashFlows API response for ${ticker}:`, apiData);
       
+      // Transform API response to TableData format
+      // API returns: { status, key, ticker, columns: ['metric', '2026', '2027', ...], rows: [{metric: 'NetOperatingProfitAfterTaxes', '2026': value, ...}, ...] }
+      // We need: { [year: number]: { [field_name: string]: number } }
       const tableData: TableData = {};
       
-      for (const [yearStr, metrics] of Object.entries(data)) {
-        const year = parseInt(yearStr);
-        if (!isNaN(year)) {
-          const yearData: { [key: string]: number | string } = {};
-          const m = metrics as { [key: string]: number | string };
-          
-          if (m.NOPAT !== undefined) yearData['NetOperatingProfitAfterTaxes'] = m.NOPAT;
-          if (m.FreeCashFlow !== undefined) yearData['FreeCashFlow'] = m.FreeCashFlow;
-          // ChangeInInvestedCapital is an aggregate, might not map directly to a single breakdown line
-          
-          tableData[year] = yearData;
-        }
+      if (!apiData.rows || !apiData.columns) {
+        console.warn(`[Free Cash Flow] Invalid FreeCashFlows data structure for ${ticker}`);
+        return null;
       }
       
-      console.log(`[Free Cash Flow] Transformed data for ${ticker}:`, tableData);
+      // Get year columns (exclude 'metric' column)
+      const yearColumns = apiData.columns.filter((col: string) => col !== 'metric');
+      
+      // Initialize year data objects
+      yearColumns.forEach((yearStr: string) => {
+        const year = parseInt(yearStr);
+        if (!isNaN(year)) {
+          tableData[year] = {};
+        }
+      });
+      
+      // Transform rows into TableData format
+      apiData.rows.forEach((row: any) => {
+        const metricName = row.metric;
+        if (!metricName) return;
+        
+        // Map metric name to frontend field name (use metric name as-is or map if needed)
+        // The FreeCashFlow table uses the metric names directly
+        const frontendFieldName = metricName;
+        
+        // Add metric value for each year
+        yearColumns.forEach((yearStr: string) => {
+          const year = parseInt(yearStr);
+          if (!isNaN(year) && tableData[year]) {
+            const value = row[yearStr];
+            if (value !== undefined && value !== null && value !== '') {
+              // Convert string to number if needed
+              const numValue = typeof value === 'string' ? parseFloat(value) : value;
+              if (!isNaN(numValue)) {
+                tableData[year][frontendFieldName] = numValue;
+              }
+            }
+          }
+        });
+      });
+      
+      console.log(`[Free Cash Flow] Transformed FreeCashFlows data for ${ticker}:`, tableData);
+      console.log(`[Free Cash Flow] Years available:`, Object.keys(tableData));
+      if (Object.keys(tableData).length > 0) {
+        const firstYear = Object.keys(tableData)[0];
+        console.log(`[Free Cash Flow] Sample year ${firstYear} fields:`, Object.keys(tableData[parseInt(firstYear)]));
+      }
+      
       return tableData;
     } catch (error) {
       console.error(`[Free Cash Flow] Error fetching Free Cash Flow data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  // Fetch ValuationForecastDriverValues data from API
+  const fetchValuationForecastDriverValues = useCallback(async (ticker: string): Promise<any | null> => {
+    console.log(`[Valuation Forecast Drivers] Fetching ValuationForecastDriverValues data for ${ticker}...`);
+    try {
+      // Use new ValuationForecastDriverValues dynamic table endpoint
+      const response = await fetch(`${baseUrl}/api/sec/dynamic_table/ValuationForecastDriverValues?ticker=${ticker}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[Valuation Forecast Drivers] No ValuationForecastDriverValues data found for ${ticker}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch ValuationForecastDriverValues data: ${response.status}`);
+      }
+      const apiData = await response.json();
+      console.log(`[Valuation Forecast Drivers] Raw ValuationForecastDriverValues API response for ${ticker}:`, apiData);
+      
+      // Check if data is empty
+      if (!apiData.rows || apiData.rows.length === 0) {
+        console.warn(`[Valuation Forecast Drivers] Empty ValuationForecastDriverValues data for ${ticker}`);
+        return null;
+      }
+      
+      // API returns: { status, key, ticker, columns: ['ExtractionTime', 'RevenueGrowthInLast4y', ...], rows: [{ExtractionTime: '...', RevenueGrowthInLast4y: value, ...}, ...] }
+      // Since there's only 1 row, we'll return the first row as a key-value object
+      const forecastDrivers: { [key: string]: any } = {};
+      if (apiData.rows.length > 0) {
+        const row = apiData.rows[0];
+        apiData.columns.forEach((col: string) => {
+          if (col !== 'metric' && row[col] !== undefined && row[col] !== null) {
+            forecastDrivers[col] = row[col];
+          }
+        });
+      }
+      
+      console.log(`[Valuation Forecast Drivers] Transformed data for ${ticker}:`, forecastDrivers);
+      return forecastDrivers;
+    } catch (error) {
+      console.error(`[Valuation Forecast Drivers] Error fetching ValuationForecastDriverValues data for ${ticker}:`, error);
       return null;
     }
   }, []);
@@ -933,6 +1077,10 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
   useEffect(() => {
     const loadCompanyData = async () => {
       console.log(`[ValuationPage] Loading company data for ${selectedCompany}`);
+      
+      // Clear forecast driver values when switching companies
+      setForecastDriverValues(null);
+      
       // Fetch income statement from API
       const incomeStatementData = await fetchIncomeStatementData(selectedCompany);
       console.log(`[ValuationPage] Income statement data received:`, incomeStatementData ? `Has ${Object.keys(incomeStatementData).length} years` : 'null/empty');
@@ -963,6 +1111,72 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       // Fetch Free Cash Flow from API
       const freeCashFlowData = await fetchFreeCashFlowData(selectedCompany);
       console.log(`[ValuationPage] Free Cash Flow data received:`, freeCashFlowData ? `Has ${Object.keys(freeCashFlowData).length} years` : 'null/empty');
+
+      // Fetch Valuation Forecast Driver Values from API
+      const fetchedForecastDriverValues = await fetchValuationForecastDriverValues(selectedCompany);
+      console.log(`[ValuationPage] Valuation Forecast Driver Values received for ${selectedCompany}:`, fetchedForecastDriverValues ? `Has ${Object.keys(fetchedForecastDriverValues).length} fields` : 'null/empty');
+      
+      // Store forecast driver values for 3 Statement Model
+      setForecastDriverValues(fetchedForecastDriverValues);
+      
+      if (fetchedForecastDriverValues) {
+        console.log(`[ValuationPage] Forecast driver values for ${selectedCompany}:`, {
+          NOPATGrowthRateInPerpetuity: fetchedForecastDriverValues.NOPATGrowthRateInPerpetuity,
+          ReturnOnNewInvestedCapital: fetchedForecastDriverValues.ReturnOnNewInvestedCapital,
+          WeightedAverageCostOfCapital: fetchedForecastDriverValues.WeightedAverageCostofCapital,
+          GrossMarginAsPercentOfRevenue: fetchedForecastDriverValues.GrossMarginAsPercentOfRevenue,
+          SGAAsPercentOfRevenue: fetchedForecastDriverValues.SGAAsPercentOfRevenue,
+          DepreciationAsPercentOfLastYearPPE: fetchedForecastDriverValues.DepreciationAsPercentOfLastYearPPE
+        });
+      }
+      
+      // Update valuationSummaryData with forecast driver values if available
+      // Always update when company changes, even if fetchedForecastDriverValues is null (to clear old values)
+      if (fetchedForecastDriverValues) {
+        const newData = {
+          nopatGrowthRate: fetchedForecastDriverValues.NOPATGrowthRateInPerpetuity !== undefined 
+            ? String(fetchedForecastDriverValues.NOPATGrowthRateInPerpetuity * 100) // Convert to percentage
+            : '',
+          returnOnNewInvestedCapital: fetchedForecastDriverValues.ReturnOnNewInvestedCapital !== undefined
+            ? String(fetchedForecastDriverValues.ReturnOnNewInvestedCapital * 100) // Convert to percentage
+            : '',
+          weightedAverageCostOfCapital: fetchedForecastDriverValues.WeightedAverageCostOfCapital !== undefined
+            ? String(fetchedForecastDriverValues.WeightedAverageCostOfCapital * 100) // Convert to percentage
+            : '',
+          valueOfCarryForwardCredits: '', // Reset when company changes
+        };
+        console.log(`[ValuationPage] Setting new forecast driver values:`, newData);
+        setValuationSummaryData(newData);
+        
+        // Also update valuationSummaryStaticValues with the API values for display in the FreeCashFlow column
+        setValuationSummaryStaticValues(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              nopatGrowthRate: fetchedForecastDriverValues.NOPATGrowthRateInPerpetuity !== undefined 
+                ? fetchedForecastDriverValues.NOPATGrowthRateInPerpetuity * 100 
+                : prev.nopatGrowthRate,
+              returnOnNewInvestedCapital: fetchedForecastDriverValues.ReturnOnNewInvestedCapital !== undefined
+                ? fetchedForecastDriverValues.ReturnOnNewInvestedCapital * 100
+                : prev.returnOnNewInvestedCapital,
+              weightedAverageCostOfCapital: fetchedForecastDriverValues.WeightedAverageCostOfCapital !== undefined
+                ? fetchedForecastDriverValues.WeightedAverageCostOfCapital * 100
+                : prev.weightedAverageCostOfCapital,
+            };
+          }
+          return prev;
+        });
+      } else {
+        // Reset to empty if no data available for new company
+        const resetData = {
+          nopatGrowthRate: '',
+          returnOnNewInvestedCapital: '',
+          weightedAverageCostOfCapital: '',
+          valueOfCarryForwardCredits: '',
+        };
+        console.log(`[ValuationPage] Resetting forecast driver values (no data available):`, resetData);
+        setValuationSummaryData(resetData);
+      }
 
       // Fetch ROIC from API
       const roicData = await fetchROICData(selectedCompany);
@@ -1111,7 +1325,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
     };
     
     loadCompanyData();
-  }, [selectedCompany, mergeDataWithContext, fetchIncomeStatementData, fetchBalanceSheetData, fetchCashFlowData]);
+  }, [selectedCompany, mergeDataWithContext, fetchIncomeStatementData, fetchBalanceSheetData, fetchCashFlowData, fetchInvestedCapitalData, fetchFreeCashFlowData, fetchValuationForecastDriverValues, fetchNOPATData, fetchROICData, fetchOperationalPerformanceData, fetchFinancingHealthData]);
 
 
 
@@ -2120,13 +2334,8 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
       });
     }
     
-    // Also reset Valuation Summary specific state
-    setValuationSummaryData({
-        nopatGrowthRate: '',
-        returnOnNewInvestedCapital: '',
-        weightedAverageCostOfCapital: '',
-        valueOfCarryForwardCredits: ''
-    });
+    // Don't reset Valuation Summary data here - let the useEffect handle it when company changes
+    // The forecast driver values will be fetched and set in the useEffect
   };
 
 
@@ -2358,6 +2567,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
               isInputField={isInputField}
               isCalculatedField={isCalculatedField}
               IncomeStatementTable={IncomeStatementTable}
+              forecastDriverValues={forecastDriverValues}
             />
           </TabsContent>
 

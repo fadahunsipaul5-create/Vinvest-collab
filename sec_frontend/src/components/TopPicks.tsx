@@ -692,9 +692,9 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm p-4 lg:p-6">
+    <div className="-mt-8">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-4">Top Picks Analysis</h2>
+        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-4">Value Screener Analysis</h2>
         
         {/* Mode Selection Buttons */}
         <div className="flex space-x-2 mb-6 border-b border-gray-200 dark:border-[#161C1A]">

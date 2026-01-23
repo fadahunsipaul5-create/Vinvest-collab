@@ -9,6 +9,7 @@ from .views import (
     activate_free_plan, CompanyMultiplesAPIView,
     SectorAPIView
 )
+from sec_app_2.views import ValuationSummaryView
 
 # Create a router and register only ViewSets.
 router = DefaultRouter()
@@ -32,5 +33,6 @@ urlpatterns = [
     path('activate-free-plan/', activate_free_plan, name='activate_free_plan'),
     path('multiples/', CompanyMultiplesAPIView.as_view(), name='multiples_list'),
     path('multiples/<str:ticker>/', CompanyMultiplesAPIView.as_view(), name='multiples_detail'),
+    path('equity-value/<str:ticker>/', ValuationSummaryView.as_view(), name='equity_value'),
     path('', include(router.urls)),
 ]

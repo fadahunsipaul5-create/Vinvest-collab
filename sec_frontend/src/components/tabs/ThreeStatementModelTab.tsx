@@ -16,6 +16,7 @@ interface ThreeStatementModelTabProps {
   isInputField: (field: string) => boolean;
   isCalculatedField: (field: string) => boolean;
   IncomeStatementTable: React.ComponentType<any>;
+  forecastDriverValues?: any;
 }
 
 const ThreeStatementModelTab: React.FC<ThreeStatementModelTabProps> = ({
@@ -25,7 +26,8 @@ const ThreeStatementModelTab: React.FC<ThreeStatementModelTabProps> = ({
   handleDataChange,
   isInputField,
   isCalculatedField,
-  IncomeStatementTable
+  IncomeStatementTable,
+  forecastDriverValues
 }) => {
   return (
     <>
@@ -51,6 +53,7 @@ const ThreeStatementModelTab: React.FC<ThreeStatementModelTabProps> = ({
             isInputField={isInputField}
             isCalculatedField={isCalculatedField}
             companyTicker={selectedCompany}
+            forecastDriverValues={forecastDriverValues}
           />
         </div>
       </div>

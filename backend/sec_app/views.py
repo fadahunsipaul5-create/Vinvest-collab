@@ -336,9 +336,31 @@ class FileUploadView(APIView):
                     'files_processed': len(files)
                 }, status=status.HTTP_200_OK)
             else:
+                # Try to parse error details
+                error_details = {}
+                try:
+                    if response.headers.get('Content-Type', '').startswith('application/json'):
+                        error_details = response.json()
+                    else:
+                        error_details = {'message': response.text[:500]}  # Limit response text length
+                except Exception as e:
+                    logger.warning(f"Could not parse error response: {str(e)}")
+                    error_details = {'message': f'HTTP {response.status_code} error'}
+                
+                # Provide more specific error messages
+                error_message = 'External file processing service returned an error'
+                if response.status_code == 404:
+                    error_message = 'File upload endpoint not found. The external service may be unavailable or the endpoint has changed.'
+                elif response.status_code == 500:
+                    error_message = 'External file processing service encountered an internal error.'
+                elif response.status_code == 503:
+                    error_message = 'External file processing service is temporarily unavailable.'
+                
+                logger.error(f"File upload failed: HTTP {response.status_code} - {error_details}")
                 return Response({
-                    'error': 'External file processing service returned an error',
-                    'details': response.json() if response.headers.get('Content-Type') == 'application/json' else response.text,
+                    'error': error_message,
+                    'details': error_details,
+                    'status_code': response.status_code,
                     'files_received': len(files)
                 }, status=status.HTTP_502_BAD_GATEWAY)
         except requests.exceptions.Timeout:
@@ -478,6 +500,18 @@ class ExternalChatbotProxyView(APIView):
             "filtered_context": filtered_context,
             "user_id": user.id,  # Include user ID for context retrieval
         }
+        
+        # Include base64-encoded files if provided (for multimodal input)
+        if request.data.get("base64_images"):
+            chatbot_payload["base64_images"] = request.data.get("base64_images")
+        if request.data.get("base64_files"):
+            chatbot_payload["base64_files"] = request.data.get("base64_files")
+        if request.data.get("base64_audios"):
+            chatbot_payload["base64_audios"] = request.data.get("base64_audios")
+        
+        # Include session_id if provided
+        if request.data.get("session_id"):
+            chatbot_payload["session_id"] = request.data.get("session_id")
         try:
             response = requests.post("https://api.arvatech.info/api/qa_bot", json=chatbot_payload, timeout=60, verify=False)
             data = response.json()

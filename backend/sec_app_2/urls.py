@@ -18,6 +18,17 @@ from .views2 import (
     SharesOutstandingView,
     StockPriceView,
     IntrinsicToMarketCapView,
+    IntrinsicValueView,
+    ROICView,
+    EarningsYieldView,
+    MarginOfSafetyView,
+    DynamicTablePerformanceView,
+    DynamicTable3StatementModelView,
+    DynamicTableInvestedCapitalView,
+    DynamicTableFreeCashFlowsView,
+    DynamicTableValuationSummaryView,
+    DynamicTableValuationForecastDriverValuesView,
+    MultiplesTableMetricView,
     CompaniesByIndustryView,
     CompaniesView,
     MetricsView,
@@ -49,6 +60,7 @@ urlpatterns = [
     path('balance-sheet/calculate-all/', BalanceSheetCalculateAllView.as_view(), name='balance_sheet_calculate_all'),
     path('data/multiples/<str:filename>', serve_multiples_csv, name='serve_multiples_csv'),
     path('valuation-summary/<str:ticker>/', ValuationSummaryView.as_view(), name='valuation_summary'),
+    path('equity-value/<str:ticker>/', ValuationSummaryView.as_view(), name='equity_value'),  # Alias for frontend compatibility
     path('multiples/<str:ticker>/', MultipleDataView.as_view(), name='multiples_data'),
     
     # Top Picks / GraphDB API Endpoints
@@ -57,12 +69,26 @@ urlpatterns = [
     path('graphdb/companies_when_industry_given', CompaniesByIndustryView.as_view(), name='companies_by_industry'),
     
     # Special Metrics API Endpoints
-    path('special_metrics/market_cap', MarketCapView.as_view(), name='metric_market_cap'),
-    path('special_metrics/shares_outstanding', SharesOutstandingView.as_view(), name='metric_shares_outstanding'),
-    path('special_metrics/stock_price', StockPriceView.as_view(), name='metric_stock_price'),
-    path('special_metrics/intrinsic_to_mc', IntrinsicToMarketCapView.as_view(), name='metric_intrinsic_to_mc'),
-    path('special_metrics/investment_factor_ranking_table', TopPicksRankingView.as_view(), name='top_picks_ranking'),
-    path('special_metrics/investment_factor_ranking_table_for_all_companies', TopPicksRankingAllView.as_view(), name='top_picks_ranking_all'),
+    path('special_metrics/market_cap/', MarketCapView.as_view(), name='metric_market_cap'),
+    path('special_metrics/shares_outstanding/', SharesOutstandingView.as_view(), name='metric_shares_outstanding'),
+    path('special_metrics/stock_price/', StockPriceView.as_view(), name='metric_stock_price'),
+    path('special_metrics/intrinsic_to_mc/', IntrinsicToMarketCapView.as_view(), name='metric_intrinsic_to_mc'),
+    path('special_metrics/intrinsic_value/', IntrinsicValueView.as_view(), name='metric_intrinsic_value'),
+    path('special_metrics/roic/', ROICView.as_view(), name='metric_roic'),
+    path('special_metrics/earnings_yield/', EarningsYieldView.as_view(), name='metric_earnings_yield'),
+    path('special_metrics/margin_of_safety/', MarginOfSafetyView.as_view(), name='metric_margin_of_safety'),
+    path('special_metrics/multiples_table_metric/', MultiplesTableMetricView.as_view(), name='multiples_table_metric'),
+    
+    # Dynamic Table Endpoints
+    path('dynamic_table/Performance', DynamicTablePerformanceView.as_view(), name='dynamic_table_performance'),
+    path('dynamic_table/3StatementModel', DynamicTable3StatementModelView.as_view(), name='dynamic_table_3statement_model'),
+    path('dynamic_table/InvestedCapital', DynamicTableInvestedCapitalView.as_view(), name='dynamic_table_invested_capital'),
+    path('dynamic_table/FreeCashFlows', DynamicTableFreeCashFlowsView.as_view(), name='dynamic_table_free_cash_flows'),
+    path('dynamic_table/ValuationSummary', DynamicTableValuationSummaryView.as_view(), name='dynamic_table_valuation_summary'),
+    path('dynamic_table/ValuationForecastDriverValues', DynamicTableValuationForecastDriverValuesView.as_view(), name='dynamic_table_valuation_forecast_driver_values'),
+    
+    path('special_metrics/investment_factor_ranking_table/', TopPicksRankingView.as_view(), name='top_picks_ranking'),
+    path('special_metrics/investment_factor_ranking_table_for_all_companies/', TopPicksRankingAllView.as_view(), name='top_picks_ranking_all'),
     path('special_metrics/investment_factor_ranking_table_for_all_companies/<str:date>', TopPicksRankingAllHistoryView.as_view(), name='top_picks_ranking_all_history'),
     
     # Centralized API Endpoints

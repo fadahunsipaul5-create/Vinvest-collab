@@ -61,6 +61,246 @@ class IntrinsicToMarketCapView(APIView):
              return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 @method_decorator(csrf_exempt, name='dispatch')
+class IntrinsicValueView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        """Get Intrinsic Value (Equity Value) from Neo4j"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/special_metrics/intrinsic_value"
+            response = requests.post(url, json=request.data, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ROICView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        """Get ROIC (Return on Invested Capital)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/special_metrics/roic"
+            response = requests.post(url, json=request.data, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class EarningsYieldView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        """Get Earnings Yield"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/special_metrics/earnings_yield"
+            response = requests.post(url, json=request.data, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MarginOfSafetyView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        """Get Margin of Safety"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/special_metrics/margin_of_safety"
+            response = requests.post(url, json=request.data, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DynamicTablePerformanceView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get Performance dynamic table data"""
+        try:
+            ticker = request.GET.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/Performance"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def post(self, request):
+        """Get Performance dynamic table data (POST method)"""
+        try:
+            ticker = request.data.get('ticker') or request.POST.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/Performance"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DynamicTable3StatementModelView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get 3StatementModel dynamic table data"""
+        try:
+            ticker = request.GET.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/3StatementModel"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def post(self, request):
+        """Get 3StatementModel dynamic table data (POST method)"""
+        try:
+            ticker = request.data.get('ticker') or request.POST.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/3StatementModel"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DynamicTableInvestedCapitalView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get InvestedCapital dynamic table data"""
+        try:
+            ticker = request.GET.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/InvestedCapital"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def post(self, request):
+        """Get InvestedCapital dynamic table data (POST method)"""
+        try:
+            ticker = request.data.get('ticker') or request.POST.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/InvestedCapital"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DynamicTableFreeCashFlowsView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get FreeCashFlows dynamic table data"""
+        try:
+            ticker = request.GET.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/FreeCashFlows"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def post(self, request):
+        """Get FreeCashFlows dynamic table data (POST method)"""
+        try:
+            ticker = request.data.get('ticker') or request.POST.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/FreeCashFlows"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DynamicTableValuationSummaryView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get ValuationSummary dynamic table data"""
+        try:
+            ticker = request.GET.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/ValuationSummary"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def post(self, request):
+        """Get ValuationSummary dynamic table data (POST method)"""
+        try:
+            ticker = request.data.get('ticker') or request.POST.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/ValuationSummary"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DynamicTableValuationForecastDriverValuesView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get ValuationForecastDriverValues dynamic table data"""
+        try:
+            ticker = request.GET.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/ValuationForecastDriverValues"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def post(self, request):
+        """Get ValuationForecastDriverValues dynamic table data (POST method)"""
+        try:
+            ticker = request.data.get('ticker') or request.POST.get('ticker')
+            if not ticker:
+                return Response({"error": "ticker is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            url = f"{EXTERNAL_API_BASE_URL}/api/dynamic_table/ValuationForecastDriverValues"
+            # External API expects form-urlencoded data
+            response = requests.post(url, data={'ticker': ticker}, headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=30)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class TopPicksRankingView(APIView):
     permission_classes = [AllowAny]
     
@@ -98,6 +338,20 @@ class TopPicksRankingAllHistoryView(APIView):
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/special_metrics/investment_factor_ranking_table_for_all_companies/{date}"
             # External API requires POST
+            response = requests.post(url, json=request.data, timeout=10)
+            return Response(response.json(), status=response.status_code)
+        except requests.RequestException as e:
+             return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MultiplesTableMetricView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        """Get multiples table metric (ticker and metric_name)"""
+        try:
+            url = f"{EXTERNAL_API_BASE_URL}/api/special_metrics/multiples_table_metric"
+            # Forward the body (ticker and metric_name)
             response = requests.post(url, json=request.data, timeout=10)
             return Response(response.json(), status=response.status_code)
         except requests.RequestException as e:
@@ -449,7 +703,6 @@ class ReportSessionsView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request):
-        """List Report Sessions"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report"
             response = requests.get(url, timeout=10)
@@ -470,7 +723,6 @@ class ReportSessionDetailView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request, session_id):
-        """Get Specific Report Session"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report/{session_id}"
             response = requests.get(url, timeout=10)
@@ -479,7 +731,6 @@ class ReportSessionDetailView(APIView):
              return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def delete(self, request, session_id):
-        """Delete Specific Report Session"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions_report/{session_id}"
             response = requests.delete(url, timeout=10)
@@ -492,12 +743,7 @@ class ReportSessionDetailView(APIView):
 # Chat Sessions Management Endpoints (General/Insights Chat)
 # ============================================================================
 
-class ChatSessionsView(APIView):
-    """
-    Handle listing and clearing all chat sessions
-    GET: List all sessions
-    DELETE: Clear all sessions
-    """
+class ChatSessionsView(APIView):    
     permission_classes = [AllowAny]
     
     @method_decorator(csrf_exempt)
@@ -505,7 +751,6 @@ class ChatSessionsView(APIView):
         return super().dispatch(*args, **kwargs)
     
     def get(self, request):
-        """List Chat Sessions"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions"
             response = requests.get(url, timeout=10)
@@ -514,7 +759,6 @@ class ChatSessionsView(APIView):
              return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def delete(self, request):
-        """Clear All Chat Sessions"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions"
             response = requests.delete(url, timeout=10)
@@ -524,11 +768,6 @@ class ChatSessionsView(APIView):
 
 
 class ChatSessionDetailView(APIView):
-    """
-    Handle individual chat session operations
-    GET: Get specific session
-    DELETE: Delete specific session
-    """
     permission_classes = [AllowAny]
     
     @method_decorator(csrf_exempt)
@@ -536,7 +775,6 @@ class ChatSessionDetailView(APIView):
         return super().dispatch(*args, **kwargs)
     
     def get(self, request, session_id):
-        """Get Specific Chat Session"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions/{session_id}"
             response = requests.get(url, timeout=10)
@@ -545,7 +783,6 @@ class ChatSessionDetailView(APIView):
              return Response({"error": "External API unavailable", "details": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def delete(self, request, session_id):
-        """Delete Specific Chat Session"""
         try:
             url = f"{EXTERNAL_API_BASE_URL}/api/sessions/{session_id}"
             response = requests.delete(url, timeout=10)
