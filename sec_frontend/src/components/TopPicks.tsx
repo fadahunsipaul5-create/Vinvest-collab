@@ -360,13 +360,15 @@ const TopPicks: React.FC<TopPicksProps> = () => {
         const fetchAllRankings = async () => {
             setRankingLoading(true);
             try {
-                const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table_for_all_companies`);
+                const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table_for_all_companies/`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 const data = await response.json();
+                console.log('[TopPicks] Fetched all rankings data:', data);
                 // Handle potential case sensitivity or missing field
                 const rankings: RankingResult[] = data.Ranking || data.ranking || [];
+                console.log('[TopPicks] Processed rankings count:', rankings.length);
 
                 const newPicksData: TopPickData[] = rankings.map(r => ({
                     ticker: r.ticker,
@@ -395,10 +397,13 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                     marketCap: 0
                 }));
                 
+                console.log('[TopPicks] Setting picksData:', newPicksData.length, 'items');
                 setPicksData(newPicksData);
                 setRankingStats({ sent: rankings.length, ranked: rankings.length, rejected: 0 });
             } catch (err) {
-                console.error("Failed to fetch all rankings:", err);
+                console.error("[TopPicks] Failed to fetch all rankings:", err);
+                setPicksData([]);
+                setRankingStats(null);
             } finally {
                 setRankingLoading(false);
             }
@@ -446,7 +451,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
     const fetchRankingData = async () => {
         setRankingLoading(true);
         try {
-            const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table`, {
+            const response = await fetch(`${baseUrl}/api/sec/special_metrics/investment_factor_ranking_table/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -565,12 +570,21 @@ const TopPicks: React.FC<TopPicksProps> = () => {
 
   // Filter Data - RESTORED
   const filteredData = useMemo(() => {
+    console.log('[TopPicks] Filtering data:', {
+      picksDataCount: picksData.length,
+      selectedIndustry,
+      selectedSector,
+      selectedCompany
+    });
+    
     let data = picksData.filter(item => {
       const matchIndustry = selectedIndustry ? item.industry === selectedIndustry : true;
       const matchSector = selectedSector ? item.sector === selectedSector : true;
       const matchCompany = selectedCompany ? item.ticker === selectedCompany : true;
       return matchIndustry && matchSector && matchCompany;
     });
+
+    console.log('[TopPicks] After filtering:', data.length, 'items');
 
     // Default sort by overall rank for Today's Pick
     data = data.sort((a, b) => {
