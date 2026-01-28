@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SandboxWarningModal from './SandboxWarningModal';
 
 import { years } from '../data/constants';
@@ -50,12 +50,6 @@ import ValuationMetricsBoxes from './ValuationMetricsBoxes';
 import IncomeStatementTable from './tables/IncomeStatementTable';
 import InvestedCapitalTable from './tables/InvestedCapitalTable';
 import FreeCashFlowTable from './tables/FreeCashFlowTable';
-
-interface CompanyTicker {
-  ticker: string;
-  name: string;
-  display_name?: string;
-}
 
 import {
   recalculateDependentFields as calculateDependentFields,
@@ -130,6 +124,9 @@ interface ValuationPageProps {
   onCompanyChange?: (company: string) => void;
 }
 
+const toTicker = (v: string | undefined) =>
+  !v || !String(v).trim() ? 'COST' : String(v).split(':')[0].trim().toUpperCase() || 'COST';
+
 // Helper function to map balance sheet keys
 const mapBalanceSheetKey = (k: string): string => {
   const mapping: { [key: string]: string } = {
@@ -158,8 +155,7 @@ const mapBalanceSheetKey = (k: string): string => {
   return mapping[k] || k;
 };
 
-const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, onCompanyChange }) => {
-
+const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany }) => {
   const { updateCompanyTableData, resetCompanyData, getModifiedCompanyData, isSandboxMode, toggleSandboxMode } = useCompanyData();
   const [hasIncomeStatementData, setHasIncomeStatementData] = useState<boolean>(true);
   const [showSandboxWarning, setShowSandboxWarning] = useState(false);
@@ -351,52 +347,14 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
     return mergeDataWithContext(baseData, ticker);
   }, [mergeDataWithContext]);
 
-  const [allData, setAllData] = useState<{[key: string]: TableData}>(() => getInitialData(initialCompany || 'COST'));
+  const [allData, setAllData] = useState<{[key: string]: TableData}>(() => getInitialData(toTicker(initialCompany)));
 
-
-
-  const [selectedCompany, setSelectedCompany] = useState(initialCompany || 'COST');
+  const [selectedCompany, setSelectedCompany] = useState(() => toTicker(initialCompany));
 
   const [activeTab, setActiveTab] = useState('incomeStatement');
 
   // State for forecast driver values from API (for 3 Statement Model)
   const [forecastDriverValues, setForecastDriverValues] = useState<any>(null);
-
-  // Company dropdown state
-  const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState<boolean>(false);
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState<boolean>(false);
-  const [companyInput, setCompanyInput] = useState<string>('');
-  const companyDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Fetch companies from API
-  const fetchCompanies = async () => {
-    setCompaniesLoading(true);
-    try {
-      const response = await fetch(`${baseUrl}/api/sec/central/companies`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch companies: ${response.status}`);
-      }
-      const data = await response.json();
-      
-      // Handle both paginated (results) and non-paginated responses
-      const companiesList = data.results || data;
-      
-      const companies: CompanyTicker[] = [];
-      companiesList.forEach((company: any) => {
-        const ticker = company.ticker;
-        const display_name = company.display_name || company.name || company.ticker;
-        const name = company.name || company.ticker;
-        companies.push({ ticker, name, display_name });
-      });
-      
-      setAvailableCompanies(companies);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    } finally {
-      setCompaniesLoading(false);
-    }
-  };
 
   // Map CSV metric names to frontend field names
   const mapMetricNameToFrontendField = (csvMetricName: string): string => {
@@ -1053,24 +1011,11 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
     }
   }, []);
 
-  // Fetch companies on mount
+  // Sync selected company with header (initialCompany) when user changes company in header
   useEffect(() => {
-    fetchCompanies();
-  }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
-        setShowCompanyDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    const ticker = toTicker(initialCompany);
+    setSelectedCompany(ticker);
+  }, [initialCompany]);
 
   // Switch company data when selectedCompany changes
 
@@ -2396,82 +2341,7 @@ const ValuationPage: React.FC<ValuationPageProps> = ({ onClose, initialCompany, 
 
             <div className="flex items-center gap-4">
 
-              {/* Company Selector */}
-
-              <div className="flex items-center gap-2">
-
-                <label className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">Company:</label>
-
-                <div className="relative" ref={companyDropdownRef}>
-                  <input
-                    type="text"
-                    value={
-                      showCompanyDropdown || companyInput
-                        ? companyInput
-                        : (availableCompanies.find(c => c.ticker === selectedCompany)?.display_name || 
-                           availableCompanies.find(c => c.ticker === selectedCompany)?.name || 
-                           selectedCompany)
-                    }
-                    onChange={(e) => {
-                      setCompanyInput(e.target.value);
-                      setShowCompanyDropdown(true);
-                    }}
-                    onFocus={() => {
-                      setShowCompanyDropdown(true);
-                      setCompanyInput('');
-                    }}
-                    placeholder={companiesLoading ? "Loading..." : "Select company..."}
-                    className="px-3 py-2 pr-8 border border-gray-300 dark:border-[#161C1A] rounded-lg bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:ring-2 focus:ring-[#144D37] min-w-[200px]"
-                    disabled={companiesLoading}
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-
-                  {showCompanyDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-[50vh] overflow-auto">
-                      {companiesLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
-                      ) : availableCompanies.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
-                      ) : (
-                        availableCompanies
-                          .filter(company => 
-                            !companyInput || 
-                            company.ticker.toLowerCase().includes(companyInput.toLowerCase()) ||
-                            company.name.toLowerCase().includes(companyInput.toLowerCase()) ||
-                            (company.display_name && company.display_name.toLowerCase().includes(companyInput.toLowerCase()))
-                          )
-                          .map(company => (
-                            <div
-                              key={company.ticker}
-                              onClick={() => {
-                                setSelectedCompany(company.ticker);
-                                setCompanyInput('');
-                                setShowCompanyDropdown(false);
-                                onCompanyChange?.(company.ticker);
-                              }}
-                              className={`px-3 py-2 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
-                                selectedCompany === company.ticker ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
-                              }`}
-                            >
-                              {company.display_name || company.name} ({company.ticker})
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-
-
               {/* Reset Button */}
-
-              {/* Actions */}
 
               <button
                 onClick={handleReset}

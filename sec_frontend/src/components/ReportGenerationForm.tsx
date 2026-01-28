@@ -209,7 +209,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
           rows={2}
-          className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
+          className="w-full px-2.5 py-1 text-xs bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
         />
         {/* Disclaimer when generating */}
         {isLoading && (
@@ -229,12 +229,11 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Step 1: Report Type */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Step 1 — Select report type</label>
             <label className="block text-xs text-gray-600 dark:text-[#889691] mb-1">Report type</label>
             <select
               value={reportType}
               onChange={(e) => setReportType(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2.5 py-1 text-xs bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {reportTypes.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -250,7 +249,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
             {reportType === 'industry_deep_drive' ? (
               // Industry Name Input
               <>
-                <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Step 2 — Enter industry</label>
+                {/* <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Step 2 — Enter industry</label> */}
                 <div className="relative" ref={industrySearchRef}>
                   <label className="block text-xs text-gray-600 dark:text-[#889691] mb-1">Industry Name</label>
                   <input
@@ -266,7 +265,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                       }
                     }}
                     placeholder="e.g. Artificial Intelligence, EV, Retail"
-                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
+                    className="w-full px-2.5 py-1 text-xs bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
                   />
                   {showIndustryDropdown && filteredIndustries.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-y-auto">
@@ -274,7 +273,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                         <button
                           key={ind.industryId}
                           onClick={() => handleIndustrySelect(ind)}
-                          className="w-full px-3 py-1.5 text-sm text-left text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
+                          className="w-full px-2.5 py-1 text-xs text-left text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
                         >
                           {ind.industryName}
                         </button>
@@ -286,7 +285,6 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
             ) : (
               // Company Selection
               <>
-                <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Step 2 — Select company</label>
                 <div className="relative" ref={directSearchRef}>
                   <label className="block text-xs text-gray-600 dark:text-[#889691] mb-1">Company</label>
                   <input
@@ -299,7 +297,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                       }
                     }}
                     placeholder="Type company name or ticker"
-                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
+                    className="w-full px-2.5 py-1 text-xs bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
                   />
                   {showDirectSearchDropdown && filteredDirectSearch.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-y-auto">
@@ -307,7 +305,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                         <button
                           key={company.ticker}
                           onClick={() => handleDirectSearchSelect(company)}
-                          className="w-full px-3 py-1.5 text-sm text-left text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
+                          className="w-full px-2.5 py-1 text-xs text-left text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
                         >
                           {company.name} ({company.ticker})
                         </button>
@@ -361,12 +359,11 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Step 1: Report Type */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Step 1 — Select report type</label>
           <label className="block text-xs text-gray-600 dark:text-[#889691] mb-1">Report type</label>
           <select
             value={reportType}
             onChange={(e) => setReportType(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full px-2.5 py-1 text-xs bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {reportTypes.map((type) => (
               <option key={type.value} value={type.value}>
@@ -405,7 +402,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                       <button
                         key={ind.industryId}
                         onClick={() => handleIndustrySelect(ind)}
-                        className="w-full px-3 py-1.5 text-sm text-left text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="w-full px-2.5 py-1 text-xs text-left text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                       >
                         {ind.industryName}
                       </button>
@@ -417,7 +414,6 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
           ) : (
             // Company Selection
             <>
-              <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Step 2 — Select company</label>
               <div className="relative" ref={directSearchRef}>
                 <label className="block text-xs text-gray-600 dark:text-[#889691] mb-1">Company</label>
                 <input
@@ -438,7 +434,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
                       <button
                         key={company.ticker}
                         onClick={() => handleDirectSearchSelect(company)}
-                        className="w-full px-3 py-1.5 text-sm text-left text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="w-full px-2.5 py-1 text-xs text-left text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                       >
                         {company.name} ({company.ticker})
                       </button>
@@ -459,7 +455,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
           rows={2}
-          className="w-full px-3 py-1.5 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
+          className="w-full px-2.5 py-1 text-xs bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
         />
         {/* Disclaimer when generating */}
         {isLoading && (

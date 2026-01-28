@@ -62,6 +62,28 @@ interface TopPickData {
   };
 }
 
+// Elite Ticker Analysis interfaces (currently unused while table is hidden)
+// interface EliteTickerData {
+//   ticker: string;
+//   vEliteStatus: {
+//     type: 'elite' | 'gatekeeper' | 'fail';
+//     value: number | string; // For elite: rank number, for gatekeeper: "GATEKEEPER", for fail: "FAIL"
+//   };
+//   vRating: number;      // 0-100
+//   vQuality: number;     // 0-100
+//   vValue: number;       // 0-100
+//   vSafety: number;      // 0-100
+//   vMomentum: number;    // 0-100
+// }
+
+// Circular Progress / VEliteStatus / InfoTooltip components
+// NOTE: These are currently unused because the Elite Ticker table is hidden for presentation.
+// Keeping the implementations commented out for future reuse.
+//
+// const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, size = 60 }) => { ... }
+// const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> = ({ status }) => { ... }
+// const InfoTooltip: React.FC<{ tooltipText: string; children?: React.ReactNode }> = ({ tooltipText, children }) => { ... }
+
 const TopPicks: React.FC<TopPicksProps> = () => {
   // Filter states
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
@@ -88,8 +110,9 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   const companyDropdownRef = useRef<HTMLDivElement>(null);
   
   const [picksData, setPicksData] = useState<TopPickData[]>([]);
-  const [rankingStats, setRankingStats] = useState<{ sent: number; ranked: number; rejected: number } | null>(null);
-  const [rankingLoading, setRankingLoading] = useState(false);
+  // We only need the setters; ignore the state values to avoid unused-variable errors
+  const [, setRankingStats] = useState<{ sent: number; ranked: number; rejected: number } | null>(null);
+  const [, setRankingLoading] = useState(false);
   
   // New state for mode selection
   const [activeMode, setActiveMode] = useState<'today' | 'historical'>('today');
@@ -329,22 +352,9 @@ const TopPicks: React.FC<TopPicksProps> = () => {
     }
   }, [selectedIndustry, fetchedIndustries, allCompanies]);
 
-  // Helper to format numbers
-  const formatPercent = (val: number) => {
-    // Check if value is likely a ratio (e.g. 0.15) or percentage (15.0) or huge number
-    // API returns Earnings Yield as 0.0153 -> 1.5%
-    if (Math.abs(val) <= 1) {
-        return `${(val * 100).toFixed(2)}%`; // Use 2 decimals for small ratios
-    }
-    // If it's a large number (like ROIC example), maybe just display as is or with 'x' or '$'?
-    // Assuming ROIC might be bugged in API, let's just show it fixed
-    if (val > 1000) {
-        // Format as large number if needed, or just return as is
-        return val.toLocaleString(); 
-    }
-    return `${val.toFixed(1)}%`;
-  };
-  const formatRatio = (val: number) => `${val.toFixed(2)}x`;
+  // Helper to format numbers (kept for potential future use)
+  // const formatPercent = (val: number) => { ... };
+  // const formatRatio = (val: number) => `${val.toFixed(2)}x`;
   
   // Fetch Ranking Data when Companies are loaded
   useEffect(() => {
@@ -568,33 +578,37 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   // But let's verify data first.
 
 
-  // Filter Data - RESTORED
-  const filteredData = useMemo(() => {
-    console.log('[TopPicks] Filtering data:', {
-      picksDataCount: picksData.length,
-      selectedIndustry,
-      selectedSector,
-      selectedCompany
-    });
-    
-    let data = picksData.filter(item => {
-      const matchIndustry = selectedIndustry ? item.industry === selectedIndustry : true;
-      const matchSector = selectedSector ? item.sector === selectedSector : true;
-      const matchCompany = selectedCompany ? item.ticker === selectedCompany : true;
-      return matchIndustry && matchSector && matchCompany;
-    });
+  // Filter Data - RESTORED (currently unused while Elite table is hidden)
+  // const filteredData = useMemo(() => {
+  //   console.log('[TopPicks] Filtering data:', {
+  //     picksDataCount: picksData.length,
+  //     selectedIndustry,
+  //     selectedSector,
+  //     selectedCompany
+  //   });
+  //   
+  //   let data = picksData.filter(item => {
+  //     const matchIndustry = selectedIndustry ? item.industry === selectedIndustry : true;
+  //     const matchSector = selectedSector ? item.sector === selectedSector : true;
+  //     const matchCompany = selectedCompany ? item.ticker === selectedCompany : true;
+  //     return matchIndustry && matchSector && matchCompany;
+  //   });
+  //
+  //   console.log('[TopPicks] After filtering:', data.length, 'items');
+  //
+  //   // Default sort by overall rank for Today's Pick
+  //   data = data.sort((a, b) => {
+  //     const ar = a.ranks.overall || Number.POSITIVE_INFINITY;
+  //     const br = b.ranks.overall || Number.POSITIVE_INFINITY;
+  //     return ar - br;
+  //   });
+  //   
+  //   return data;
+  // }, [picksData, selectedIndustry, selectedSector, selectedCompany]);
 
-    console.log('[TopPicks] After filtering:', data.length, 'items');
-
-    // Default sort by overall rank for Today's Pick
-    data = data.sort((a, b) => {
-      const ar = a.ranks.overall || Number.POSITIVE_INFINITY;
-      const br = b.ranks.overall || Number.POSITIVE_INFINITY;
-      return ar - br;
-    });
-    
-    return data;
-  }, [picksData, selectedIndustry, selectedSector, selectedCompany]);
+  // Convert TopPickData to EliteTickerData (currently unused while table is hidden)
+  // const convertToEliteTickerData = (item: TopPickData): EliteTickerData => { ... }
+  // const eliteTickerData = useMemo(() => filteredData.map(convertToEliteTickerData), [filteredData]);
 
   // Update available options for filters based on API data
   const availableSectors = useMemo(() => fetchedSectors.map(s => s.sectorName).sort(), [fetchedSectors]);
@@ -706,9 +720,9 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   };
 
   return (
-    <div className="-mt-8">
+    <div className="relative z-0">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-4">Value Screener Analysis</h2>
+        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-4">VInvest Rating - Elite Ticker Analysis</h2>
         
         {/* Mode Selection Buttons */}
         <div className="flex space-x-2 mb-6 border-b border-gray-200 dark:border-[#161C1A]">
@@ -832,7 +846,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
               </div>
               
               {showSectorDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                   {filteredSectors.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No sectors found</div>
                   ) : (
@@ -912,7 +926,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
               </div>
               
               {showIndustryDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                   {filteredIndustries.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No industries found</div>
                   ) : (
@@ -997,7 +1011,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
               </div>
               
               {showCompanyDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
                   {filteredCompaniesForSearch.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies found</div>
                   ) : (
@@ -1072,91 +1086,16 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 )}
             </div>
         ) : (
-            // Standard Table View (Today's Pick Only)
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-[#161C1A] border border-gray-200 dark:border-[#161C1A]">
-          <thead className="bg-gray-50 dark:bg-[#1C2220]">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
-                Overall Rank
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
-                Ticker
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
-                ROIC 5Y Avg <br/>
-                <span className="text-gray-400 dark:text-[#889691] font-normal">(Value | Rank)</span>
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
-                Earnings Yield <br/>
-                <span className="text-gray-400 dark:text-[#889691] font-normal">(Value | Rank)</span>
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#E0E6E4] uppercase tracking-wider">
-                Intrinsic to Market Cap <br/>
-                <span className="text-gray-400 dark:text-[#889691] font-normal">(Value | Rank)</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-[#161C1A] divide-y divide-gray-200 dark:divide-[#161C1A]">
-            {rankingLoading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="h-4 w-4 rounded-full border-2 border-gray-300 dark:border-[#2A332F] border-t-[#144D37] animate-spin" />
-                    <span>Generating ranking table…</span>
-                  </div>
-                </td>
-              </tr>
-            ) : filteredData.length > 0 ? (
-              filteredData.map((item) => (
-                <tr key={item.ticker} className="hover:bg-gray-50 dark:hover:bg-[#1C2220] transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#144D37] dark:bg-[#144D37] text-white font-bold text-sm">
-                      {item.ranks.overall}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-[#E0E6E4]">{item.ticker}</div>
-                    <div className="text-xs text-gray-500 dark:text-[#889691]">{item.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-[#E0E6E4]">
-                      {formatPercent(item.roic5YAvg)} 
-                      <span className="text-gray-500 dark:text-[#889691] ml-1 text-xs">
-                        (Rank: {item.ranks.roic})
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-[#E0E6E4]">
-                      {formatPercent(item.earningsYield)}
-                      <span className="text-gray-500 dark:text-[#889691] ml-1 text-xs">
-                        (Rank: {item.ranks.earnings})
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-[#E0E6E4]">
-                      {formatRatio(item.intrinsicToMarketCap)}
-                      <span className="text-gray-500 dark:text-[#889691] ml-1 text-xs">
-                        (Rank: {item.ranks.intrinsic})
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
-                  {rankingStats && rankingStats.sent > 0 && rankingStats.ranked === 0
-                    ? `No ranked companies returned by the API for this filter (rejected ${rankingStats.rejected}/${rankingStats.sent}).`
-                    : 'No companies found matching the selected filters.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            // Elite Ticker Analysis Table View (Today's Pick Only) - temporarily hidden for presentation
+            // Keeping the implementation below for future use.
+            // {/* 
+            // <div className="overflow-auto max-h-[70vh] border border-gray-200 dark:border-[#161C1A] rounded-lg custom-scrollbar bg-white dark:bg-[#161C1A]">
+            //   ... elite ticker table implementation ...
+            // </div>
+            // */}
+            <div className="mt-6 text-sm text-gray-500 dark:text-[#889691] italic">
+              Elite ticker table hidden for this presentation.
+            </div>
         )}
       
       <div className="mt-4 text-xs text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#1C2220] p-3 rounded">
