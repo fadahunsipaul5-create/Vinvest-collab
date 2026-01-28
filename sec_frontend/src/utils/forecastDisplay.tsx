@@ -70,7 +70,7 @@ export const renderForecastReadonlyInput = (
     { year, hideZero }
   );
 
-  const inputClasses = `${inputClassName ?? 'w-full p-2 text-center border border-blue-300 dark:border-blue-600 rounded bg-blue-50 dark:bg-blue-900/20'} pl-6 pr-6`;
+  const inputClasses = `${inputClassName ?? 'w-full p-2 text-center border border-gray-300 dark:border-gray-600  bg-gray-50 dark:!bg-[#161C1A]'} pl-6 pr-6`;
   const wrapperClasses = `relative w-full ${wrapperClassName ?? ''}`.trim();
 
   return (
@@ -122,10 +122,10 @@ export const renderForecastReadonlyDisplay = (
   );
 
   const baseClasses = shouldDisplay
-    ? 'bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white'
-    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500';
+    ? 'bg-gray-100 dark:!bg-[#161C1A] text-gray-900 dark:text-white border-none'
+    : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-none';
 
-  const wrapperClasses = `relative block rounded p-2 pl-6 pr-6 text-center ${baseClasses} ${wrapperClassName ?? ''}`.trim();
+  const wrapperClasses = `relative block  p-2 pl-6 pr-6 text-center ${baseClasses} ${wrapperClassName ?? ''}`.trim();
 
   if (!shouldDisplay) {
     return (

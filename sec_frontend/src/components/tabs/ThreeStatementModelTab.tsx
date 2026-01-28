@@ -45,7 +45,7 @@ const ThreeStatementModelTab: React.FC<ThreeStatementModelTabProps> = ({
           </div>
         </div>
       )}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 overflow-x-auto">
+      <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm border dark:border-gray-700 overflow-x-auto">
         <div className="[&>div]:mb-0 [&>div]:border-0 [&>div]:rounded-none [&>div>div:first-child]:hidden [&>div>div:last-child]:overflow-visible">
           <IncomeStatementTable 
             data={incomeStatementData || {}} 

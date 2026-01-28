@@ -48,7 +48,7 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
   isSandboxMode,
   setShowSandboxWarning
 }) => {
-  
+
   const handleInputChange = (field: string, value: string) => {
     if (!isSandboxMode) {
       setShowSandboxWarning(true);
@@ -57,13 +57,13 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
     setValuationSummaryData(prev => ({ ...prev, [field]: value }));
   };
   return (
-    <div className="p-6 bg-white dark:bg-[#0B0F0E] rounded-lg shadow-sm border dark:border-[#161C1A] relative">
+    <div className="p-6 bg-white dark:bg-[#161C1A] rounded-lg shadow-sm border dark:border-gray-700 relative">
       <h3 className="text-xl font-semibold text-gray-800 dark:text-[#E0E6E4] mb-4">Valuation Summary</h3>
 
       {/* Tooltip */}
       {hoveredMetric && valuationSummaryTooltips[hoveredMetric] && (
         <div
-          className="fixed z-50 px-3 py-2 text-sm bg-gray-900 dark:bg-gray-800 text-white rounded-lg shadow-lg pointer-events-none max-w-md"
+          className="fixed z-50 px-3 py-2 text-sm bg-gray-900 dark:bg-[#161C1A] text-white rounded-lg shadow-lg pointer-events-none max-w-md"
           style={{
             left: `${tooltipPosition.x + 10}px`,
             top: `${tooltipPosition.y + 10}px`,
@@ -76,8 +76,8 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-gray-900 dark:text-gray-200 border-collapse">
           <thead>
-            <tr className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
-              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-100 dark:bg-gray-700 border-r dark:border-gray-600 min-w-[300px]">
+            <tr className="bg-gray-100 dark:bg-[#161C1A] border-b dark:border-gray-600">
+              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-100 dark:bg-[#161C1A] border-r dark:border-gray-600 min-w-[300px]">
                 Metric
               </th>
               <th className="text-center px-4 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">
@@ -93,9 +93,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
           </thead>
           <tbody>
             {/* NOPAT Growth Rate In Perpetuity */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('NOPAT Growth Rate In Perpetuity');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -118,16 +118,16 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                   type="text"
                   value={valuationSummaryData.nopatGrowthRate}
                   onChange={(e) => handleInputChange('nopatGrowthRate', e.target.value)}
-                  className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0B0F0E] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
+                  className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
                   placeholder="-"
                 />
               </td>
             </tr>
 
             {/* Return On New Invested Capital */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Return On New Invested Capital');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -150,16 +150,16 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                   type="text"
                   value={valuationSummaryData.returnOnNewInvestedCapital}
                   onChange={(e) => handleInputChange('returnOnNewInvestedCapital', e.target.value)}
-                  className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0B0F0E] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
+                  className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
                   placeholder="-"
                 />
               </td>
             </tr>
 
             {/* Weighted Average Cost of Capital */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Weighted Average Cost of Capital');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -182,7 +182,7 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                   type="text"
                   value={valuationSummaryData.weightedAverageCostOfCapital}
                   onChange={(e) => handleInputChange('weightedAverageCostOfCapital', e.target.value)}
-                  className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0B0F0E] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
+                  className="w-full px-2 py-1 text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#144D37] dark:focus:ring-[#144D37]"
                   placeholder="-"
                 />
               </td>
@@ -192,11 +192,11 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             {[2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035].map(year => {
               const metricName = `${year} Discounted Value`;
               const yearData = valuationSummaryStaticValues?.yearlyValues[year];
-              
+
               return (
-                <tr key={year} className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td 
-                    className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+                <tr key={year} className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+                  <td
+                    className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                     onMouseEnter={(e) => {
                       setHoveredMetric(metricName);
                       setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -222,9 +222,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             })}
 
             {/* Value Of Operations */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 bg-gray-50 dark:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A] bg-gray-50 dark:bg-[#161C1A]">
+              <td
+                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-gray-50 dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Value Of Operations');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -248,9 +248,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* Midyear Adjustment Factor */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Midyear Adjustment Factor');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -274,9 +274,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* Adjusted Value Of Operations */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 bg-gray-50 dark:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A] bg-gray-50 dark:bg-[#161C1A]">
+              <td
+                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-gray-50 dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Adjusted Value Of Operations');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -300,9 +300,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* Excess Cash */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Excess Cash');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -326,9 +326,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* Value Of Carry forward Credits - Highlighted in red */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-red-600 dark:text-red-400 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-red-600 dark:text-red-400 sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Value Of Carry forward Credits');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -351,16 +351,16 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
                   type="text"
                   value={valuationSummaryData.valueOfCarryForwardCredits}
                   onChange={(e) => handleInputChange('valueOfCarryForwardCredits', e.target.value)}
-                  className="w-full px-2 py-1 text-center text-red-600 dark:text-red-400 bg-white dark:bg-[#0B0F0E] border border-red-300 dark:border-red-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-500"
+                  className="w-full px-2 py-1 text-center text-red-600 dark:text-red-400 bg-white dark:bg-[#161C1A] border border-red-300 dark:border-red-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-500"
                   placeholder="-"
                 />
               </td>
             </tr>
 
             {/* Enterprise Value */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 bg-gray-50 dark:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A] bg-gray-50 dark:bg-[#161C1A]">
+              <td
+                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-gray-50 dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Enterprise Value');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -384,9 +384,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* Debt */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('Debt');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -410,9 +410,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* OperatingLeaseLiabilities */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('OperatingLeaseLiabilities');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -436,9 +436,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* FinanceLeaseLiabilities */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('FinanceLeaseLiabilities');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -462,9 +462,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* VariableLeaseLiabilities */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td 
-                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A]">
+              <td
+                className="px-4 py-3 font-medium text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('VariableLeaseLiabilities');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -488,9 +488,9 @@ const ValuationSummaryTab: React.FC<ValuationSummaryTabProps> = ({
             </tr>
 
             {/* EquityIntrinsicValue */}
-            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 bg-blue-50 dark:bg-blue-900/20">
-              <td 
-                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-blue-50 dark:bg-blue-900/20 border-r dark:border-gray-600 cursor-help relative"
+            <tr className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#232D2A] bg-blue-50 dark:bg-[#161C1A]">
+              <td
+                className="px-4 py-3 font-bold text-gray-800 dark:text-white sticky left-0 z-10 bg-blue-50 dark:bg-[#161C1A] border-r dark:border-gray-600 cursor-help relative"
                 onMouseEnter={(e) => {
                   setHoveredMetric('EquityIntrinsicValue');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });

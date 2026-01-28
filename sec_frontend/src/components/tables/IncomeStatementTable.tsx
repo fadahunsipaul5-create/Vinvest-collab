@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { formatMonetaryValue } from '../../utils/formatMonetary';
 import { renderForecastReadonlyDisplay, renderForecastReadonlyInput } from '../../utils/forecastDisplay';
+import BreakdownChartModal from '../modals/BreakdownChartModal';
 
 interface CellData {
   [key: string]: number | string;
@@ -12,9 +13,9 @@ interface TableData {
 }
 
 
-const IncomeStatementTable: React.FC<{ 
+const IncomeStatementTable: React.FC<{
 
-  data: TableData, 
+  data: TableData,
 
   onDataChange: (tableId: string, year: number, field: string, value: number | string) => void,
 
@@ -34,7 +35,11 @@ const IncomeStatementTable: React.FC<{
   const [hoveredBreakdown, setHoveredBreakdown] = useState<string | null>(null);
   const [hoveredForecastDriverValue, setHoveredForecastDriverValue] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  
+
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+
   // Debounce timers for real-time calculations
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
@@ -149,7 +154,7 @@ const IncomeStatementTable: React.FC<{
       console.log(`[IncomeStatementTable] No forecast driver values available for ${breakdownField}`);
       return '-';
     }
-    
+
     // Map breakdown field names to API field names (from ValuationForecastDriverValues endpoint)
     const fieldMapping: Record<string, string> = {
       'RevenueGrowthRate': 'RevenueGrowthInLast4y',
@@ -179,18 +184,18 @@ const IncomeStatementTable: React.FC<{
       'OperatingLeaseNewAssetsObtained': 'OperatingLeaseIntensity',
       'FinanceLeaseNewAssetsObtained': 'FinanceLeaseIntensity',
     };
-    
+
     const apiFieldName = fieldMapping[breakdownField];
     if (!apiFieldName || forecastDriverValues[apiFieldName] === undefined || forecastDriverValues[apiFieldName] === null) {
       return '-';
     }
-    
+
     // Format as percentage (API returns decimal, e.g., 0.03 -> 3%)
     const value = forecastDriverValues[apiFieldName];
     if (typeof value === 'number') {
       return `${(value * 100).toFixed(1)}%`;
     }
-    
+
     return '-';
   };
 
@@ -355,15 +360,15 @@ const IncomeStatementTable: React.FC<{
 
       const v = data[yearKey]?.[fieldKey] as number | string | undefined;
 
-    if (typeof v === 'number') return v;
+      if (typeof v === 'number') return v;
 
-    if (typeof v === 'string') {
+      if (typeof v === 'string') {
 
-      const n = Number(v.replace(/,/g, ''));
+        const n = Number(v.replace(/,/g, ''));
 
-      return Number.isNaN(n) ? 0 : n;
+        return Number.isNaN(n) ? 0 : n;
 
-    }
+      }
 
     }
 
@@ -394,7 +399,7 @@ const IncomeStatementTable: React.FC<{
     const isCalculated =
       (isCalculatedField ? isCalculatedField(fieldKey) : false) && !forceEditableForecast;
 
-    
+
 
     // For years 2025-2035, show formatted values
 
@@ -414,7 +419,7 @@ const IncomeStatementTable: React.FC<{
 
             // For forecasted years, always use billions
             const { suffix, divisor } = getScale(current, yk as number);
-            
+
             // Use raw input string while focused, formatted value when not focused
             let displayValue: string;
             if (isFocused && editingInputs[fieldKeyStr] !== undefined) {
@@ -422,7 +427,7 @@ const IncomeStatementTable: React.FC<{
             } else {
               displayValue = ((getRawValue(yk, fieldKey) === undefined || getRawValue(yk, fieldKey) === null || getRawValue(yk, fieldKey) === '')) ? '' : toScaledString(current, divisor);
             }
-            
+
             return (
 
               <div className="relative">
@@ -453,15 +458,15 @@ const IncomeStatementTable: React.FC<{
                     // Allow only numbers, decimal point, and minus sign
                     const cleaned = rawText.replace(/[^0-9.-]/g, '').trim();
 
-                    
+
                     // Update local editing state with raw string for immediate visual feedback
                     setEditingInputs(prev => ({ ...prev, [fieldKeyStr]: cleaned }));
-                    
+
                     // Clear existing debounce timer for this field
                     if (debounceTimers.current[fieldKeyStr]) {
                       clearTimeout(debounceTimers.current[fieldKeyStr]);
                     }
-                    
+
                     // Set new timer - trigger calculations after 100ms of no typing
                     debounceTimers.current[fieldKeyStr] = setTimeout(() => {
                       if (cleaned === '') {
@@ -480,13 +485,13 @@ const IncomeStatementTable: React.FC<{
                   onBlur={() => {
                     const rawInput = editingInputs[fieldKeyStr] || '';
                     setFocusedField(null);
-                    
+
                     // Clear any pending debounce timer for this field
                     if (debounceTimers.current[fieldKeyStr]) {
                       clearTimeout(debounceTimers.current[fieldKeyStr]);
                       delete debounceTimers.current[fieldKeyStr];
                     }
-                    
+
                     // Ensure final value is saved (in case debounce didn't trigger yet)
                     if (rawInput === '') {
                       onDataChange('incomeStatement', yk as number, fieldKey, '');
@@ -500,7 +505,7 @@ const IncomeStatementTable: React.FC<{
 
                     }
 
-                    
+
                     const numeric = parseFloat(rawInput);
                     if (Number.isFinite(numeric)) {
 
@@ -508,7 +513,7 @@ const IncomeStatementTable: React.FC<{
                       const billionsDivisor = 1_000_000_000;
                       onDataChange('incomeStatement', yk as number, fieldKey, numeric * billionsDivisor);
                     }
-                    
+
                     // Clear editing state after blur
                     setEditingInputs(prev => {
                       const updated = { ...prev };
@@ -517,7 +522,7 @@ const IncomeStatementTable: React.FC<{
                     });
                   }}
 
-                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-700  bg-green-50 dark:!bg-[#161C1A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
 
                   placeholder=""
 
@@ -555,7 +560,7 @@ const IncomeStatementTable: React.FC<{
       if (isCalculated) {
 
         const numericValue = getNumeric(yk as number, fieldKey);
-      const rawValue = getRawValue(yk as number, fieldKey);
+        const rawValue = getRawValue(yk as number, fieldKey);
 
         return renderForecastReadonlyInput(numericValue, rawValue, {
           year: yk as number,
@@ -580,7 +585,7 @@ const IncomeStatementTable: React.FC<{
 
           }}
 
-          className="w-full p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 text-center border border-gray-300 dark:border-gray-700  bg-green-50 dark:!bg-[#161C1A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
 
           placeholder=""
 
@@ -590,7 +595,7 @@ const IncomeStatementTable: React.FC<{
 
     }
 
-    
+
 
     // Special handling for OtherIncome to show negative values for historical years
 
@@ -600,7 +605,7 @@ const IncomeStatementTable: React.FC<{
 
       return (
 
-        <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
+        <span className="block p-2 text-center  bg-gray-200 dark:!bg-[#161C1A] text-gray-900 dark:text-white">
 
           {formatNumber(-value)}
 
@@ -610,11 +615,11 @@ const IncomeStatementTable: React.FC<{
 
     }
 
-    
+
 
     return (
 
-      <span className="block p-2 text-center rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
+      <span className="block p-2 text-center dark:hover:bg-[#232D2A] rounded-sm dark:hover:shadow-none dark:hover:border-none  text-gray-900 dark:text-white">
 
         {getValue(yk, fieldKey)}
 
@@ -624,32 +629,60 @@ const IncomeStatementTable: React.FC<{
 
   };
 
+  // Handler for clicking on breakdown field names
+  const handleBreakdownClick = (fieldKey: string) => {
+    setSelectedField(fieldKey);
+    setIsModalOpen(true);
+  };
+
+  // Get field data for modal
+  const getFieldData = (fieldKey: string): { [year: number]: number | string } => {
+    const fieldData: { [year: number]: number | string } = {};
+    incomeYears.forEach((year) => {
+      if (typeof year === 'number') {
+        const value = data[year]?.[fieldKey];
+        if (value !== undefined && value !== null && value !== '') {
+          fieldData[year] = value;
+        }
+      }
+    });
+    return fieldData;
+  };
+
   // NOTE: Average/CAGR helpers were unused in the current UI; removed to satisfy TS noUnusedLocals.
   return (
 
-    <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
+    <div className="mb-8 bg-white dark:!bg-[#161C1A]    border dark:border-gray-700">
 
-      <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+      <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A]">
 
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{companyTicker} Income Statement Expanded</h3>
 
-              </div>
+      </div>
 
       {/* Breakdown hover tooltip */}
       {(hoveredForecastDriverValue || hoveredBreakdown) &&
         (forecastDriverValueTooltips[hoveredForecastDriverValue ?? ''] ||
           breakdownTooltips[hoveredBreakdown ?? '']) && (
-        <div
-          className="fixed z-50 px-3 py-2 text-sm bg-gray-900 dark:bg-gray-800 text-white rounded-lg shadow-lg pointer-events-none max-w-3xl whitespace-pre-line"
-          style={{
-            left: `${tooltipPosition.x + 10}px`,
-            top: `${tooltipPosition.y + 10}px`,
-          }}
-        >
-          {forecastDriverValueTooltips[hoveredForecastDriverValue ?? ''] ??
-            breakdownTooltips[hoveredBreakdown ?? '']}
-        </div>
-      )}
+          <div
+            className="fixed z-50 px-3 py-2 text-sm bg-gray-900 dark:!bg-[#161C1A] text-white    pointer-events-none max-w-3xl whitespace-pre-line"
+            style={{
+              left: `${tooltipPosition.x + 10}px`,
+              top: `${tooltipPosition.y + 10}px`,
+            }}
+          >
+            {forecastDriverValueTooltips[hoveredForecastDriverValue ?? ''] ??
+              breakdownTooltips[hoveredBreakdown ?? '']}
+          </div>
+        )}
+
+      {/* Breakdown Chart Modal */}
+      <BreakdownChartModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        fieldName={selectedField || ''}
+        data={selectedField ? getFieldData(selectedField) : {}}
+      />
 
       <div className="overflow-x-auto">
 
@@ -657,9 +690,9 @@ const IncomeStatementTable: React.FC<{
 
           <thead>
 
-            <tr className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
+            <tr className="bg-gray-100 dark:!bg-[#161C1A] border-b dark:border-gray-700">
 
-              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-30 bg-gray-100 dark:bg-gray-700 border-r dark:border-gray-600 min-w-[250px]">
+              <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-30 bg-gray-100 dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px]">
 
                 Breakdown
 
@@ -667,7 +700,7 @@ const IncomeStatementTable: React.FC<{
 
               {incomeYears.map(yk => (
 
-                <th key={String(yk)} className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px]">
+                <th key={String(yk)} className="text-center px-3 py-3 font-medium text-gray-700 dark:text-gray-300 min-w-[160px] dark:bg-[#161C1A]">
 
                   {typeof yk === 'number' ? `${yk}` : 'TTM'}
 
@@ -675,7 +708,7 @@ const IncomeStatementTable: React.FC<{
 
               ))}
 
-              <th className="text-center px-4 py-3 font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-600 min-w-[180px] bg-blue-50 dark:bg-blue-900/20">
+              <th className="text-center px-4 py-3 font-medium text-gray-700 dark:text-gray-300 border-l dark:border-gray-700 min-w-[180px] bg-gray-50 dark:!bg-[#161C1A]">
                 ForecastDriverValue
               </th>
 
@@ -686,47 +719,49 @@ const IncomeStatementTable: React.FC<{
           <tbody>
 
             {/* RevenueGrowthRate */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('RevenueGrowthRate');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>RevenueGrowthRate</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('RevenueGrowthRate')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('RevenueGrowthRate');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>RevenueGrowthRate</td>
               {incomeYears.map(yk => (
-                <td key={`RevenueGrowthRate-${String(yk)}`} className="p-2 text-center">
+                <td key={`RevenueGrowthRate-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'RevenueGrowthRate')}
                 </td>
               ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <input
                   type="text"
                   placeholder=""
-                  className="w-full px-2 py-1 text-center text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1 text-center text-sm border border-gray-300 dark:border-gray-700  bg-white dark:!bg-[#161C1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 />
               </td>
             </tr>
 
             {/* Revenue */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Revenue');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Revenue</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Revenue')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Revenue');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Revenue</td>
               {incomeYears.map(yk => (
-                <td key={`Revenue-${String(yk)}`} className="p-2 text-center">
+                <td key={`Revenue-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Revenue')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('Revenue');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -740,22 +775,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* CostOfRevenue */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CostOfRevenue');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CostOfRevenue</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CostOfRevenue')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CostOfRevenue');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CostOfRevenue</td>
               {incomeYears.map(yk => (
-                <td key={`CostOfRevenue-${String(yk)}`} className="p-2 text-center">
+                <td key={`CostOfRevenue-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CostOfRevenue')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
@@ -763,22 +799,23 @@ const IncomeStatementTable: React.FC<{
 
 
             {/* GrossMargin */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('GrossMargin');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>GrossMargin</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('GrossMargin')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('GrossMargin');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>GrossMargin</td>
               {incomeYears.map(yk => (
-                <td key={`GrossMargin-${String(yk)}`} className="p-2 text-center">
+                <td key={`GrossMargin-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'GrossMargin')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('GrossMargin');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -792,22 +829,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* SellingGeneralAndAdministration */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('SellingGeneralAndAdministration');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>SellingGeneralAndAdministration</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('SellingGeneralAndAdministration')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('SellingGeneralAndAdministration');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>SellingGeneralAndAdministration</td>
               {incomeYears.map(yk => (
-                <td key={`SellingGeneralAndAdministration-${String(yk)}`} className="p-2 text-center">
-                  {renderCell(yk, 'SGAExpense')}
+                <td key={`SellingGeneralAndAdministration-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
+                  {renderCell(yk, 'SellingGeneralAndAdministration')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('SellingGeneralAndAdministration');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -821,22 +859,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* Depreciation */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Depreciation');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Depreciation</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Depreciation')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Depreciation');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Depreciation</td>
               {incomeYears.map(yk => (
-                <td key={`Depreciation-${String(yk)}`} className="p-2 text-center">
+                <td key={`Depreciation-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Depreciation')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('Depreciation');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -850,22 +889,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* IntangibleAssetAmortization */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IntangibleAssetAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IntangibleAssetAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IntangibleAssetAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IntangibleAssetAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IntangibleAssetAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`IntangibleAssetAmortization-${String(yk)}`} className="p-2 text-center">
+                <td key={`IntangibleAssetAmortization-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IntangibleAssetAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('IntangibleAssetAmortization');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -879,64 +919,67 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* DepreciationAndIntangibleAssetAmortization */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DepreciationAndIntangibleAssetAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DepreciationAndIntangibleAssetAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DepreciationAndIntangibleAssetAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DepreciationAndIntangibleAssetAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DepreciationAndIntangibleAssetAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`DepreciationAndIntangibleAssetAmortization-${String(yk)}`} className="p-2 text-center">
+                <td key={`DepreciationAndIntangibleAssetAmortization-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DepreciationAndIntangibleAssetAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeaseAmortization */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseAmortization-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseAmortization-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceLeaseAmortization */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseAmortization-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseAmortization-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('FinanceLeaseAmortization');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -950,85 +993,89 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* VariableLeaseAmortization */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseAmortization-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseAmortization-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LeaseAmortization */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`LeaseAmortization-${String(yk)}`} className="p-2 text-center">
+                <td key={`LeaseAmortization-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* ResearchAndDevelopment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ResearchAndDevelopment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ResearchAndDevelopment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ResearchAndDevelopment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ResearchAndDevelopment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ResearchAndDevelopment</td>
               {incomeYears.map(yk => (
-                <td key={`ResearchAndDevelopment-${String(yk)}`} className="p-2 text-center">
+                <td key={`ResearchAndDevelopment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ResearchAndDevelopment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* GoodwillImpairment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('GoodwillImpairment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>GoodwillImpairment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('GoodwillImpairment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('GoodwillImpairment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>GoodwillImpairment</td>
               {incomeYears.map(yk => (
-                <td key={`GoodwillImpairment-${String(yk)}`} className="p-2 text-center">
+                <td key={`GoodwillImpairment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'GoodwillImpairment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('GoodwillImpairment');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1042,64 +1089,67 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OtherOperatingExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherOperatingExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherOperatingExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherOperatingExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherOperatingExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherOperatingExpense</td>
               {incomeYears.map(yk => (
-                <td key={`OtherOperatingExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherOperatingExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherOperatingExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingExpenses */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingExpenses');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingExpenses</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingExpenses')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingExpenses');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingExpenses</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingExpenses-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingExpenses-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* VariableLeaseCost */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseCost');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseCost</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseCost')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseCost');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseCost</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseCost-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseCost-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseCost')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('VariableLeaseCost');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1113,68 +1163,71 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OperatingExpensesAdjusted */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingExpensesAdjusted');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingExpensesAdjusted</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingExpensesAdjusted')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingExpensesAdjusted');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingExpensesAdjusted</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingExpensesAdjusted-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingExpensesAdjusted-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingExpensesAdjusted')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingIncome */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingIncome</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingIncome-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingIncome-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
-            <tr className="border-b dark:border-gray-600">
+            <tr className="border-b dark:border-gray-700">
 
-              <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Selling General and Administrative');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Selling General and Administrative</td>
+              <td className="pl-6 pr-4 py-3 text-gray-700 dark:text-gray-300 sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Selling General and Administrative')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Selling General and Administrative');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Selling General and Administrative</td>
 
               {incomeYears.map(yk => (
 
-                <td key={`SGA-${String(yk)}`} className="p-2 text-center">
+                <td key={`SGA-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
 
-                  {renderCell(yk, 'SGAExpense')}
+                  {renderCell(yk, 'SellingGeneralAndAdministration')}
 
                 </td>
 
-              ))}<td className="p-2 text-center">
+              ))}<td className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
 
               </td>
 
@@ -1182,22 +1235,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* InterestExpenseDebt */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('InterestExpenseDebt');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>InterestExpenseDebt</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('InterestExpenseDebt')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('InterestExpenseDebt');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>InterestExpenseDebt</td>
               {incomeYears.map(yk => (
-                <td key={`InterestExpenseDebt-${String(yk)}`} className="p-2 text-center">
+                <td key={`InterestExpenseDebt-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'InterestExpenseDebt')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('InterestExpenseDebt');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1211,22 +1265,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OperatingLeaseInterestExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseInterestExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseInterestExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseInterestExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseInterestExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseInterestExpense</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseInterestExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseInterestExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseInterestExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OperatingLeaseInterestExpense');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1240,22 +1295,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* FinanceLeaseInterestExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseInterestExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseInterestExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseInterestExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseInterestExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseInterestExpense</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseInterestExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseInterestExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseInterestExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('FinanceLeaseInterestExpense');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1269,22 +1325,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* VariableLeaseInterestExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseInterestExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseInterestExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseInterestExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseInterestExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseInterestExpense</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseInterestExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseInterestExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseInterestExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('VariableLeaseInterestExpense');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1298,43 +1355,45 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* InterestExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('InterestExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>InterestExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('InterestExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('InterestExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>InterestExpense</td>
               {incomeYears.map(yk => (
-                <td key={`InterestExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`InterestExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'InterestExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* InterestIncome */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('InterestIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>InterestIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('InterestIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('InterestIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>InterestIncome</td>
               {incomeYears.map(yk => (
-                <td key={`InterestIncome-${String(yk)}`} className="p-2 text-center">
+                <td key={`InterestIncome-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'InterestIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('InterestIncome');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1348,43 +1407,45 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* InterestExpenseIncomeNet */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('InterestExpenseIncomeNet');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>InterestExpenseIncomeNet</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('InterestExpenseIncomeNet')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('InterestExpenseIncomeNet');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>InterestExpenseIncomeNet</td>
               {incomeYears.map(yk => (
-                <td key={`InterestExpenseIncomeNet-${String(yk)}`} className="p-2 text-center">
+                <td key={`InterestExpenseIncomeNet-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'InterestExpenseIncomeNet')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OtherNonoperatingIncome */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherNonoperatingIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherNonoperatingIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherNonoperatingIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherNonoperatingIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherNonoperatingIncome</td>
               {incomeYears.map(yk => (
-                <td key={`OtherNonoperatingIncome-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherNonoperatingIncome-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OtherNonoperatingIncome');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1398,64 +1459,67 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* NonoperatingIncomeNet */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NonoperatingIncomeNet');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NonoperatingIncomeNet</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NonoperatingIncomeNet')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NonoperatingIncomeNet');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NonoperatingIncomeNet</td>
               {incomeYears.map(yk => (
-                <td key={`NonoperatingIncomeNet-${String(yk)}`} className="p-2 text-center">
+                <td key={`NonoperatingIncomeNet-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetNonOperatingInterestIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PretaxIncome */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PretaxIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PretaxIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PretaxIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PretaxIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PretaxIncome</td>
               {incomeYears.map(yk => (
-                <td key={`PretaxIncome-${String(yk)}`} className="p-2 text-center">
+                <td key={`PretaxIncome-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PretaxIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* TaxProvision */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('TaxProvision');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>TaxProvision</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('TaxProvision')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('TaxProvision');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>TaxProvision</td>
               {incomeYears.map(yk => (
-                <td key={`TaxProvision-${String(yk)}`} className="p-2 text-center">
+                <td key={`TaxProvision-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'TaxProvision')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('TaxProvision');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1469,43 +1533,45 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* NetIncomeControlling */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetIncomeControlling');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetIncomeControlling</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetIncomeControlling')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetIncomeControlling');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetIncomeControlling</td>
               {incomeYears.map(yk => (
-                <td key={`NetIncomeControlling-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetIncomeControlling-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ProfitLossControlling')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* NetIncomeNoncontrolling */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetIncomeNoncontrolling');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetIncomeNoncontrolling</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetIncomeNoncontrolling')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetIncomeNoncontrolling');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetIncomeNoncontrolling</td>
               {incomeYears.map(yk => (
-                <td key={`NetIncomeNoncontrolling-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetIncomeNoncontrolling-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetIncomeNoncontrolling')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('NetIncomeNoncontrolling');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1519,106 +1585,111 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* NetIncome */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetIncome</td>
               {incomeYears.map(yk => (
-                <td key={`NetIncome-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetIncome-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* AssetImpairmentCharge */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AssetImpairmentCharge');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AssetImpairmentCharge</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AssetImpairmentCharge')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AssetImpairmentCharge');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AssetImpairmentCharge</td>
               {incomeYears.map(yk => (
-                <td key={`AssetImpairmentCharge-${String(yk)}`} className="p-2 text-center">
+                <td key={`AssetImpairmentCharge-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AssetImpairmentCharge')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* UnrealizedGainOnInvestments */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('UnrealizedGainOnInvestments');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>UnrealizedGainOnInvestments</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('UnrealizedGainOnInvestments')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('UnrealizedGainOnInvestments');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>UnrealizedGainOnInvestments</td>
               {incomeYears.map(yk => (
-                <td key={`UnrealizedGainOnInvestments-${String(yk)}`} className="p-2 text-center">
+                <td key={`UnrealizedGainOnInvestments-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'UnrealizedGainOnInvestments')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OtherNoncashChanges */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherNoncashChanges');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherNoncashChanges</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherNoncashChanges')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherNoncashChanges');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherNoncashChanges</td>
               {incomeYears.map(yk => (
-                <td key={`OtherNoncashChanges-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherNoncashChanges-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherNoncashChanges')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* StockBasedCompensation */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('StockBasedCompensation');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>StockBasedCompensation</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('StockBasedCompensation')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('StockBasedCompensation');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>StockBasedCompensation</td>
               {incomeYears.map(yk => (
-                <td key={`StockBasedCompensation-${String(yk)}`} className="p-2 text-center">
+                <td key={`StockBasedCompensation-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ShareBasedCompensation')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('StockBasedCompensation');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1632,22 +1703,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* CommonStockDividendPayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CommonStockDividendPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockDividendPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CommonStockDividendPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CommonStockDividendPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockDividendPayment</td>
               {incomeYears.map(yk => (
-                <td key={`CommonStockDividendPayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`CommonStockDividendPayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CommonStockDividendPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('CommonStockDividendPayment');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1661,22 +1733,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* CommonStockRepurchasePayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CommonStockRepurchasePayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockRepurchasePayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CommonStockRepurchasePayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CommonStockRepurchasePayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockRepurchasePayment</td>
               {incomeYears.map(yk => (
-                <td key={`CommonStockRepurchasePayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`CommonStockRepurchasePayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CommonStockRepurchasePayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('CommonStockRepurchasePayment');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1690,85 +1763,89 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* EBIT */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('EBIT');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>EBIT</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('EBIT')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('EBIT');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>EBIT</td>
               {incomeYears.map(yk => (
-                <td key={`EBIT-${String(yk)}`} className="p-2 text-center">
+                <td key={`EBIT-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'EBIT')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* EBITA */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('EBITA');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>EBITA</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('EBITA')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('EBITA');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>EBITA</td>
               {incomeYears.map(yk => (
-                <td key={`EBITA-${String(yk)}`} className="p-2 text-center">
+                <td key={`EBITA-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'EBITA')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* EBITDA */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('EBITDA');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>EBITDA</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('EBITDA')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('EBITDA');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>EBITDA</td>
               {incomeYears.map(yk => (
-                <td key={`EBITDA-${String(yk)}`} className="p-2 text-center">
+                <td key={`EBITDA-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'EBITDA')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* TaxOperating */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('TaxOperating');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>TaxOperating</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('TaxOperating')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('TaxOperating');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>TaxOperating</td>
               {incomeYears.map(yk => (
-                <td key={`TaxOperating-${String(yk)}`} className="p-2 text-center">
+                <td key={`TaxOperating-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'TaxOperating')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('TaxOperating');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1782,43 +1859,45 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* NetOperatingProfitAfterTaxes */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetOperatingProfitAfterTaxes');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetOperatingProfitAfterTaxes</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetOperatingProfitAfterTaxes')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetOperatingProfitAfterTaxes');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetOperatingProfitAfterTaxes</td>
               {incomeYears.map(yk => (
-                <td key={`NetOperatingProfitAfterTaxes-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetOperatingProfitAfterTaxes-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetOperatingProfitAfterTaxes')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeaseCost */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseCost');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseCost</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseCost')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseCost');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseCost</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseCost-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseCost-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseCost')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OperatingLeaseCost');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1832,22 +1911,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* CapitalExpenditures */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CapitalExpenditures');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CapitalExpenditures</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CapitalExpenditures')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CapitalExpenditures');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CapitalExpenditures</td>
               {incomeYears.map(yk => (
-                <td key={`CapitalExpenditures-${String(yk)}`} className="p-2 text-center">
+                <td key={`CapitalExpenditures-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CapitalExpenditures')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('CapitalExpenditures');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1861,64 +1941,67 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* UnexplainedChangesInPPE */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('UnexplainedChangesInPPE');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>UnexplainedChangesInPPE</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('UnexplainedChangesInPPE')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('UnexplainedChangesInPPE');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>UnexplainedChangesInPPE</td>
               {incomeYears.map(yk => (
-                <td key={`UnexplainedChangesInPPE-${String(yk)}`} className="p-2 text-center">
+                <td key={`UnexplainedChangesInPPE-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'UnexplainedChangesInPPE')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* CashAndCashEquivalents */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CashAndCashEquivalents');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CashAndCashEquivalents</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CashAndCashEquivalents')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CashAndCashEquivalents');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CashAndCashEquivalents</td>
               {incomeYears.map(yk => (
-                <td key={`CashAndCashEquivalents-${String(yk)}`} className="p-2 text-center">
+                <td key={`CashAndCashEquivalents-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CashAndCashEquivalents')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* ReceivablesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ReceivablesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ReceivablesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ReceivablesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ReceivablesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ReceivablesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`ReceivablesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`ReceivablesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Receivables')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('ReceivablesCurrent');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1932,22 +2015,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* Inventory */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Inventory');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Inventory</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Inventory')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Inventory');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Inventory</td>
               {incomeYears.map(yk => (
-                <td key={`Inventory-${String(yk)}`} className="p-2 text-center">
+                <td key={`Inventory-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Inventory')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('Inventory');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1961,22 +2045,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* PrepaidExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PrepaidExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PrepaidExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PrepaidExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PrepaidExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PrepaidExpense</td>
               {incomeYears.map(yk => (
-                <td key={`PrepaidExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`PrepaidExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PrepaidExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('PrepaidExpense');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -1990,22 +2075,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OtherAssetsCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherAssetsCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherAssetsCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherAssetsCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherAssetsCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherAssetsCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`OtherAssetsCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherAssetsCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherAssetsCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OtherAssetsCurrent');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2019,442 +2105,463 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* AssetsCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AssetsCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AssetsCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AssetsCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AssetsCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AssetsCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`AssetsCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`AssetsCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CurrentAssets')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PropertyPlantAndEquipment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PropertyPlantAndEquipment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PropertyPlantAndEquipment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PropertyPlantAndEquipment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PropertyPlantAndEquipment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PropertyPlantAndEquipment</td>
               {incomeYears.map(yk => (
-                <td key={`PropertyPlantAndEquipment-${String(yk)}`} className="p-2 text-center">
+                <td key={`PropertyPlantAndEquipment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PropertyPlantAndEquipmentNet')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeaseAssets */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseAssets');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseAssets</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseAssets')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseAssets');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseAssets</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseAssets-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseAssets-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseRightOfUseAsset')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceLeaseAssets */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseAssets');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseAssets</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseAssets')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseAssets');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseAssets</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseAssets-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseAssets-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LeaseFinanceAssetsNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* VariableLeaseAssets */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseAssets');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseAssets</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseAssets')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseAssets');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseAssets</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseAssets-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseAssets-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseAssets')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Goodwill */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Goodwill');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Goodwill</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Goodwill')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Goodwill');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Goodwill</td>
               {incomeYears.map(yk => (
-                <td key={`Goodwill-${String(yk)}`} className="p-2 text-center">
+                <td key={`Goodwill-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Goodwill')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DeferredIncomeTaxAssetsNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DeferredIncomeTaxAssetsNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DeferredIncomeTaxAssetsNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DeferredIncomeTaxAssetsNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DeferredIncomeTaxAssetsNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DeferredIncomeTaxAssetsNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DeferredIncomeTaxAssetsNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DeferredIncomeTaxAssetsNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DeferredIncomeTaxAssetsNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* ReceivablesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ReceivablesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ReceivablesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ReceivablesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ReceivablesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ReceivablesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`ReceivablesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`ReceivablesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ReceivablesNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OtherAssetsNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherAssetsNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherAssetsNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherAssetsNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherAssetsNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherAssetsNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`OtherAssetsNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherAssetsNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherAssetsNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">3</span>
               </td>
             </tr>
 
             {/* AssetsNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AssetsNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AssetsNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AssetsNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AssetsNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AssetsNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`AssetsNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`AssetsNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AssetsNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Assets */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Assets');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Assets</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Assets')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Assets');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Assets</td>
               {incomeYears.map(yk => (
-                <td key={`Assets-${String(yk)}`} className="p-2 text-center">
+                <td key={`Assets-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Assets')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* AccountsPayableCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AccountsPayableCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AccountsPayableCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AccountsPayableCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AccountsPayableCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AccountsPayableCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`AccountsPayableCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`AccountsPayableCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AccountsPayableCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">4</span>
               </td>
             </tr>
 
             {/* EmployeeAccruedLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('EmployeeAccruedLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>EmployeeAccruedLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('EmployeeAccruedLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('EmployeeAccruedLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>EmployeeAccruedLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`EmployeeAccruedLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`EmployeeAccruedLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'EmployeeRelatedLiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">1</span>
               </td>
             </tr>
 
             {/* AccruedLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AccruedLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AccruedLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AccruedLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AccruedLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AccruedLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`AccruedLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`AccruedLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AccruedLiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">2</span>
               </td>
             </tr>
 
             {/* AccruedIncomeTaxesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AccruedIncomeTaxesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AccruedIncomeTaxesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AccruedIncomeTaxesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AccruedIncomeTaxesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AccruedIncomeTaxesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`AccruedIncomeTaxesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`AccruedIncomeTaxesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AccruedIncomeTaxesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">1</span>
               </td>
             </tr>
 
             {/* DeferredRevenueCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DeferredRevenueCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DeferredRevenueCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DeferredRevenueCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DeferredRevenueCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DeferredRevenueCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DeferredRevenueCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DeferredRevenueCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DeferredRevenueCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">2</span>
               </td>
             </tr>
 
             {/* ShortTermDebtInclPaper */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ShortTermDebtInclPaper');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ShortTermDebtInclPaper</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ShortTermDebtInclPaper')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ShortTermDebtInclPaper');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ShortTermDebtInclPaper</td>
               {incomeYears.map(yk => (
-                <td key={`ShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center">
+                <td key={`ShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ShortTermDebtInclPaper')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LongTermDebtCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LongTermDebtCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LongTermDebtCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LongTermDebtCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`LongTermDebtCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`LongTermDebtCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LongTermDebtCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">5</span>
               </td>
             </tr>
 
             {/* OperatingLeaseLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseLiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceLeaseLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseLiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* VariableLeaseLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseLiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('VariableLeaseLiabilitiesCurrent');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2468,22 +2575,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OtherLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`OtherLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherLiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OtherLiabilitiesCurrent');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2497,43 +2605,45 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* LiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`LiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`LiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LiabilitiesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LongTermDebtNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LongTermDebtNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LongTermDebtNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LongTermDebtNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`LongTermDebtNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`LongTermDebtNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LongTermDebtNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('LongTermDebtNoncurrent');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2547,106 +2657,111 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OperatingLeaseLiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseLiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseLiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseLiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseLiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseLiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseLiabilityNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceLeaseLiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseLiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseLiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseLiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseLiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseLiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseLiabilitiesNonCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* VariableLeaseLiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseLiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseLiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseLiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseLiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseLiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseLiabilitiesNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DeferredIncomeTaxLiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DeferredIncomeTaxLiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DeferredIncomeTaxLiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DeferredIncomeTaxLiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DeferredIncomeTaxLiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DeferredIncomeTaxLiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DeferredIncomeTaxLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DeferredIncomeTaxLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DeferredIncomeTaxLiabilitiesNonCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DeferredIncomeTaxLiabilitiesNet */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DeferredIncomeTaxLiabilitiesNet');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DeferredIncomeTaxLiabilitiesNet</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DeferredIncomeTaxLiabilitiesNet')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DeferredIncomeTaxLiabilitiesNet');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DeferredIncomeTaxLiabilitiesNet</td>
               {incomeYears.map(yk => (
-                <td key={`DeferredIncomeTaxLiabilitiesNet-${String(yk)}`} className="p-2 text-center">
+                <td key={`DeferredIncomeTaxLiabilitiesNet-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DeferredIncomeTaxLiabilitiesNet')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('DeferredIncomeTaxLiabilitiesNet');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2660,22 +2775,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* OtherLiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherLiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherLiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherLiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherLiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherLiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`OtherLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherLiabilitiesNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OtherLiabilitiesNoncurrent');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2689,232 +2805,243 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* LiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`LiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`LiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LiabilitiesNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Liabilities */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Liabilities');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Liabilities</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Liabilities')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Liabilities');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Liabilities</td>
               {incomeYears.map(yk => (
-                <td key={`Liabilities-${String(yk)}`} className="p-2 text-center">
+                <td key={`Liabilities-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Liabilities')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* CommonStock */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CommonStock');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CommonStock</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CommonStock')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CommonStock');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CommonStock</td>
               {incomeYears.map(yk => (
-                <td key={`CommonStock-${String(yk)}`} className="p-2 text-center">
+                <td key={`CommonStock-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CommonStockEquity')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PaidInCapitalCommonStock */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PaidInCapitalCommonStock');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PaidInCapitalCommonStock</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PaidInCapitalCommonStock')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PaidInCapitalCommonStock');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PaidInCapitalCommonStock</td>
               {incomeYears.map(yk => (
-                <td key={`PaidInCapitalCommonStock-${String(yk)}`} className="p-2 text-center">
+                <td key={`PaidInCapitalCommonStock-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PaidInCapitalCommonStock')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* AccumulatedOtherIncome */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AccumulatedOtherIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AccumulatedOtherIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AccumulatedOtherIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AccumulatedOtherIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AccumulatedOtherIncome</td>
               {incomeYears.map(yk => (
-                <td key={`AccumulatedOtherIncome-${String(yk)}`} className="p-2 text-center">
+                <td key={`AccumulatedOtherIncome-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AccumulatedOtherComprehensiveIncomeLossNetOfTax')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* RetainedEarningsAccumulated */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('RetainedEarningsAccumulated');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>RetainedEarningsAccumulated</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('RetainedEarningsAccumulated')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('RetainedEarningsAccumulated');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>RetainedEarningsAccumulated</td>
               {incomeYears.map(yk => (
-                <td key={`RetainedEarningsAccumulated-${String(yk)}`} className="p-2 text-center">
+                <td key={`RetainedEarningsAccumulated-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'RetainedEarningsAccumulated')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Equity */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Equity');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Equity</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Equity')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Equity');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Equity</td>
               {incomeYears.map(yk => (
-                <td key={`Equity-${String(yk)}`} className="p-2 text-center">
+                <td key={`Equity-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'StockholdersEquity')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* EquityInNoncontrollingInterests */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('EquityInNoncontrollingInterests');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>EquityInNoncontrollingInterests</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('EquityInNoncontrollingInterests')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('EquityInNoncontrollingInterests');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>EquityInNoncontrollingInterests</td>
               {incomeYears.map(yk => (
-                <td key={`EquityInNoncontrollingInterests-${String(yk)}`} className="p-2 text-center">
+                <td key={`EquityInNoncontrollingInterests-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NoncontrollingInterests')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LiabilitiesAndEquity */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LiabilitiesAndEquity');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LiabilitiesAndEquity</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LiabilitiesAndEquity')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LiabilitiesAndEquity');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LiabilitiesAndEquity</td>
               {incomeYears.map(yk => (
-                <td key={`LiabilitiesAndEquity-${String(yk)}`} className="p-2 text-center">
+                <td key={`LiabilitiesAndEquity-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LiabilitiesAndStockholdersEquity')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* BalanceSheetBalanceSheet */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('BalanceSheetBalanceSheet');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>BalanceSheetBalanceSheet</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('BalanceSheetBalanceSheet')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('BalanceSheetBalanceSheet');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>BalanceSheetBalanceSheet</td>
               {incomeYears.map(yk => (
-                <td key={`BalanceSheetBalanceSheet-${String(yk)}`} className="p-2 text-center">
+                <td key={`BalanceSheetBalanceSheet-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'BalanceSheetBalanceSheet')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingCash */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingCash');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingCash</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingCash')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingCash');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingCash</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingCash-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingCash-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingCash')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OperatingCash');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2928,43 +3055,45 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* ExcessCash */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ExcessCash');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ExcessCash</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ExcessCash')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ExcessCash');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ExcessCash</td>
               {incomeYears.map(yk => (
-                <td key={`ExcessCash-${String(yk)}`} className="p-2 text-center">
+                <td key={`ExcessCash-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ExcessCash')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeaseNewAssetsObtained */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseNewAssetsObtained');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseNewAssetsObtained</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseNewAssetsObtained')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseNewAssetsObtained');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseNewAssetsObtained</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseNewAssetsObtained-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseNewAssetsObtained-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseNewAssetsObtained')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('OperatingLeaseNewAssetsObtained');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2978,22 +3107,23 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* FinanceLeaseNewAssetsObtained */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseNewAssetsObtained');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseNewAssetsObtained</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseNewAssetsObtained')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseNewAssetsObtained');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseNewAssetsObtained</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseNewAssetsObtained-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseNewAssetsObtained-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseNewAssetsObtained')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px] cursor-help"
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px] cursor-help"
                 onMouseEnter={(e) => {
                   setHoveredForecastDriverValue('FinanceLeaseNewAssetsObtained');
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -3007,1471 +3137,1541 @@ const IncomeStatementTable: React.FC<{
             </tr>
 
             {/* VariableLeaseNewAssetsObtained */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseNewAssetsObtained');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseNewAssetsObtained</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseNewAssetsObtained')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseNewAssetsObtained');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseNewAssetsObtained</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseNewAssetsObtained-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseNewAssetsObtained-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseNewAssetsObtained')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Receivables */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Receivables');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Receivables</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Receivables')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Receivables');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Receivables</td>
               {incomeYears.map(yk => (
-                <td key={`Receivables-${String(yk)}`} className="p-2 text-center">
+                <td key={`Receivables-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Receivables')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LongTermDebt */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LongTermDebt');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebt</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LongTermDebt')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LongTermDebt');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebt</td>
               {incomeYears.map(yk => (
-                <td key={`LongTermDebt-${String(yk)}`} className="p-2 text-center">
+                <td key={`LongTermDebt-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LongTermDebt')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Debt */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Debt');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Debt</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Debt')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Debt');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Debt</td>
               {incomeYears.map(yk => (
-                <td key={`Debt-${String(yk)}`} className="p-2 text-center">
+                <td key={`Debt-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Debt')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* CurrentLiabilitiesExclRevolver */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CurrentLiabilitiesExclRevolver');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CurrentLiabilitiesExclRevolver</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CurrentLiabilitiesExclRevolver')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CurrentLiabilitiesExclRevolver');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CurrentLiabilitiesExclRevolver</td>
               {incomeYears.map(yk => (
-                <td key={`CurrentLiabilitiesExclRevolver-${String(yk)}`} className="p-2 text-center">
+                <td key={`CurrentLiabilitiesExclRevolver-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CurrentLiabilitiesExclRevolver')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingCashFlow */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingCashFlow');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingCashFlow</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingCashFlow')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingCashFlow');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingCashFlow</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingCashFlow-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingCashFlow-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingCashFlow')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* NetIncome (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetIncome');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetIncome</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetIncome')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetIncome');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetIncome</td>
               {incomeYears.map(yk => (
-                <td key={`NetIncome2-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetIncome2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetIncome')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* Depreciation (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('Depreciation');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>Depreciation</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('Depreciation')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('Depreciation');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>Depreciation</td>
               {incomeYears.map(yk => (
-                <td key={`Depreciation2-${String(yk)}`} className="p-2 text-center">
+                <td key={`Depreciation2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'Depreciation')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">2%</span>
               </td>
             </tr>
 
             {/* IntangibleAssetAmortization (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IntangibleAssetAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IntangibleAssetAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IntangibleAssetAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IntangibleAssetAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IntangibleAssetAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`IntangibleAssetAmortization2-${String(yk)}`} className="p-2 text-center">
+                <td key={`IntangibleAssetAmortization2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IntangibleAssetAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DepreciationAndIntangibleAssetAmortization (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DepreciationAndIntangibleAssetAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DepreciationAndIntangibleAssetAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DepreciationAndIntangibleAssetAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DepreciationAndIntangibleAssetAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DepreciationAndIntangibleAssetAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`DepreciationAndIntangibleAssetAmortization2-${String(yk)}`} className="p-2 text-center">
+                <td key={`DepreciationAndIntangibleAssetAmortization2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DepreciationAndIntangibleAssetAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeaseAmortization (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseAmortization2-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseAmortization2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceLeaseAmortization (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseAmortization2-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseAmortization2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">0.5</span>
               </td>
             </tr>
 
             {/* VariableLeaseAmortization (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseAmortization');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseAmortization</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseAmortization')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseAmortization');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseAmortization</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseAmortization2-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseAmortization2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseAmortization')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* AssetImpairmentCharge (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('AssetImpairmentCharge');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>AssetImpairmentCharge</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('AssetImpairmentCharge')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('AssetImpairmentCharge');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>AssetImpairmentCharge</td>
               {incomeYears.map(yk => (
-                <td key={`AssetImpairmentCharge2-${String(yk)}`} className="p-2 text-center">
+                <td key={`AssetImpairmentCharge2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'AssetImpairmentCharge')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* UnrealizedGainOnInvestments (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('UnrealizedGainOnInvestments');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>UnrealizedGainOnInvestments</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('UnrealizedGainOnInvestments')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('UnrealizedGainOnInvestments');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>UnrealizedGainOnInvestments</td>
               {incomeYears.map(yk => (
-                <td key={`UnrealizedGainOnInvestments2-${String(yk)}`} className="p-2 text-center">
+                <td key={`UnrealizedGainOnInvestments2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'UnrealizedGainOnInvestments')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OtherNoncashChanges (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherNoncashChanges');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherNoncashChanges</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherNoncashChanges')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherNoncashChanges');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherNoncashChanges</td>
               {incomeYears.map(yk => (
-                <td key={`OtherNoncashChanges2-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherNoncashChanges2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherNoncashChanges')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* StockBasedCompensation (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('StockBasedCompensation');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>StockBasedCompensation</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('StockBasedCompensation')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('StockBasedCompensation');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>StockBasedCompensation</td>
               {incomeYears.map(yk => (
-                <td key={`StockBasedCompensation2-${String(yk)}`} className="p-2 text-center">
+                <td key={`StockBasedCompensation2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ShareBasedCompensation')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">1%</span>
               </td>
             </tr>
 
             {/* DecreaseInReceivablesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInReceivablesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInReceivablesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInReceivablesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInReceivablesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInReceivablesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInReceivablesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInReceivablesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DecreaseInReceivablesCurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInInventory */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInInventory');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInInventory</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInInventory')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInInventory');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInInventory</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInInventory-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInInventory-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ChangeInInventory')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInPrepaidExpense */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInPrepaidExpense');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInPrepaidExpense</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInPrepaidExpense')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInPrepaidExpense');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInPrepaidExpense</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInPrepaidExpense-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInPrepaidExpense-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DecreaseInPrepaidExpense')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInOtherAssetsCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInOtherAssetsCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInOtherAssetsCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInOtherAssetsCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInOtherAssetsCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInOtherAssetsCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInOtherAssetsCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInOtherAssetsCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ChangeInOtherCurrentAssets')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInDeferredIncomeTaxAssets */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInDeferredIncomeTaxAssets');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInDeferredIncomeTaxAssets</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInDeferredIncomeTaxAssets')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInDeferredIncomeTaxAssets');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInDeferredIncomeTaxAssets</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInDeferredIncomeTaxAssets-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInDeferredIncomeTaxAssets-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DecreaseInDeferredIncomeTaxAssets')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInReceivablesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInReceivablesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInReceivablesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInReceivablesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInReceivablesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInReceivablesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInReceivablesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInReceivablesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DecreaseInReceivablesNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInOtherAssetsNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInOtherAssetsNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInOtherAssetsNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInOtherAssetsNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInOtherAssetsNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInOtherAssetsNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInOtherAssetsNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInOtherAssetsNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'DecreaseInOtherAssetsNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInAccountsPayable */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInAccountsPayable');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInAccountsPayable</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInAccountsPayable')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInAccountsPayable');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInAccountsPayable</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInAccountsPayable-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInAccountsPayable-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ChangeInPayable')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInEmployeeAccruedLiabilities */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInEmployeeAccruedLiabilities');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInEmployeeAccruedLiabilities</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInEmployeeAccruedLiabilities')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInEmployeeAccruedLiabilities');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInEmployeeAccruedLiabilities</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInEmployeeAccruedLiabilities-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInEmployeeAccruedLiabilities-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInEmployeeAccruedLiabilities')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInAccruedLiabilities */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInAccruedLiabilities');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInAccruedLiabilities</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInAccruedLiabilities')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInAccruedLiabilities');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInAccruedLiabilities</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInAccruedLiabilities-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInAccruedLiabilities-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInAccruedLiabilities')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInAccruedIncomeTaxes */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInAccruedIncomeTaxes');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInAccruedIncomeTaxes</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInAccruedIncomeTaxes')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInAccruedIncomeTaxes');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInAccruedIncomeTaxes</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInAccruedIncomeTaxes-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInAccruedIncomeTaxes-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInAccruedIncomeTaxes')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInDeferredRevenue */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInDeferredRevenue');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInDeferredRevenue</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInDeferredRevenue')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInDeferredRevenue');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInDeferredRevenue</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInDeferredRevenue-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInDeferredRevenue-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInDeferredRevenue')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInOtherLiabilitiesCurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInOtherLiabilitiesCurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInOtherLiabilitiesCurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInOtherLiabilitiesCurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInOtherLiabilitiesCurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInOtherLiabilitiesCurrent</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInOtherLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInOtherLiabilitiesCurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ChangeInOtherCurrentLiabilities')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInDeferredIncomeTaxLiabilities */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInDeferredIncomeTaxLiabilities');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInDeferredIncomeTaxLiabilities</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInDeferredIncomeTaxLiabilities')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInDeferredIncomeTaxLiabilities');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInDeferredIncomeTaxLiabilities</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInDeferredIncomeTaxLiabilities-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInDeferredIncomeTaxLiabilities-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInDeferredIncomeTaxLiabilities')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInDeferredIncomeTaxLiabilitiesNet */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInDeferredIncomeTaxLiabilitiesNet');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInDeferredIncomeTaxLiabilitiesNet</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInDeferredIncomeTaxLiabilitiesNet')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInDeferredIncomeTaxLiabilitiesNet');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInDeferredIncomeTaxLiabilitiesNet</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInDeferredIncomeTaxLiabilitiesNet-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInDeferredIncomeTaxLiabilitiesNet-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInDeferredIncomeTaxLiabilitiesNet')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* IncreaseInOtherLiabilitiesNoncurrent */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('IncreaseInOtherLiabilitiesNoncurrent');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInOtherLiabilitiesNoncurrent</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('IncreaseInOtherLiabilitiesNoncurrent')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('IncreaseInOtherLiabilitiesNoncurrent');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>IncreaseInOtherLiabilitiesNoncurrent</td>
               {incomeYears.map(yk => (
-                <td key={`IncreaseInOtherLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center">
+                <td key={`IncreaseInOtherLiabilitiesNoncurrent-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'IncreaseInOtherLiabilitiesNoncurrent')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* DecreaseInOtherOperatingCapitalNet */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('DecreaseInOtherOperatingCapitalNet');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInOtherOperatingCapitalNet</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('DecreaseInOtherOperatingCapitalNet')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('DecreaseInOtherOperatingCapitalNet');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>DecreaseInOtherOperatingCapitalNet</td>
               {incomeYears.map(yk => (
-                <td key={`DecreaseInOtherOperatingCapitalNet-${String(yk)}`} className="p-2 text-center">
+                <td key={`DecreaseInOtherOperatingCapitalNet-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ChangeInOtherWorkingCapital')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* InvestingCashFlow */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('InvestingCashFlow');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>InvestingCashFlow</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('InvestingCashFlow')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('InvestingCashFlow');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>InvestingCashFlow</td>
               {incomeYears.map(yk => (
-                <td key={`InvestingCashFlow-${String(yk)}`} className="p-2 text-center">
+                <td key={`InvestingCashFlow-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'InvestingCashFlow')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PurchaseOfPPE */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PurchaseOfPPE');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseOfPPE</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PurchaseOfPPE')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PurchaseOfPPE');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseOfPPE</td>
               {incomeYears.map(yk => (
-                <td key={`PurchaseOfPPE-${String(yk)}`} className="p-2 text-center">
+                <td key={`PurchaseOfPPE-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PurchaseOfPPE')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* SaleOfPPE */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('SaleOfPPE');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>SaleOfPPE</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('SaleOfPPE')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('SaleOfPPE');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>SaleOfPPE</td>
               {incomeYears.map(yk => (
-                <td key={`SaleOfPPE-${String(yk)}`} className="p-2 text-center">
+                <td key={`SaleOfPPE-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'SaleOfPPE')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeaseNewAssetsObtained (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeaseNewAssetsObtained');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseNewAssetsObtained</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeaseNewAssetsObtained')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeaseNewAssetsObtained');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeaseNewAssetsObtained</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeaseNewAssetsObtained2-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeaseNewAssetsObtained2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeaseNewAssetsObtained')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">0.2</span>
               </td>
             </tr>
 
             {/* FinanceLeaseNewAssetsObtained (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeaseNewAssetsObtained');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseNewAssetsObtained</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeaseNewAssetsObtained')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeaseNewAssetsObtained');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeaseNewAssetsObtained</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeaseNewAssetsObtained2-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeaseNewAssetsObtained2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceLeaseNewAssetsObtained')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">0.1</span>
               </td>
             </tr>
 
             {/* VariableLeaseNewAssetsObtained (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeaseNewAssetsObtained');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseNewAssetsObtained</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeaseNewAssetsObtained')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeaseNewAssetsObtained');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeaseNewAssetsObtained</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeaseNewAssetsObtained2-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeaseNewAssetsObtained2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeaseNewAssetsObtained')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PurchaseOfBusiness */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PurchaseOfBusiness');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseOfBusiness</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PurchaseOfBusiness')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PurchaseOfBusiness');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseOfBusiness</td>
               {incomeYears.map(yk => (
-                <td key={`PurchaseOfBusiness-${String(yk)}`} className="p-2 text-center">
+                <td key={`PurchaseOfBusiness-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PurchaseOfBusiness')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* SaleOfBusiness */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('SaleOfBusiness');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>SaleOfBusiness</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('SaleOfBusiness')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('SaleOfBusiness');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>SaleOfBusiness</td>
               {incomeYears.map(yk => (
-                <td key={`SaleOfBusiness-${String(yk)}`} className="p-2 text-center">
+                <td key={`SaleOfBusiness-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'SaleOfBusiness')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PurchaseOfInvestment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PurchaseOfInvestment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseOfInvestment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PurchaseOfInvestment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PurchaseOfInvestment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseOfInvestment</td>
               {incomeYears.map(yk => (
-                <td key={`PurchaseOfInvestment-${String(yk)}`} className="p-2 text-center">
+                <td key={`PurchaseOfInvestment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PurchaseOfInvestment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* SaleOfInvestment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('SaleOfInvestment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>SaleOfInvestment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('SaleOfInvestment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('SaleOfInvestment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>SaleOfInvestment</td>
               {incomeYears.map(yk => (
-                <td key={`SaleOfInvestment-${String(yk)}`} className="p-2 text-center">
+                <td key={`SaleOfInvestment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'SaleOfInvestment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OtherInvestingChanges */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OtherInvestingChanges');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OtherInvestingChanges</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OtherInvestingChanges')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OtherInvestingChanges');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OtherInvestingChanges</td>
               {incomeYears.map(yk => (
-                <td key={`OtherInvestingChanges-${String(yk)}`} className="p-2 text-center">
+                <td key={`OtherInvestingChanges-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OtherInvestingChanges')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinancingCashFlow */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinancingCashFlow');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinancingCashFlow</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinancingCashFlow')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinancingCashFlow');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinancingCashFlow</td>
               {incomeYears.map(yk => (
-                <td key={`FinancingCashFlow-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinancingCashFlow-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinancingCashFlow')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* ShortTermDebtIssuance */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ShortTermDebtIssuance');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ShortTermDebtIssuance</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ShortTermDebtIssuance')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ShortTermDebtIssuance');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ShortTermDebtIssuance</td>
               {incomeYears.map(yk => (
-                <td key={`ShortTermDebtIssuance-${String(yk)}`} className="p-2 text-center">
+                <td key={`ShortTermDebtIssuance-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ShortTermDebtIssuance')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* ShortTermDebtPayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('ShortTermDebtPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>ShortTermDebtPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('ShortTermDebtPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('ShortTermDebtPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>ShortTermDebtPayment</td>
               {incomeYears.map(yk => (
-                <td key={`ShortTermDebtPayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`ShortTermDebtPayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'ShortTermDebtPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LongTermDebtIssuance */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LongTermDebtIssuance');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtIssuance</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LongTermDebtIssuance')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LongTermDebtIssuance');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtIssuance</td>
               {incomeYears.map(yk => (
-                <td key={`LongTermDebtIssuance-${String(yk)}`} className="p-2 text-center">
+                <td key={`LongTermDebtIssuance-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LongTermDebtIssuance')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* LongTermDebtPayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('LongTermDebtPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('LongTermDebtPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('LongTermDebtPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>LongTermDebtPayment</td>
               {incomeYears.map(yk => (
-                <td key={`LongTermDebtPayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`LongTermDebtPayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'LongTermDebtPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* CommonStockIssuance */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CommonStockIssuance');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockIssuance</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CommonStockIssuance')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CommonStockIssuance');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockIssuance</td>
               {incomeYears.map(yk => (
-                <td key={`CommonStockIssuance-${String(yk)}`} className="p-2 text-center">
+                <td key={`CommonStockIssuance-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CommonStockIssuance')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* CommonStockRepurchasePayment (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CommonStockRepurchasePayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockRepurchasePayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CommonStockRepurchasePayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CommonStockRepurchasePayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockRepurchasePayment</td>
               {incomeYears.map(yk => (
-                <td key={`CommonStockRepurchasePayment2-${String(yk)}`} className="p-2 text-center">
+                <td key={`CommonStockRepurchasePayment2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CommonStockRepurchasePayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">1.0</span>
               </td>
             </tr>
 
             {/* CommonStockDividendPayment (duplicate - using same field) */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CommonStockDividendPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockDividendPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CommonStockDividendPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CommonStockDividendPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CommonStockDividendPayment</td>
               {incomeYears.map(yk => (
-                <td key={`CommonStockDividendPayment2-${String(yk)}`} className="p-2 text-center">
+                <td key={`CommonStockDividendPayment2-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CommonStockDividendPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-700 dark:text-gray-200">0.5</span>
               </td>
             </tr>
 
             {/* TaxWithholdingPayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('TaxWithholdingPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>TaxWithholdingPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('TaxWithholdingPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('TaxWithholdingPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>TaxWithholdingPayment</td>
               {incomeYears.map(yk => (
-                <td key={`TaxWithholdingPayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`TaxWithholdingPayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'TaxWithholdingPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingNewLeaseDebtIssuance */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingNewLeaseDebtIssuance');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingNewLeaseDebtIssuance</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingNewLeaseDebtIssuance')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingNewLeaseDebtIssuance');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingNewLeaseDebtIssuance</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingNewLeaseDebtIssuance-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingNewLeaseDebtIssuance-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingNewLeaseDebtIssuance')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* OperatingLeasePrinciplePayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('OperatingLeasePrinciplePayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeasePrinciplePayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('OperatingLeasePrinciplePayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('OperatingLeasePrinciplePayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>OperatingLeasePrinciplePayment</td>
               {incomeYears.map(yk => (
-                <td key={`OperatingLeasePrinciplePayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`OperatingLeasePrinciplePayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'OperatingLeasePrinciplePayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceNewLeaseDebtIssuance */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceNewLeaseDebtIssuance');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceNewLeaseDebtIssuance</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceNewLeaseDebtIssuance')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceNewLeaseDebtIssuance');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceNewLeaseDebtIssuance</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceNewLeaseDebtIssuance-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceNewLeaseDebtIssuance-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinanceNewLeaseDebtIssuance')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinanceLeasePrinciplePayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinanceLeasePrinciplePayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeasePrinciplePayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinanceLeasePrinciplePayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinanceLeasePrinciplePayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinanceLeasePrinciplePayment</td>
               {incomeYears.map(yk => (
-                <td key={`FinanceLeasePrinciplePayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinanceLeasePrinciplePayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinancingLeasePayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* VariableNewLeaseDebtIssuance */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableNewLeaseDebtIssuance');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableNewLeaseDebtIssuance</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableNewLeaseDebtIssuance')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableNewLeaseDebtIssuance');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableNewLeaseDebtIssuance</td>
               {incomeYears.map(yk => (
-                <td key={`VariableNewLeaseDebtIssuance-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableNewLeaseDebtIssuance-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableNewLeaseDebtIssuance')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* VariableLeasePrinciplePayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('VariableLeasePrinciplePayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeasePrinciplePayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('VariableLeasePrinciplePayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('VariableLeasePrinciplePayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>VariableLeasePrinciplePayment</td>
               {incomeYears.map(yk => (
-                <td key={`VariableLeasePrinciplePayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`VariableLeasePrinciplePayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'VariableLeasePrinciplePayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* MinorityDividendPayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('MinorityDividendPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>MinorityDividendPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('MinorityDividendPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('MinorityDividendPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>MinorityDividendPayment</td>
               {incomeYears.map(yk => (
-                <td key={`MinorityDividendPayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`MinorityDividendPayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'MinorityDividendPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* MinorityShareholderPayment */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('MinorityShareholderPayment');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>MinorityShareholderPayment</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('MinorityShareholderPayment')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('MinorityShareholderPayment');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>MinorityShareholderPayment</td>
               {incomeYears.map(yk => (
-                <td key={`MinorityShareholderPayment-${String(yk)}`} className="p-2 text-center">
+                <td key={`MinorityShareholderPayment-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'MinorityShareholderPayment')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PurchaseofNoncontrollingInterest */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PurchaseofNoncontrollingInterest');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseofNoncontrollingInterest</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PurchaseofNoncontrollingInterest')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PurchaseofNoncontrollingInterest');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PurchaseofNoncontrollingInterest</td>
               {incomeYears.map(yk => (
-                <td key={`PurchaseofNoncontrollingInterest-${String(yk)}`} className="p-2 text-center">
+                <td key={`PurchaseofNoncontrollingInterest-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PurchaseofNoncontrollingInterest')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* EffectOfExchangeRate */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('EffectOfExchangeRate');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>EffectOfExchangeRate</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('EffectOfExchangeRate')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('EffectOfExchangeRate');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>EffectOfExchangeRate</td>
               {incomeYears.map(yk => (
-                <td key={`EffectOfExchangeRate-${String(yk)}`} className="p-2 text-center">
+                <td key={`EffectOfExchangeRate-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'EffectOfExchangeRate')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* NetCashFlow */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetCashFlow');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetCashFlow</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetCashFlow')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetCashFlow');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetCashFlow</td>
               {incomeYears.map(yk => (
-                <td key={`NetCashFlow-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetCashFlow-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetCashFlow')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* FinancingCashFlowExclRevolver */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('FinancingCashFlowExclRevolver');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>FinancingCashFlowExclRevolver</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('FinancingCashFlowExclRevolver')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('FinancingCashFlowExclRevolver');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>FinancingCashFlowExclRevolver</td>
               {incomeYears.map(yk => (
-                <td key={`FinancingCashFlowExclRevolver-${String(yk)}`} className="p-2 text-center">
+                <td key={`FinancingCashFlowExclRevolver-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'FinancingCashFlowExclRevolver')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* NetCashFlowExclShortTermDebtInclPaper */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('NetCashFlowExclShortTermDebtInclPaper');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>NetCashFlowExclShortTermDebtInclPaper</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('NetCashFlowExclShortTermDebtInclPaper')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('NetCashFlowExclShortTermDebtInclPaper');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>NetCashFlowExclShortTermDebtInclPaper</td>
               {incomeYears.map(yk => (
-                <td key={`NetCashFlowExclShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center">
+                <td key={`NetCashFlowExclShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'NetCashFlowExclShortTermDebtInclPaper')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* CashFlowToShortTermDebtInclPaper */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('CashFlowToShortTermDebtInclPaper');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>CashFlowToShortTermDebtInclPaper</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('CashFlowToShortTermDebtInclPaper')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('CashFlowToShortTermDebtInclPaper');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>CashFlowToShortTermDebtInclPaper</td>
               {incomeYears.map(yk => (
-                <td key={`CashFlowToShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center">
+                <td key={`CashFlowToShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'CashFlowToShortTermDebtInclPaper')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* MinBalanceOfShortTermDebtInclPaper */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('MinBalanceOfShortTermDebtInclPaper');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>MinBalanceOfShortTermDebtInclPaper</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('MinBalanceOfShortTermDebtInclPaper')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('MinBalanceOfShortTermDebtInclPaper');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>MinBalanceOfShortTermDebtInclPaper</td>
               {incomeYears.map(yk => (
-                <td key={`MinBalanceOfShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center">
+                <td key={`MinBalanceOfShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'MinBalanceOfShortTermDebtInclPaper')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>
 
             {/* PaydownOfShortTermDebtInclPaper */}
-            <tr className="border-b dark:border-gray-600">
-              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
-  onMouseEnter={(e) => {
-    setHoveredBreakdown('PaydownOfShortTermDebtInclPaper');
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseMove={(e) => {
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
-  }}
-  onMouseLeave={() => setHoveredBreakdown(null)}>PaydownOfShortTermDebtInclPaper</td>
+            <tr className="border-b dark:border-gray-700">
+              <td className="px-4 py-3 text-gray-800 dark:text-white sticky left-0 z-10 bg-white dark:!bg-[#161C1A] border-r dark:border-gray-700 min-w-[250px] cursor-pointer  dark:hover:bg-[#232D2A] transition-colors"
+                onClick={() => handleBreakdownClick('PaydownOfShortTermDebtInclPaper')}
+                onMouseEnter={(e) => {
+                  setHoveredBreakdown('PaydownOfShortTermDebtInclPaper');
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredBreakdown(null)}>PaydownOfShortTermDebtInclPaper</td>
               {incomeYears.map(yk => (
-                <td key={`PaydownOfShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center">
+                <td key={`PaydownOfShortTermDebtInclPaper-${String(yk)}`} className="p-2 text-center dark:bg-[#161C1A] transition-colors duration-200 dark:hover:bg-[#232D2A]">
                   {renderCell(yk, 'PaydownOfShortTermDebtInclPaper')}
                 </td>
-                            ))}
-              <td className="p-2 text-center border-l dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20 min-w-[180px]">
+              ))}
+              <td className="p-2 text-center border-l dark:border-gray-700 bg-gray-50 dark:!bg-[#161C1A] min-w-[180px]">
                 <span className="text-gray-400">-</span>
               </td>
             </tr>

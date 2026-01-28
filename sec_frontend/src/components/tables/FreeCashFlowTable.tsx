@@ -13,9 +13,9 @@ interface TableData {
 }
 
 
-const FreeCashFlowTable: React.FC<{ 
+const FreeCashFlowTable: React.FC<{
 
-  data: TableData, 
+  data: TableData,
 
   onDataChange: (tableId: string, year: number, field: string, value: number | string) => void,
 
@@ -180,7 +180,7 @@ const FreeCashFlowTable: React.FC<{
 
     const displayValue = hasData ? formatNumber(numericValue) : '';
 
-    
+
 
     // For years 2025-2035 (forecast years)
 
@@ -215,12 +215,12 @@ const FreeCashFlowTable: React.FC<{
                     const rawText = e.target.value;
                     const cleaned = rawText.replace(/[^0-9.-]/g, '').trim();
                     const fieldKeyStr = `${year}-${key}`;
-                    
+
                     // Clear existing debounce timer for this field
                     if (debounceTimers.current[fieldKeyStr]) {
                       clearTimeout(debounceTimers.current[fieldKeyStr]);
                     }
-                    
+
                     // Set new timer - trigger calculations after 100ms of no typing
                     debounceTimers.current[fieldKeyStr] = setTimeout(() => {
                       if (cleaned === '') {
@@ -237,13 +237,13 @@ const FreeCashFlowTable: React.FC<{
 
                   onBlur={(e) => {
                     const fieldKeyStr = `${year}-${key}`;
-                    
+
                     // Clear any pending debounce timer for this field
                     if (debounceTimers.current[fieldKeyStr]) {
                       clearTimeout(debounceTimers.current[fieldKeyStr]);
                       delete debounceTimers.current[fieldKeyStr];
                     }
-                    
+
                     // Ensure final value is saved (in case debounce didn't trigger yet)
                     const cleaned = e.target.value.replace(/[^0-9.-]/g, '').trim();
                     if (cleaned === '') {
@@ -256,7 +256,7 @@ const FreeCashFlowTable: React.FC<{
                     }
                   }}
 
-                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-green-900/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-6 pr-6 p-2 text-center border border-gray-300 dark:border-gray-600 rounded bg-green-50 dark:bg-[#161C1A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
                 />
 
@@ -282,13 +282,13 @@ const FreeCashFlowTable: React.FC<{
 
     }
 
-    
+
 
     // Historical years (2011-2024) - plain styling
 
     return (
 
-      <span className={`block p-2 text-center ${hasData ? 'text-gray-700' : 'text-gray-400'}`}>
+      <span className={`block p-2 text-center dark:text-white ${hasData ? 'text-gray-700' : 'text-gray-400'}`}>
 
         {displayValue || '—'}
 
@@ -360,9 +360,9 @@ const FreeCashFlowTable: React.FC<{
   // NOTE: Average/CAGR helpers were unused in the current UI; removed to satisfy TS noUnusedLocals.
   return (
 
-    <div className="bg-white rounded-lg shadow-sm border relative">
+    <div className="bg-white dark:bg-[#161C1A] rounded-lg border dark:border-gray-700 relative overflow-hidden">
 
-      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+      <div className="px-6 py-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-[#161C1A]">
 
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{companyTicker} Free Cash Flow</h3>
 
@@ -371,7 +371,7 @@ const FreeCashFlowTable: React.FC<{
       {/* Tooltip */}
       {hoveredField && freeCashFlowTooltips[hoveredField] && (
         <div
-          className="fixed z-50 px-3 py-2 text-sm bg-gray-900 dark:bg-gray-800 text-white rounded-lg shadow-lg pointer-events-none max-w-md"
+          className="fixed z-50 px-3 py-2 text-sm bg-gray-900 dark:bg-[#161C1A] text-white rounded-lg shadow-lg pointer-events-none max-w-md"
           style={{
             left: `${tooltipPosition.x + 10}px`,
             top: `${tooltipPosition.y + 10}px`,
@@ -387,9 +387,9 @@ const FreeCashFlowTable: React.FC<{
 
           <thead>
 
-            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+            <tr className="border-b dark:border-gray-600 bg-gray-50 dark:bg-[#161C1A]">
 
-              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 shadow-sm">
+              <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 sticky left-0 z-20 bg-gray-50 dark:bg-[#161C1A] border-r dark:border-gray-600 shadow-sm">
 
                 Field
 
@@ -413,16 +413,16 @@ const FreeCashFlowTable: React.FC<{
 
             {fields.map((field, _index) => (
 
-              <tr 
+              <tr
 
-                key={field} 
+                key={field}
 
-                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
+                className="border-b dark:border-gray-600 bg-gray-50 dark:bg-[#161C1A] hover:bg-gray-100 dark:hover:bg-[#232D2A]"
 
               >
 
-                <td 
-                  className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-gray-800 border-r dark:border-gray-600 min-w-[250px] cursor-help"
+                <td
+                  className="px-4 py-3 font-semibold text-gray-800 dark:text-white sticky left-0 z-15 bg-white dark:bg-[#161C1A] border-r dark:border-gray-600 min-w-[250px] cursor-help"
                   onMouseEnter={(e) => {
                     setHoveredField(field);
                     setTooltipPosition({ x: e.clientX, y: e.clientY });
