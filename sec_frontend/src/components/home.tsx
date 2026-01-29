@@ -1530,8 +1530,9 @@ const Dashboard: React.FC = () => {
 
   const [userName, setUserName] = useState('Guest User');
   const [userInitials, setUserInitials] = useState('GU');
-  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation' | 'multiples'>('metrics');
+  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation' | 'multiples' | 'intrinsics'>('metrics');
   const [searchValue, setSearchValue] = useState('');
+  const [intrinsicValueForFooter, setIntrinsicValueForFooter] = useState<number | null>(null); // From ValueBuildupChart for Intrinsics footer
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
   // const [companyInput, setCompanyInput] = useState('');
   const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
@@ -3378,7 +3379,7 @@ const Dashboard: React.FC = () => {
                           : 'bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]'
                       }`}
                     >
-                      Performance
+                      Value Analyzer
                     </button>
                     <button
                       onClick={() => {
@@ -3427,7 +3428,7 @@ const Dashboard: React.FC = () => {
 
                         {/* Compare with company - ONLY show when Performance tab + Across Peers. Single-select; value in input. */}
                         {activePerformanceTab === 'performance' && activeChart === 'peers' && (
-                          <div className="-mt-1 mb-3 xm:-mt-1.5 xm:mb-4 xs:-mt-2 xs:mb-4 sm:-mt-2 sm:mb-4 md:-mt-2.5 md:mb-5">
+                          <div className="">
                             <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1.5">Compare with</label>
                             <div className="relative max-w-md" ref={peerCompareDropdownRef}>
                               <input
@@ -3511,9 +3512,8 @@ const Dashboard: React.FC = () => {
                                 {/* Across tabs - NO scrolling, stays fixed */}
                                 <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
                                   <button
-                                  // onClick={() => setActiveChart('')}
-                                  // className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === '' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                                  //   }`}
+                                    onClick={() => setActiveChart('intrinsics')}
+                                    className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === 'intrinsics' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'}`}
                                   >
                                     Intrinsics
                                   </button>
@@ -3546,6 +3546,52 @@ const Dashboard: React.FC = () => {
                                     Industry
                                   </button>
                                 </div>
+
+                                {/* Intrinsics: bar graph (ValueBuildupChart) - right below the 5 tabs */}
+                                {activeChart === 'intrinsics' && (
+                                  <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
+                                    {searchValue ? (
+                                      <>
+                                        <div className="w-full">
+                                          <ValueBuildupChart
+                                            initialCompany={searchValue}
+                                            onIntrinsicValueLoaded={setIntrinsicValueForFooter}
+                                            onBarClick={() => setShowValuationModal(true)}
+                                          />
+                                        </div>
+                                        <footer className="mt-4 pt-3 border-t border-gray-200 dark:border-[#161C1A] text-xs sm:text-sm text-gray-600 dark:text-[#889691]">
+                                          <p className="font-medium text-gray-700 dark:text-[#E0E6E4]">
+                                            Intrinsic Value: {intrinsicValueForFooter != null ? `$${intrinsicValueForFooter.toFixed(2)}B` : '<x>'}
+                                          </p>
+                                          <p className="mt-1">
+                                            <span className="text-red-600 dark:text-red-400">*</span>Our math is baseline,{' '}
+                                            <button
+                                              type="button"
+                                              onClick={() => setShowValuationModal(true)}
+                                              className="text-[#1B5A7D] dark:text-[#144D37] font-medium underline hover:no-underline focus:outline-none"
+                                            >
+                                              click here
+                                            </button>
+                                            {' '}to stress-test it in the valuation lab and forge your own true value!
+                                          </p>
+                                        </footer>
+                                      </>
+                                    ) : (
+                                      <div className="flex items-center justify-center py-12 text-gray-500 dark:text-[#889691] text-sm">
+                                        Select a company to view the intrinsic value bar graph.
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Multiples only - right below the 5 tabs (no Intrinsic/ValueBuildup here) */}
+                                {activeChart === 'valuation' && (
+                                  <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
+                                    <div className="w-full">
+                                      <MultiplesChart initialCompany={searchValue} />
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Period buttons - conditionally scrollable */}
                                 {activeChart === 'industry' ? (
@@ -3616,7 +3662,7 @@ const Dashboard: React.FC = () => {
                                       </button>
                                     </div>
                                   </div>
-                                ) : activeChart === 'valuation' ? null : (
+                                ) : (activeChart === 'valuation' || activeChart === 'intrinsics') ? null : (
                                   <div className="flex gap-1 xm:gap-1 xs:gap-1 sm:gap-1.5 md:gap-1.5 lg:gap-2 xl:gap-2">
                                     <button
                                       onClick={() => setSelectedPeriod('Annual')}
@@ -3654,7 +3700,7 @@ const Dashboard: React.FC = () => {
 
                         {/* Chart Content */}
                         <div className="mt-4 xl:mt-6">
-                          {activePerformanceTab === 'performance' && activeChart !== 'valuation' && (
+                          {activePerformanceTab === 'performance' && activeChart !== 'valuation' && activeChart !== 'intrinsics' && (
                             <div className={activeChart === 'industry' ? "flex flex-col lg:flex-row gap-4 mb-4" : "grid grid-cols-1 gap-2 mb-4"}>
                               {activeChart === 'industry' && (
                                 <div className="flex-1">
@@ -4492,19 +4538,7 @@ const Dashboard: React.FC = () => {
 
                               </div>
                             )
-                          ) : activeChart === 'valuation' ? (
-                            // Valuation Charts - Conditional Layout
-                            <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
-                              {searchValue && (
-                                <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                                  <ValueBuildupChart initialCompany={searchValue} />
-                                </div>
-                              )}
-                              <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                                <MultiplesChart initialCompany={searchValue} />
-                              </div>
-                            </div>
-                          ) : activeChart === 'industry' ? (
+                          ) : (activeChart === 'valuation' || activeChart === 'intrinsics') ? null : activeChart === 'industry' ? (
                             // Industry Chart
                             industryLoading ? (
                               <div className="flex items-center justify-center h-full">
