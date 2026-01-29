@@ -34,8 +34,18 @@ declare global {
     webkitSpeechRecognition: any;
   }
 }
-
-
+const KPI_METRIC_VALUES = [
+  'Revenue',
+  'GrossMargin',
+  'OperatingIncome',
+  'NetIncome',
+  'CapitalExpenditures',
+  'NetOperatingProfitAfterTaxes',
+  'InvestedCapitalIncludingGoodwill',
+  'ReturnOnInvestedCapitalIncludingGoodwill',
+  'ReturnOnEquity',
+  'FreeCashFlow'
+];
 
 // Message interface for chat
 interface Message {
@@ -63,12 +73,12 @@ function getCookie(name: string): string | null {
 // Add this utility function at the top of the file
 function generateColorPalette(count: number): string[] {
   const baseColors = [
-    '#1B5A7D', '#4CAF50', '#FFC107', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FF9F43', 
+    '#1B5A7D', '#4CAF50', '#FFC107', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FF9F43',
     '#EC3B83', '#8884d8', '#82ca9d', '#ffc658', '#ff7300'
   ];
 
   const colors = [...baseColors];
-  
+
   // Generate additional colors if needed
   while (colors.length < count) {
     const h = (colors.length * 137.508) % 360; // Use golden angle approximation
@@ -92,17 +102,17 @@ function addOpacityToColor(hexColor: string, opacity: number = 0.5): string {
       return `hsl(${h}, ${s}%, ${newL}%)`;
     }
   }
-  
+
   // For hex colors, add opacity as alpha channel
   const opacityHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
   return `${hexColor}${opacityHex}`;
 }
 
 // Update the PeriodType to include all available periods
-type PeriodType = 'Annual' | 'Average' | 'CAGR' | 
-                  'Last 1Y AVG' | 'Last 2Y AVG' | 'Last 3Y AVG' | 
-                  'Last 4Y AVG' | 'Last 5Y AVG' | 'Last 10Y AVG' | 'Last 15Y AVG' |
-                  '1Y' | '2Y' | '3Y' | '4Y' | '5Y' | '10Y' | '15Y' | '20Y';
+type PeriodType = 'Annual' | 'Average' | 'CAGR' |
+  'Last 1Y AVG' | 'Last 2Y AVG' | 'Last 3Y AVG' |
+  'Last 4Y AVG' | 'Last 5Y AVG' | 'Last 10Y AVG' | 'Last 15Y AVG' |
+  '1Y' | '2Y' | '3Y' | '4Y' | '5Y' | '10Y' | '15Y' | '20Y';
 
 // Add interface for peer data
 interface PeerDataPoint {
@@ -120,8 +130,8 @@ interface CompanyTicker {
 export interface ChartDataPoint {
   name: string;
   ticker: string;
-  value: number | null;  // Allow null for value
-  [key: string]: string | number | null;  // Allow null for dynamic metrics
+  value: number | null;// Allow null for value
+  [key: string]: string | number | null;// Allow null for dynamic metrics
 }
 
 // Update the activeTooltip interface
@@ -131,7 +141,7 @@ interface ActiveTooltip {
   payload: {
     [key: string]: any;
   };
-  [key: string]: any;  // Add index signature for dynamic metric access
+  [key: string]: any;// Add index signature for dynamic metric access
 }
 
 interface DataItem {
@@ -141,7 +151,7 @@ interface DataItem {
 
 interface TimePoint {
   name: string;
-  [key: string]: any;  // Add other properties as needed
+  [key: string]: any;// Add other properties as needed
 }
 
 // Companies will be fetched from API
@@ -167,7 +177,7 @@ const Dashboard: React.FC = () => {
   const { modifiedData, resetTrigger, isSandboxMode, toggleSandboxMode } = useCompanyData();
   const [effectiveChartData, setEffectiveChartData] = useState<ChartDataPoint[]>([]);
   const { theme, toggleTheme } = useTheme();
-  
+
   // Initialize Stripe
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51Rtnsm3OKz7lNN5EIAyB8tRqrJQ2KBPMvLiNh5mjZiKLOqnhezmIzhCSNRk1E0QVVlN1G4RPgbZlTbXOHmmAahvN00ChkAsNey');
 
@@ -177,7 +187,7 @@ const Dashboard: React.FC = () => {
     if (messages.length > 1) { // More than just the initial message
       await saveChatBatch(messages);
     }
-    
+
     // Clear chat persistence
     localStorage.removeItem('current_chat_state');
     localStorage.removeItem('access');
@@ -200,7 +210,7 @@ const Dashboard: React.FC = () => {
   // We store normalized keys to be resilient to minor formatting differences between placeholder text and stream metadata.
   const [reportMediaByKey, setReportMediaByKey] = useState<Record<string, string>>({});
   const reportExportRef = useRef<HTMLDivElement>(null);
-  
+
   // Report Chat History State
   const [reportChatHistory, setReportChatHistory] = useState<any[]>([]);
   const [showReportHistoryDropdown, setShowReportHistoryDropdown] = useState(false);
@@ -213,7 +223,7 @@ const Dashboard: React.FC = () => {
     const saved = localStorage.getItem('user_subscription');
     return saved ? JSON.parse(saved) : { plan: 'free', questionsUsed: 0, questionsLimit: 10 };
   });
-  
+
   // Track user registration for 24-hour auto-activation
   const [userRegistrationTime, setUserRegistrationTime] = useState(() => {
     const saved = localStorage.getItem('user_registration_time');
@@ -256,8 +266,8 @@ const Dashboard: React.FC = () => {
       }
 
       // Filter out empty or system messages, and add timestamps
-      const validMessages = messages.filter(msg => 
-        msg.content && msg.content.trim() !== '' && 
+      const validMessages = messages.filter(msg =>
+        msg.content && msg.content.trim() !== '' &&
         msg.content !== 'I can help you analyze this data. What would you like to know?'
       ).map(msg => ({
         role: msg.role,
@@ -440,8 +450,8 @@ const Dashboard: React.FC = () => {
 
         const canvas = await html2canvas(wrapper, {
           scale: 2, // improve text sharpness
-            useCORS: true,
-            backgroundColor: '#ffffff',
+          useCORS: true,
+          backgroundColor: '#ffffff',
           scrollX: 0,
           scrollY: 0,
           windowWidth: wrapper.scrollWidth || 794,
@@ -500,10 +510,10 @@ const Dashboard: React.FC = () => {
       } finally {
         document.body.removeChild(wrapper);
       }
-      
+
       // Show success message
       alert('Report saved as PDF successfully!');
-      
+
     } catch (error) {
       console.error('Error saving report:', error);
       alert('Failed to save report. Please try again.');
@@ -523,9 +533,9 @@ const Dashboard: React.FC = () => {
         chartInfo: {
           type: activeChart,
           company: searchValue,
-          metrics: activeChart === 'metrics' ? selectedSearchMetrics : 
-                  activeChart === 'peers' ? [selectedPeerMetric] : 
-                  selectedIndustryMetrics,
+          metrics: activeChart === 'metrics' ? selectedSearchMetrics :
+            activeChart === 'peers' ? [selectedPeerMetric] :
+              selectedIndustryMetrics,
           period: selectedPeriod,
           companies: activeChart === 'peers' ? peerCompaniesForChart.map((c) => c.name) : []
         }
@@ -641,10 +651,10 @@ const Dashboard: React.FC = () => {
       // Save the PDF
       const fileName = `conversation_report_${Date.now()}.pdf`;
       doc.save(fileName);
-      
+
       // Show success message
       alert('Conversation saved as PDF successfully!');
-      
+
     } catch (error) {
       console.error('Error saving conversation:', error);
       alert('Failed to save conversation. Please try again.');
@@ -762,14 +772,14 @@ const Dashboard: React.FC = () => {
       }
 
       const { sessionId } = await response.json();
-      
+
       // Redirect to Stripe Checkout
       const stripe = await stripePromise;
       if (stripe) {
         const { error } = await stripe.redirectToCheckout({
           sessionId
         });
-        
+
         if (error) {
           console.error('Stripe redirect error:', error);
           alert('Error redirecting to checkout. Please try again.');
@@ -829,18 +839,18 @@ const Dashboard: React.FC = () => {
       // Check if 24 hours have passed since registration
       const now = Date.now();
       const hoursPassed = (now - userRegistrationTime) / (1000 * 60 * 60);
-      
+
       console.log(`Hours since registration: ${hoursPassed.toFixed(2)}`);
 
       // If 24 hours have passed and user still doesn't have an active subscription
       // For development: also allow activation if user has been registered for at least 1 minute for testing
       const isDevelopment = import.meta.env.DEV;
-      const shouldActivate = (hoursPassed >= 24) || 
-        (isDevelopment && hoursPassed >= (1/60)); // 1 minute for development testing
-        
+      const shouldActivate = (hoursPassed >= 24) ||
+        (isDevelopment && hoursPassed >= (1 / 60)); // 1 minute for development testing
+
       if (shouldActivate && (userSubscription.plan === 'trial' || !userSubscription.plan || userSubscription.questionsLimit === 0)) {
         console.log('24 hours passed, activating free plan...');
-        
+
         // Call backend to activate free plan
         const activationResponse = await fetch(`${baseUrl}/api/activate-free-plan/`, {
           method: 'POST',
@@ -853,17 +863,17 @@ const Dashboard: React.FC = () => {
         if (activationResponse.ok) {
           const result = await activationResponse.json();
           console.log('Free plan activated:', result);
-          
+
           // Update local state
           const newSubscription = {
             plan: 'free',
             questionsUsed: 0,
             questionsLimit: 10
           };
-          
+
           setUserSubscription(newSubscription);
           localStorage.setItem('user_subscription', JSON.stringify(newSubscription));
-          
+
           // Show notification to user
           alert('🎉 Great news! Your free plan has been activated. You now have 10 questions per day.');
         } else {
@@ -1034,12 +1044,12 @@ const Dashboard: React.FC = () => {
         content: 'I can help you analyze this data. What would you like to know?'
       }
     ];
-    
+
     setMessages(initialMessages);
     setCurrentChatSession(null);
     setShowChatHistoryDropdown(false);
     setHasNewChatContent(false);
-    
+
     // Clear any uploaded files
     setUploadedFiles([]);
     if (fileInputRef.current) {
@@ -1120,20 +1130,20 @@ const Dashboard: React.FC = () => {
   }) => {
     try {
       // Generate session ID if not available
-      const sessionId = currentReportSessionId 
-        ? currentReportSessionId 
+      const sessionId = currentReportSessionId
+        ? currentReportSessionId
         : `report_${Date.now()}`;
-      
+
       // Update current session ID immediately so subsequent chunks use it
       if (!currentReportSessionId) {
-          setCurrentReportSessionId(sessionId);
+        setCurrentReportSessionId(sessionId);
       }
 
       // Prepare request payload
       let payload: any = {
         session_id: sessionId,
       };
-      
+
       let endpoint = `${baseUrl}/api/sec/deep_qa_bot_report`;
 
       // Handle different report types
@@ -1141,31 +1151,31 @@ const Dashboard: React.FC = () => {
         // Custom Instructions uses a different endpoint and schema
         endpoint = `${baseUrl}/api/sec/deep_qa_bot_stream`;
         payload = {
-            question: data.instructions, // Use instructions as the question
-            session_id: sessionId,
-            base64_images: [],
-            base64_files: [],
-            base64_audios: []
+          question: data.instructions, // Use instructions as the question
+          session_id: sessionId,
+          base64_images: [],
+          base64_files: [],
+          base64_audios: []
         };
         console.log('[custom instructions] Payload:', payload);
       } else {
-          // Standard Report Types (Company/Industry) - Now using Streaming
-          endpoint = `${baseUrl}/api/sec/deep_qa_bot_stream_report`;
-          
-          payload.report_type = data.reportType;
+        // Standard Report Types (Company/Industry) - Now using Streaming
+        endpoint = `${baseUrl}/api/sec/deep_qa_bot_stream_report`;
 
-          if (data.reportType === 'industry_deep_drive') {
-            payload.industry_name = data.industryName;
-          } else {
-            // Standard company report
-            payload.ticker = data.company.ticker;
-            payload.company_name = data.company.name;
-          }
+        payload.report_type = data.reportType;
 
-          // Add optional fields for standard reports
-          if (data.instructions.trim()) {
-            payload.instructions = data.instructions;
-          }
+        if (data.reportType === 'industry_deep_drive') {
+          payload.industry_name = data.industryName;
+        } else {
+          // Standard company report
+          payload.ticker = data.company.ticker;
+          payload.company_name = data.company.name;
+        }
+
+        // Add optional fields for standard reports
+        if (data.instructions.trim()) {
+          payload.instructions = data.instructions;
+        }
       }
 
       // Show loading state
@@ -1175,11 +1185,11 @@ const Dashboard: React.FC = () => {
       // Call the report generation API (Streaming for ALL types)
       const token = localStorage.getItem('access');
       const csrfToken = getCookie('csrftoken');
-      
+
       // Add user message immediately
-      const userContent = data.reportType === 'custom_instructions' 
-          ? data.instructions 
-          : `Generate a report for ${data.reportType === 'industry_deep_drive' ? data.industryName : `${data.company.name} (${data.company.ticker})`}${data.instructions ? `\n\nInstructions: ${data.instructions}` : ''}`;
+      const userContent = data.reportType === 'custom_instructions'
+        ? data.instructions
+        : `Generate a report for ${data.reportType === 'industry_deep_drive' ? data.industryName : `${data.company.name} (${data.company.ticker})`}${data.instructions ? `\n\nInstructions: ${data.instructions}` : ''}`;
 
       setReportMessages(prev => [
         ...prev,
@@ -1195,222 +1205,222 @@ const Dashboard: React.FC = () => {
       // Refresh history after starting stream
       setTimeout(fetchReportSessions, 2000);
 
-          try {
-          // Create abort controller for timeout handling (but allow streaming to continue)
-          const controller = new AbortController();
-          // Set a longer timeout for initial connection, but don't abort the stream
-          const timeoutId = setTimeout(() => {
-              // Only log warning, don't abort - streaming responses can take time
-              console.warn('Initial connection timeout - stream may still be active');
-          }, 30000); // 30 seconds for initial connection
-          
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token ? `Bearer ${token}` : '',
-              'X-CSRFToken': csrfToken || '',
-            },
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-          });
-          
-          // Clear timeout once connection is established
-          clearTimeout(timeoutId);
+      try {
+        // Create abort controller for timeout handling (but allow streaming to continue)
+        const controller = new AbortController();
+        // Set a longer timeout for initial connection, but don't abort the stream
+        const timeoutId = setTimeout(() => {
+          // Only log warning, don't abort - streaming responses can take time
+          console.warn('Initial connection timeout - stream may still be active');
+        }, 30000); // 30 seconds for initial connection
 
-          if (!response.ok) {
-              throw new Error(`Stream connection failed: ${response.status}`);
-          }
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+            'X-CSRFToken': csrfToken || '',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
 
-          if (!response.body) throw new Error('ReadableStream not supported');
+        // Clear timeout once connection is established
+        clearTimeout(timeoutId);
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-          let currentEventType: string | null = null; // Track current SSE event type
+        if (!response.ok) {
+          throw new Error(`Stream connection failed: ${response.status}`);
+        }
 
-          while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
+        if (!response.body) throw new Error('ReadableStream not supported');
 
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              // Keep the last partial line in buffer
-              buffer = lines.pop() || '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let currentEventType: string | null = null; // Track current SSE event type
 
-              for (const line of lines) {
-                  const trimmedLine = line.trim();
-                  
-                  // Handle SSE format: "event: xxx" followed by "data: {...}"
-                  if (trimmedLine.startsWith('event: ')) {
-                      // Extract event type (e.g., "token", "session", "error")
-                      currentEventType = trimmedLine.substring(7).trim();
-                      continue;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          // Keep the last partial line in buffer
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            // Handle SSE format: "event: xxx" followed by "data: {...}"
+            if (trimmedLine.startsWith('event: ')) {
+              // Extract event type (e.g., "token", "session", "error")
+              currentEventType = trimmedLine.substring(7).trim();
+              continue;
+            }
+
+            // Handle data line
+            if (trimmedLine.startsWith('data: ')) {
+              try {
+                const jsonStr = trimmedLine.substring(6).trim();
+                if (!jsonStr || jsonStr === '[DONE]') {
+                  currentEventType = null; // Reset event type on done
+                  continue;
+                }
+
+                const eventData = JSON.parse(jsonStr);
+                console.debug('[report stream]', { eventType: currentEventType, data: eventData }); // Debug logging
+
+                // Handle different SSE event types
+                let contentToAppend = '';
+
+                // Handle "token" events (from deep_qa_bot_stream API)
+                if (currentEventType === 'token' || eventData.type === 'token') {
+                  // Format: { type: 'token', agent: '...', role: '...', content: '...' }
+                  if (eventData.content && typeof eventData.content === 'string') {
+                    contentToAppend = eventData.content;
                   }
-                  
-                  // Handle data line
-                  if (trimmedLine.startsWith('data: ')) {
-                      try {
-                          const jsonStr = trimmedLine.substring(6).trim();
-                          if (!jsonStr || jsonStr === '[DONE]') {
-                              currentEventType = null; // Reset event type on done
-                              continue;
-                          }
-                          
-                          const eventData = JSON.parse(jsonStr);
-                          console.debug('[report stream]', { eventType: currentEventType, data: eventData }); // Debug logging
+                }
+                // Handle "session" events (just acknowledge, no content)
+                else if (currentEventType === 'session' || eventData.session_id) {
+                  console.debug('[report stream] Session:', eventData.session_id);
+                  // Don't append session events to content
+                  currentEventType = null; // Reset after processing
+                  continue;
+                }
+                // Handle generic response formats (fallback)
+                else if (eventData.type === 'token' && eventData.content) {
+                  contentToAppend = eventData.content;
+                } else if (eventData.content && typeof eventData.content === 'string') {
+                  // Direct content field
+                  contentToAppend = eventData.content;
+                } else if (eventData.answer && typeof eventData.answer === 'string') {
+                  // Full response with answer field
+                  contentToAppend = eventData.answer;
+                } else if (eventData.data && typeof eventData.data === 'string') {
+                  // Nested data field
+                  contentToAppend = eventData.data;
+                } else if (typeof eventData === 'string') {
+                  // Sometimes the data itself is a string
+                  contentToAppend = eventData;
+                }
 
-                          // Handle different SSE event types
-                          let contentToAppend = '';
-                          
-                          // Handle "token" events (from deep_qa_bot_stream API)
-                          if (currentEventType === 'token' || eventData.type === 'token') {
-                              // Format: { type: 'token', agent: '...', role: '...', content: '...' }
-                              if (eventData.content && typeof eventData.content === 'string') {
-                                  contentToAppend = eventData.content;
-                              }
-                          }
-                          // Handle "session" events (just acknowledge, no content)
-                          else if (currentEventType === 'session' || eventData.session_id) {
-                              console.debug('[report stream] Session:', eventData.session_id);
-                              // Don't append session events to content
-                              currentEventType = null; // Reset after processing
-                              continue;
-                          }
-                          // Handle generic response formats (fallback)
-                          else if (eventData.type === 'token' && eventData.content) {
-                              contentToAppend = eventData.content;
-                          } else if (eventData.content && typeof eventData.content === 'string') {
-                              // Direct content field
-                              contentToAppend = eventData.content;
-                          } else if (eventData.answer && typeof eventData.answer === 'string') {
-                              // Full response with answer field
-                              contentToAppend = eventData.answer;
-                          } else if (eventData.data && typeof eventData.data === 'string') {
-                              // Nested data field
-                              contentToAppend = eventData.data;
-                          } else if (typeof eventData === 'string') {
-                              // Sometimes the data itself is a string
-                              contentToAppend = eventData;
-                          }
-                          
-                          if (contentToAppend) {
-                              // Append token to the last assistant message
-                              setReportMessages(prev => {
-                                  const newMsgs = [...prev];
-                                  const lastIdx = newMsgs.length - 1;
-                                  if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
-                                      const currentContent = newMsgs[lastIdx].content;
-                                      // Replace "Thinking..." placeholder if present
-                                      if (currentContent === 'Thinking...' || currentContent === '') {
-                                      newMsgs[lastIdx] = {
-                                          ...newMsgs[lastIdx],
-                                              content: contentToAppend
-                                          };
-                                      } else {
-                                          newMsgs[lastIdx] = {
-                                              ...newMsgs[lastIdx],
-                                              content: currentContent + contentToAppend
-                                      };
-                                      }
-                                  }
-                                  return newMsgs;
-                              });
-                          }
-                          
-                          // Handle images/charts/figures
-                          if (eventData.type === 'image' || eventData.type === 'chart' || eventData.type === 'figure') {
-                              // Handle image/chart data - append as markdown image syntax
-                              const rawUrl = eventData.url || eventData.data || eventData.content;
-                              const imageUrl = normalizeReportMediaSrc(rawUrl);
-                              const imageAlt = eventData.alt || eventData.caption || eventData.id || eventData.key || 'Report image';
-
-                              // Keep a lookup map so we can replace [fig_description-*] placeholders later
-                              // Note: the placeholder key in the markdown often differs slightly from stream metadata,
-                              // so we store multiple normalized key variants.
-                              const mediaKey = eventData.key || eventData.id || eventData.alt || eventData.caption;
-                              if (mediaKey && imageUrl) {
-                                  const keysToStore = figKeyCandidates(mediaKey);
-                                  // Also store the raw key as-is (backward compat)
-                                  keysToStore.push(String(mediaKey));
-                                  setReportMediaByKey(prev => {
-                                    const next = { ...prev };
-                                    keysToStore.forEach((k) => {
-                                      const nk = normalizeFigKey(k) || k;
-                                      next[nk] = imageUrl;
-                                    });
-                                    return next;
-                                  });
-                                  console.debug('[report] received media', { mediaKey, keysToStore, hasUrl: Boolean(imageUrl) });
-                              }
-
-                              if (imageUrl) {
-                                  setReportMessages(prev => {
-                                      const newMsgs = [...prev];
-                                      const lastIdx = newMsgs.length - 1;
-                                      if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
-                                          // Append image markdown syntax
-                                          const imageMarkdown = `\n\n![${imageAlt}](${imageUrl})\n\n`;
-                                          newMsgs[lastIdx] = {
-                                              ...newMsgs[lastIdx],
-                                              content: newMsgs[lastIdx].content + imageMarkdown
-                                          };
-                                      }
-                                      return newMsgs;
-                                  });
-                              }
-                          }
-                          
-                          // Handle errors
-                          if (eventData.type === 'error' || eventData.error || (!eventData.success && eventData.detail)) {
-                              const errorMsg = eventData.error || eventData.detail?.error || eventData.message || 'An error occurred';
-                              console.error('Stream error:', errorMsg, eventData);
-                              setReportMessages(prev => {
-                                  const newMsgs = [...prev];
-                                  const lastIdx = newMsgs.length - 1;
-                                  if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
-                                      const currentContent = newMsgs[lastIdx].content;
-                                      if (currentContent === 'Thinking...' || currentContent === '') {
-                                          newMsgs[lastIdx] = {
-                                              ...newMsgs[lastIdx],
-                                              content: `\n\n**Error:** ${errorMsg}`
-                                          };
-                                      } else {
-                                          newMsgs[lastIdx] = {
-                                              ...newMsgs[lastIdx],
-                                              content: currentContent + `\n\n**Error:** ${errorMsg}`
-                                          };
-                                      }
-                                  }
-                                  return newMsgs;
-                              });
-                          }
-                          // Reset event type after processing (empty line will separate next event)
-                          if (trimmedLine === '') {
-                              currentEventType = null;
-                          }
-                      } catch (e) {
-                          console.warn('Failed to parse SSE data:', trimmedLine, e);
-                          // Log the raw line for debugging custom instructions
-                          if (trimmedLine.length > 0 && !trimmedLine.startsWith('data: ') && !trimmedLine.startsWith('event: ')) {
-                              console.debug('[report stream] Unexpected line format:', trimmedLine);
+                if (contentToAppend) {
+                  // Append token to the last assistant message
+                  setReportMessages(prev => {
+                    const newMsgs = [...prev];
+                    const lastIdx = newMsgs.length - 1;
+                    if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
+                      const currentContent = newMsgs[lastIdx].content;
+                      // Replace "Thinking..." placeholder if present
+                      if (currentContent === 'Thinking...' || currentContent === '') {
+                        newMsgs[lastIdx] = {
+                          ...newMsgs[lastIdx],
+                          content: contentToAppend
+                        };
+                      } else {
+                        newMsgs[lastIdx] = {
+                          ...newMsgs[lastIdx],
+                          content: currentContent + contentToAppend
+                        };
                       }
-                      }
-                  } else if (trimmedLine === '') {
-                      // Empty line separates SSE messages - reset event type
-                      currentEventType = null;
-                      continue;
+                    }
+                    return newMsgs;
+                  });
+                }
+
+                // Handle images/charts/figures
+                if (eventData.type === 'image' || eventData.type === 'chart' || eventData.type === 'figure') {
+                  // Handle image/chart data - append as markdown image syntax
+                  const rawUrl = eventData.url || eventData.data || eventData.content;
+                  const imageUrl = normalizeReportMediaSrc(rawUrl);
+                  const imageAlt = eventData.alt || eventData.caption || eventData.id || eventData.key || 'Report image';
+
+                  // Keep a lookup map so we can replace [fig_description-*] placeholders later
+                  // Note: the placeholder key in the markdown often differs slightly from stream metadata,
+                  // so we store multiple normalized key variants.
+                  const mediaKey = eventData.key || eventData.id || eventData.alt || eventData.caption;
+                  if (mediaKey && imageUrl) {
+                    const keysToStore = figKeyCandidates(mediaKey);
+                    // Also store the raw key as-is (backward compat)
+                    keysToStore.push(String(mediaKey));
+                    setReportMediaByKey(prev => {
+                      const next = { ...prev };
+                      keysToStore.forEach((k) => {
+                        const nk = normalizeFigKey(k) || k;
+                        next[nk] = imageUrl;
+                      });
+                      return next;
+                    });
+                    console.debug('[report] received media', { mediaKey, keysToStore, hasUrl: Boolean(imageUrl) });
                   }
+
+                  if (imageUrl) {
+                    setReportMessages(prev => {
+                      const newMsgs = [...prev];
+                      const lastIdx = newMsgs.length - 1;
+                      if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
+                        // Append image markdown syntax
+                        const imageMarkdown = `\n\n![${imageAlt}](${imageUrl})\n\n`;
+                        newMsgs[lastIdx] = {
+                          ...newMsgs[lastIdx],
+                          content: newMsgs[lastIdx].content + imageMarkdown
+                        };
+                      }
+                      return newMsgs;
+                    });
+                  }
+                }
+
+                // Handle errors
+                if (eventData.type === 'error' || eventData.error || (!eventData.success && eventData.detail)) {
+                  const errorMsg = eventData.error || eventData.detail?.error || eventData.message || 'An error occurred';
+                  console.error('Stream error:', errorMsg, eventData);
+                  setReportMessages(prev => {
+                    const newMsgs = [...prev];
+                    const lastIdx = newMsgs.length - 1;
+                    if (lastIdx >= 0 && newMsgs[lastIdx].role === 'assistant') {
+                      const currentContent = newMsgs[lastIdx].content;
+                      if (currentContent === 'Thinking...' || currentContent === '') {
+                        newMsgs[lastIdx] = {
+                          ...newMsgs[lastIdx],
+                          content: `\n\n**Error:** ${errorMsg}`
+                        };
+                      } else {
+                        newMsgs[lastIdx] = {
+                          ...newMsgs[lastIdx],
+                          content: currentContent + `\n\n**Error:** ${errorMsg}`
+                        };
+                      }
+                    }
+                    return newMsgs;
+                  });
+                }
+                // Reset event type after processing (empty line will separate next event)
+                if (trimmedLine === '') {
+                  currentEventType = null;
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', trimmedLine, e);
+                // Log the raw line for debugging custom instructions
+                if (trimmedLine.length > 0 && !trimmedLine.startsWith('data: ') && !trimmedLine.startsWith('event: ')) {
+                  console.debug('[report stream] Unexpected line format:', trimmedLine);
+                }
               }
+            } else if (trimmedLine === '') {
+              // Empty line separates SSE messages - reset event type
+              currentEventType = null;
+              continue;
+            }
           }
+        }
       } catch (error: any) {
-          console.error('Streaming error:', error);
-          setReportMessages(prev => [
-            ...prev,
-            { role: 'assistant', content: `\n\n**Error:** ${error.message}` }
-          ]);
+        console.error('Streaming error:', error);
+        setReportMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: `\n\n**Error:** ${error.message}` }
+        ]);
       } finally {
-          setIsGeneratingReport(false);
+        setIsGeneratingReport(false);
       }
     } catch (error: any) {
       console.error('Error generating report:', error);
@@ -1458,7 +1468,7 @@ const Dashboard: React.FC = () => {
         // Close modal and show success message
         setShowContactModal(false);
         alert('Thank you for your message! We will get back to you soon.');
-        
+
         // Reset form using ref
         if (contactFormRef.current) {
           contactFormRef.current.reset();
@@ -1484,33 +1494,33 @@ const Dashboard: React.FC = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
-      
+
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
-      
+
       recognition.onstart = () => {
         setIsListening(true);
       };
-      
+
       recognition.onresult = (event: any) => {
         const transcript = Array.from(event.results)
           .map((result: any) => result[0])
           .map((result: any) => result.transcript)
           .join('');
-        
+
         setInputValue(transcript);
       };
-      
+
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
       };
-      
+
       recognition.onend = () => {
         setIsListening(false);
       };
-      
+
       recognition.start();
     } else {
       alert('Speech recognition is not supported in this browser.');
@@ -1520,7 +1530,7 @@ const Dashboard: React.FC = () => {
 
   const [userName, setUserName] = useState('Guest User');
   const [userInitials, setUserInitials] = useState('GU');
-  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation'>('metrics');
+  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation' | 'multiples'>('metrics');
   const [searchValue, setSearchValue] = useState('');
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
   // const [companyInput, setCompanyInput] = useState('');
@@ -1547,6 +1557,7 @@ const Dashboard: React.FC = () => {
   const [industryError, setIndustryError] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [availableIndustries, setAvailableIndustries] = useState<{ value: string; label: string; companies: string[] }[]>([]);
+  const [isKPIOnly, setIsKPIOnly] = useState(true);
   // const [selectedTicker, setSelectedTicker] = useState('');
   const [showMetricDropdown, setShowMetricDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1591,15 +1602,15 @@ const Dashboard: React.FC = () => {
       ? peerChartData
       : activeChart === 'industry'
         ? Object.entries(industryChartData).map(([metric, values]) => ({
-            metric,
-            values
-          }))
+          metric,
+          values
+        }))
         : effectiveChartData,
     searchValue,
     selectedPeriod,
-    selectedMetrics: activeChart === 'peers' ? selectedPeerMetrics : 
-                 activeChart === 'industry' ? selectedIndustryMetrics : 
-                 selectedSearchMetrics,
+    selectedMetrics: activeChart === 'peers' ? selectedPeerMetrics :
+      activeChart === 'industry' ? selectedIndustryMetrics :
+        selectedSearchMetrics,
     activeChart,
     selectedCompanies,
     currentChatSession,
@@ -1622,21 +1633,21 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const userInfo = localStorage.getItem('user_info');
     console.log('User info from localStorage:', userInfo);
-    
+
     if (userInfo) {
       try {
         const user = JSON.parse(userInfo);
         console.log('Parsed user info:', user);
-        
+
         const firstName = user.first_name || '';
         const lastName = user.last_name || '';
         const fullName = `${firstName} ${lastName}`.trim();
         const displayName = firstName ? `Hello, ${firstName}` : 'Hello, Guest';
-        
+
         console.log('First name:', firstName);
         console.log('Last name:', lastName);
         console.log('Full name:', fullName);
-        
+
         if (fullName) {
           setUserName(displayName);
           setUserInitials(`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase());
@@ -1663,12 +1674,12 @@ const Dashboard: React.FC = () => {
       try {
         const chatState = JSON.parse(savedChatState);
         console.log('Restoring chat state:', chatState);
-        
+
         if (chatState.messages && chatState.messages.length > 1) {
           setMessages(chatState.messages);
           setCurrentChatSession(chatState.currentChatSession);
           setHasNewChatContent(chatState.hasNewChatContent || false);
-          
+
           // Don't auto-clear the saved state - let user explicitly start new chat
           console.log('Chat state restored successfully');
         }
@@ -1688,13 +1699,13 @@ const Dashboard: React.FC = () => {
           throw new Error(`Failed to fetch companies: ${response.status}`);
         }
         const data = await response.json();
-        
+
         // Handle both paginated (results) and non-paginated responses
         const companiesList = data.results || data;
 
         const map: { [ticker: string]: string } = {};
         const companies: CompanyTicker[] = [];
-        
+
         companiesList.forEach((company: any) => {
           const ticker = company.ticker;
           // Central API returns {ticker, name}
@@ -1718,7 +1729,7 @@ const Dashboard: React.FC = () => {
     setTimeout(() => {
       fetchChatHistory();
     }, 100);
-    
+
     // Check for 24-hour auto-activation
     setTimeout(() => {
       check24HourActivation();
@@ -1734,7 +1745,7 @@ const Dashboard: React.FC = () => {
       }
       const data = await response.json();
       console.log('Fetched metrics:', data);
-      
+
       // Format metric names for display
       const formattedMetrics = (data.metrics || []).map((metric: string) => ({
         value: metric,
@@ -1743,12 +1754,12 @@ const Dashboard: React.FC = () => {
           .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
           .trim()
       }));
-      
+
       if (formattedMetrics.length > 0) {
         setAvailableMetrics(formattedMetrics);
       } else {
         // Fallback if empty
-      setAvailableMetrics(AVAILABLE_METRICS);
+        setAvailableMetrics(AVAILABLE_METRICS);
       }
     } catch (error) {
       console.error('Error fetching metrics:', error);
@@ -1759,13 +1770,13 @@ const Dashboard: React.FC = () => {
 
   const fetchMetricData = useCallback(async () => {
     if (!searchValue) return;
-    
+
     // For Annual period, we'll fetch Performance data and auto-select metrics if none selected
     if (selectedPeriod !== 'Annual' && selectedSearchMetrics.length === 0) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const ticker = searchValue.split(':')[0].trim().toUpperCase();
       console.log('Fetching Performance data from API for ticker:', ticker, 'period:', selectedPeriod);
@@ -1775,19 +1786,19 @@ const Dashboard: React.FC = () => {
       if (selectedPeriod === 'Annual') {
         // Fetch Performance data from dynamic_table endpoint
         const response = await fetch(`${baseUrl}/api/sec/dynamic_table/Performance?ticker=${ticker}`);
-          
-          if (!response.ok) {
+
+        if (!response.ok) {
           throw new Error(`Failed to fetch Performance data: ${response.status}`);
         }
-        
+
         const performanceData = await response.json();
-        
+
         if (!performanceData.rows || performanceData.rows.length === 0) {
           setError(`No performance data available for ${ticker}.`);
           setChartData([]);
           return;
         }
-        
+
         // Update available metrics to include Performance metrics
         const performanceMetrics = performanceData.rows.map((row: any) => ({
           value: row.metric,
@@ -1796,7 +1807,7 @@ const Dashboard: React.FC = () => {
             .replace(/^./, (str: string) => str.toUpperCase()) // Capitalize first letter
             .trim()
         }));
-        
+
         // Merge with existing metrics, avoiding duplicates
         setAvailableMetrics((prev: any[]) => {
           const existingValues = new Set(prev.map(m => m.value));
@@ -1806,56 +1817,56 @@ const Dashboard: React.FC = () => {
 
         // Get year columns (exclude 'metric' column)
         const yearColumns = performanceData.columns.filter((col: string) => col !== 'metric');
-        
+
         // Filter rows to match selected metrics by exact Performance metric name
-        const rowsToUse = performanceData.rows.filter((row: any) => 
+        const rowsToUse = performanceData.rows.filter((row: any) =>
           selectedSearchMetrics.includes(row.metric)
         );
-        
+
         if (rowsToUse.length === 0) {
           setError(`No matching metrics found. Please select metrics from the dropdown.`);
           setChartData([]);
           return;
         }
-        
+
         const metricsToUse = selectedSearchMetrics;
-        
+
         console.log('[Performance] Selected metrics:', metricsToUse);
         console.log('[Performance] Matched rows count:', rowsToUse.length);
         console.log('[Performance] Matched rows:', rowsToUse.map((r: any) => r.metric));
         console.log('[Performance] Year columns:', yearColumns);
         console.log('[Performance] First row keys:', rowsToUse.length > 0 ? Object.keys(rowsToUse[0]) : 'no rows');
-        
+
         // Transform Performance data to chart format
         const yearData: { [year: string]: any } = {};
-        
+
         yearColumns.forEach((year: string) => {
-              yearData[year] = {
-                name: year,
-                year: parseInt(year) || year
-                };
+          yearData[year] = {
+            name: year,
+            year: parseInt(year) || year
+          };
         });
-        
+
         console.log('[Performance] rowsToUse count:', rowsToUse.length);
         console.log('[Performance] First row sample:', rowsToUse.length > 0 ? rowsToUse[0] : 'no rows');
         console.log('[Performance] Year columns:', yearColumns);
-        
+
         // Add metric data for each year
         rowsToUse.forEach((row: any) => {
           const metricName = row.metric;
           console.log(`[Performance] Processing metric: ${metricName}`);
-          
+
           yearColumns.forEach((year: string) => {
             const value = row[year];
             // Check if value exists (including 0, which is valid)
             if (value !== undefined && value !== null && value !== '') {
-            const yearNum = parseInt(year);
-            const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
-            const suffix = isHistorical ? '_historical' : '_future';
-              
+              const yearNum = parseInt(year);
+              const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
+              const suffix = isHistorical ? '_historical' : '_future';
+
               // Convert string to number if needed
               const numValue = typeof value === 'string' ? parseFloat(value) : value;
-              
+
               // Only add if it's a valid number
               if (!isNaN(numValue)) {
                 const dataKey = `${metricName}${suffix}`;
@@ -1863,18 +1874,18 @@ const Dashboard: React.FC = () => {
                 console.log(`[Performance] Added ${dataKey} for ${year}: ${numValue}`);
               }
             }
-            });
+          });
         });
-        
+
         console.log('[Performance] Sample yearData after processing:', yearData['2013']);
-        
+
         // Convert to array and sort by year
         transformedData = Object.values(yearData).sort((a, b) => {
           const yearA = parseInt(a.name) || 0;
           const yearB = parseInt(b.name) || 0;
           return yearA - yearB;
         });
-        
+
         console.log('[Performance] Transformed data sample:', transformedData.slice(0, 3));
         if (transformedData.length > 0) {
           const firstYear = transformedData[0];
@@ -1887,18 +1898,18 @@ const Dashboard: React.FC = () => {
         // For Average: Fetch data for each period (1Y, 2Y, 3Y, 4Y, 5Y, 10Y, 15Y)
         const periods = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
         const periodData: { [period: string]: any } = {};
-        
+
         // Fetch data for each metric and period combination
         const promises = selectedSearchMetrics.flatMap((metric) =>
           periods.map(async (period) => {
             const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=Average`;
             const response = await fetch(url);
-            
+
             if (!response.ok) {
               console.warn(`Failed to fetch ${metric} data for period ${period}: ${response.status}`);
               return { metric, period, value: null };
             }
-            
+
             const data = await response.json();
             // Get the first (and should be only) value for this period
             const value = data.length > 0 ? data[0].value : null;
@@ -1907,15 +1918,15 @@ const Dashboard: React.FC = () => {
         );
 
         const results = await Promise.all(promises);
-        
+
         // Group by period
         results.forEach(({ metric, period, value }) => {
           if (!periodData[period]) {
             periodData[period] = {
               name: period,
               period: period
-                };
-              }
+            };
+          }
           if (value !== null) {
             periodData[period][metric] = value;
           }
@@ -1931,18 +1942,18 @@ const Dashboard: React.FC = () => {
         // For CAGR: Similar to Average but with periodType=CAGR
         const periods = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
         const periodData: { [period: string]: any } = {};
-        
+
         // Fetch data for each metric and period combination
         const promises = selectedSearchMetrics.flatMap((metric) =>
           periods.map(async (period) => {
             const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(ticker)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&periodType=CAGR`;
             const response = await fetch(url);
-            
+
             if (!response.ok) {
               console.warn(`Failed to fetch ${metric} CAGR data for period ${period}: ${response.status}`);
               return { metric, period, value: null }; // Gracefully handle missing data
             }
-            
+
             const data = await response.json();
             const value = data.length > 0 ? data[0].value : null;
             return { metric, period, value };
@@ -1950,15 +1961,15 @@ const Dashboard: React.FC = () => {
         );
 
         const results = await Promise.all(promises);
-        
+
         // Group by period
         results.forEach(({ metric, period, value }) => {
           if (!periodData[period]) {
             periodData[period] = {
               name: period,
               period: period
-                };
-              }
+            };
+          }
           if (value !== null) {
             periodData[period][metric] = value;
           }
@@ -2024,13 +2035,13 @@ const Dashboard: React.FC = () => {
           try {
             const url = `${baseUrl}/api/sec/dynamic_table/Performance?ticker=${company.ticker}`;
             console.log('Fetching Performance data from:', url);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
+            const response = await fetch(url);
+
+            if (!response.ok) {
               console.warn(`Failed to fetch Performance data for ${company.ticker}: ${response.status}`);
               return { company, performanceData: null };
-        }
-        
+            }
+
             const performanceData = await response.json();
             console.log(`Performance data for ${company.ticker}:`, performanceData);
             return { company, performanceData };
@@ -2038,56 +2049,56 @@ const Dashboard: React.FC = () => {
             console.error(`Error fetching Performance data for ${company.ticker}:`, error);
             return { company, performanceData: null };
           }
-      });
+        });
 
-      const results = await Promise.all(promises);
-      
+        const results = await Promise.all(promises);
+
         // Filter out companies with no data
         const validResults = results.filter(r => r.performanceData && r.performanceData.rows);
-        
+
         if (validResults.length === 0) {
           setPeerError('No Performance data available for the selected companies.');
-        setPeerChartData([]);
-        return;
-      }
+          setPeerChartData([]);
+          return;
+        }
 
         // Get year columns from first company (all should have same years)
         const yearColumns = validResults[0].performanceData.columns.filter((col: string) => col !== 'metric');
 
         // Find the metric row for each company
         const yearData: { [year: string]: any } = {};
-        
+
         yearColumns.forEach((year: string) => {
-              yearData[year] = {
-                name: year,
-                year: parseInt(year) || year
-              };
+          yearData[year] = {
+            name: year,
+            year: parseInt(year) || year
+          };
         });
-        
+
         // Process each company's Performance data
         validResults.forEach(({ company, performanceData }) => {
           // Find the row for the selected metric
           const metricRow = performanceData.rows.find((row: any) => row.metric === selectedPeerMetric);
-          
+
           if (!metricRow) {
             console.warn(`Metric ${selectedPeerMetric} not found for ${company.ticker}`);
             return;
           }
-          
+
           // Add data for each year
           yearColumns.forEach((year: string) => {
             const value = metricRow[year];
             if (value !== undefined && value !== null && value !== '') {
-            const yearNum = parseInt(year);
-            const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
-            const suffix = isHistorical ? '_historical' : '_future';
-            const metricKey = `${selectedPeerMetric}${suffix}`;
-            
-            // Initialize the metric key if it doesn't exist
-            if (!yearData[year][metricKey]) {
-              yearData[year][metricKey] = {};
-            }
-            
+              const yearNum = parseInt(year);
+              const isHistorical = !isNaN(yearNum) && yearNum <= 2024;
+              const suffix = isHistorical ? '_historical' : '_future';
+              const metricKey = `${selectedPeerMetric}${suffix}`;
+
+              // Initialize the metric key if it doesn't exist
+              if (!yearData[year][metricKey]) {
+                yearData[year][metricKey] = {};
+              }
+
               // Convert string to number if needed
               const numValue = typeof value === 'string' ? parseFloat(value) : value;
               if (!isNaN(numValue)) {
@@ -2096,7 +2107,7 @@ const Dashboard: React.FC = () => {
             }
           });
         });
-        
+
         // Convert to array and sort by year
         transformedData = Object.values(yearData).sort((a, b) => {
           const yearA = parseInt(a.name) || 0;
@@ -2107,7 +2118,7 @@ const Dashboard: React.FC = () => {
         // For Average/CAGR: Use the old aggregated-data endpoint
         let periodTypeParam = '';
         let periodValue: string = selectedPeriod;
-        
+
         if (selectedPeriod === 'Average') {
           periodTypeParam = '&periodType=Average';
           periodValue = '1Y';
@@ -2116,45 +2127,45 @@ const Dashboard: React.FC = () => {
           periodValue = '1Y';
         }
         // For period strings like '1Y', '2Y', etc., use as-is
-        
+
         // Fetch data for each company
         const promises = companiesToFetch.map(async (company) => {
           const url = `${baseUrl}/api/sec/central/aggregated-data/?tickers=${encodeURIComponent(company.ticker)}&metric=${encodeURIComponent(selectedPeerMetric)}&period=${encodeURIComponent(periodValue)}${periodTypeParam}`;
           console.log('Fetching from:', url);
           const response = await fetch(url);
-          
+
           if (!response.ok) {
-             console.warn(`Failed to fetch peer data for ${company.ticker}: ${response.status}`);
-             return { company, data: [] };
+            console.warn(`Failed to fetch peer data for ${company.ticker}: ${response.status}`);
+            return { company, data: [] };
           }
-          
+
           const data = await response.json();
           console.log(`Data for ${company.ticker}:`, data);
           return { company, data };
         });
 
         const results = await Promise.all(promises);
-        
+
         if (results.length === 0 || results[0].data.length === 0) {
           setPeerError('No data available for the selected companies and metric.');
           setPeerChartData([]);
           return;
         }
-        
+
         // For Average/CAGR: Create a unified dataset with all companies
         transformedData = results[0].data.map((timePoint: TimePoint) => {
-          const point: PeerDataPoint = { 
+          const point: PeerDataPoint = {
             name: timePoint.name,
-            [selectedPeerMetric]: {} 
+            [selectedPeerMetric]: {}
           };
-          
+
           results.forEach(({ company, data }) => {
             const matchingPoint = data.find((d: DataItem) => d.name === timePoint.name);
             if (matchingPoint) {
               (point[selectedPeerMetric] as { [ticker: string]: number })[company.ticker] = matchingPoint.value;
             }
           });
-          
+
           return point;
         });
       }
@@ -2173,10 +2184,10 @@ const Dashboard: React.FC = () => {
 
   const fetchIndustryData = useCallback(async () => {
     if (selectedIndustryMetrics.length === 0 || !selectedIndustry) return;
-    
+
     setIndustryLoading(true);
     setIndustryError(null);
-    
+
     try {
       console.log('Fetching industry distribution data (box plot):', selectedIndustry, selectedIndustryMetrics, selectedPeriod);
 
@@ -2289,17 +2300,17 @@ const Dashboard: React.FC = () => {
       }
       const data = await response.json();
       console.log('Raw industries data:', data);
-      
+
       // Handle response structure { industries: [...] }
       const industriesList = data.industries || [];
-      
+
       // Format industries correctly
       const formattedIndustries = industriesList.map((industry: { name: string, companies: string[] }) => ({
         value: industry.name,
         label: industry.name,
         companies: industry.companies || []
       }));
-      
+
       console.log('Formatted industries:', formattedIndustries);
       setAvailableIndustries(formattedIndustries);
     } catch (error) {
@@ -2334,7 +2345,7 @@ const Dashboard: React.FC = () => {
       setError(null);
       setPeerError(null);
       setIndustryError(null);
-      
+
       // Force immediate re-fetch if currently on metrics tab
       if (activeChart === 'metrics') {
         setTimeout(() => fetchMetricData(), 50);
@@ -2349,7 +2360,7 @@ const Dashboard: React.FC = () => {
     }
   }, [searchValue, selectedSearchMetrics, activeChart, selectedPeriod, fetchMetricData, resetTrigger]); // Removed modifiedData from deps, we handle it in effective data effect
 
-    // Recalculate effective data whenever chartData, modifiedData, or isSandboxMode changes
+  // Recalculate effective data whenever chartData, modifiedData, or isSandboxMode changes
   useEffect(() => {
     // Only apply if we have a valid ticker
     if (!searchValue) {
@@ -2371,19 +2382,19 @@ const Dashboard: React.FC = () => {
     // Also handle the "Single Metric" case where the value is stored in 'value' key
     // We need to know WHICH metric that 'value' represents
     if (isSandboxMode && currentCompanyModData && selectedSearchMetrics.length === 1) {
-        const metricName = selectedSearchMetrics[0];
-        // The util function handles named keys (e.g. point['Revenue'])
-        // But for single-metric charts, the value is often just in point['value']
-        // We need to manually override 'value' if the metric matches
-        
-        // Let's iterate and fix 'value' specifically for the single metric case
-        merged.forEach(point => {
-             // Check if point has the named metric (which getEffectiveChartData would have updated)
-             // If so, sync 'value' to it.
-             if (point[metricName] !== undefined && typeof point[metricName] === 'number') {
-                 point.value = point[metricName] as number;
-             }
-        });
+      const metricName = selectedSearchMetrics[0];
+      // The util function handles named keys (e.g. point['Revenue'])
+      // But for single-metric charts, the value is often just in point['value']
+      // We need to manually override 'value' if the metric matches
+
+      // Let's iterate and fix 'value' specifically for the single metric case
+      merged.forEach(point => {
+        // Check if point has the named metric (which getEffectiveChartData would have updated)
+        // If so, sync 'value' to it.
+        if (point[metricName] !== undefined && typeof point[metricName] === 'number') {
+          point.value = point[metricName] as number;
+        }
+      });
     }
 
     setEffectiveChartData(merged);
@@ -2582,7 +2593,7 @@ const Dashboard: React.FC = () => {
           hasNewChatContent,
           timestamp: Date.now()
         };
-        
+
         try {
           localStorage.setItem('current_chat_state', JSON.stringify(chatState));
           console.log('Chat state saved to localStorage');
@@ -2605,7 +2616,7 @@ const Dashboard: React.FC = () => {
           hasNewChatContent,
           timestamp: Date.now()
         };
-        
+
         try {
           localStorage.setItem('current_chat_state', JSON.stringify(chatState));
         } catch (error) {
@@ -2615,7 +2626,7 @@ const Dashboard: React.FC = () => {
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
@@ -2679,9 +2690,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <>
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-[#0B0F0E]">
-      <style>
-        {`
+      <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-[#0B0F0E]">
+        <style>
+          {`
           @media print {
             body.print-bp-only * { visibility: hidden !important; }
             body.print-bp-only #bp-print-area, body.print-bp-only #bp-print-area * { visibility: visible !important; }
@@ -2692,8 +2703,8 @@ const Dashboard: React.FC = () => {
             body.print-bp-only #bp-print-area .fixed-tooltip { position: static !important; margin-top: 8px; }
           }
         `}
-      </style>
-              {/* Mobile Header */}
+        </style>
+        {/* Mobile Header */}
         <div className="lg:hidden flex justify-between items-center p-1 xm:p-1.5 xs:p-2 sm:p-2.5 md:p-3 bg-white dark:bg-[#161C1A] border-b dark:border-[#161C1A] h-14 xm:h-16 xs:h-16 sm:h-18 md:h-20">
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
@@ -2704,11 +2715,11 @@ const Dashboard: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          
+
           <div className="flex-1"></div> {/* Spacer for center alignment */}
-          
+
           <div className="w-6 xm:w-7 xs:w-8 sm:w-9 md:w-10"></div> {/* Spacer for balance */}
-      </div>
+        </div>
 
       {/* Main Content */}
       <div className="flex-1">
@@ -2762,533 +2773,531 @@ const Dashboard: React.FC = () => {
                   </svg>
                 </div>
 
-                {showCompanyDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                    {companiesLoading ? (
-                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
-                    ) : availableCompanies.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
-                    ) : (
-                      availableCompanies
-                      .filter(company => 
-                        company.ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
-                        company.name.toLowerCase().includes(searchValue.toLowerCase())
-                      )
-                      .map(company => (
-                        <div
-                          key={company.ticker}
-                          onClick={() => {
-                            setSearchValue(company.ticker);
-                            setShowCompanyDropdown(false);
-                          }}
-                          className="px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
-                        >
-                          {company.name} ({company.ticker})
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* GetDeeper icon container with user profile - hidden on mobile */}
-            <div className="hidden lg:flex flex-1 justify-end items-center gap-3 lg:gap-4 xl:gap-6">
-              <div className="absolute top-1 lg:top-2 left-1/3 transform -translate-x-1/2 lg:mr-[20%] xl:mr-[25%] 2xl:mr-[30%]">  
-                <button
-                  onClick={() => setShowPricingModal(true)}
-                  className="hover:opacity-80 transition-opacity cursor-pointer"
-                  title="Upgrade to Pro"
-                >
-                </button>
-              </div>
-
-              {/* Master Toggle - Sandbox Mode */}
-              <button
-                onClick={toggleSandboxMode}
-                className="hidden lg:flex absolute right-[26rem] lg:right-[28rem] xl:right-[30rem] top-1/2 -translate-y-1/2 items-center justify-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
-                title={isSandboxMode ? "Switch to Default Mode" : "Switch to Sandbox Mode"}
-              >
-                {isSandboxMode ? (
-                   <span className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
-                    Sandbox Mode
-                   </span>
-                ) : (
-                   <span className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
-                    Default Mode
-                   </span>
-                )}
-              </button>
-
-              {/* Dark Mode Toggle - hidden on mobile, positioned between GetDeeper icon and username */}
-              <button
-                onClick={toggleTheme}
-                className="hidden lg:flex absolute right-[16rem] lg:right-[18rem] xl:right-[20rem] top-1/2 -translate-y-1/2 items-center justify-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
-              >
-                {theme === 'light' ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                    </svg>
-                    Dark Mode
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                    </svg>
-                    Light Mode
-                  </>
-                )}
-              </button>
-              
-              {/* User Profile - hidden on mobile */}
-              <div className="absolute right-3 lg:right-4 xl:right-6" ref={profileDropdownRef}>
-                <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
-                  <div className="text-right relative">
-                    <button
-                      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4] focus:outline-none"
-                      onClick={() => setProfileDropdownOpen((open) => !open)}
-                    >
-                      {userName}
-                    </button>
-                    {profileDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg z-50">
-                        {/* User Profile Section */}
-                        <div className="px-4 py-3 border-b border-gray-100 dark:border-[#161C1A]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm font-medium">
-                              {userInitials}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 dark:text-[#E0E6E4] truncate">
-                                {userName}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-[#889691] truncate">
-                                {(() => {
-                                  const userInfo = localStorage.getItem('user_info');
-                                  if (userInfo) {
-                                    try {
-                                      const user = JSON.parse(userInfo);
-                                      return user.email || 'No email';
-                                    } catch (error) {
-                                      return 'No email';
-                                    }
-                                  }
-                                  return 'No email';
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="py-1">
-                          <button
-                            onClick={() => {
-                              navigate('/profile');
-                              setProfileDropdownOpen(false);
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
-                          >
-                            View Profile
-                          </button>
-                          <button
-                            onClick={logout}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
-                          >
-                            Sign out
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="w-8 lg:w-9 xl:w-10 2xl:w-12 h-8 lg:h-9 xl:h-10 2xl:h-12 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm lg:text-base xl:text-lg">
-                    {userInitials}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Sidebar Overlay */}
-        {isMobileSidebarOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            {/* Backdrop */}
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50"
-              onClick={() => setIsMobileSidebarOpen(false)}
-            />
-            
-            {/* Sidebar */}
-            <div className="fixed left-0 top-0 h-full w-64 xm:w-72 xs:w-80 sm:w-96 md:w-80 bg-white dark:bg-[#161C1A] shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b dark:border-[#161C1A]">
-                <img src={theme === 'dark' ? "/vshape.svg" : "/logo.svg"} alt="GetDeep.AI" className="h-12 w-fit opacity-100" />
-                <div className="flex items-center gap-2">
-                  {/* Sandbox Toggle Mobile */}
-                  <button
-                    onClick={toggleSandboxMode}
-                    className={`p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors ${
-                      isSandboxMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
-                    }`}
-                    title={isSandboxMode ? "Switch to Default Mode" : "Switch to Sandbox Mode"}
-                  >
-                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
-                  </button>
-
-                  {/* Dark Mode Toggle */}
-                  <button
-                    onClick={toggleTheme}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
-                  >
-                    {theme === 'light' ? (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                        </svg>
-                        Dark Mode
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                        </svg>
-                        Light Mode
-                      </>
-                    )}
-                  </button>
-                <button
-                  onClick={() => setIsMobileSidebarOpen(false)}
-                    className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
-                  aria-label="Close menu"
-                >
-                    <svg className="w-6 h-6 dark:text-[#E0E6E4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-                </div>
-              </div>
-              
-              {/* Navigation Items */}
-              <div className="px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      setShowValuationModal(true);
-                      setIsChatbotMinimized(true); // full-width like Performance double-click
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
-                  >
-                    <span className="text-base sm:text-lg">📊</span>
-                    <span className="text-sm sm:text-base">Company Valuation</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      setShowContactModal(true);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
-                  >
-                    <span className="text-base sm:text-lg">📞</span>
-                    <span className="text-sm sm:text-base">Contact Us</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
-                  >
-                    <span className="text-base sm:text-lg">💡</span>
-                    <span className="text-sm sm:text-base">Our Capabilities, Solutions, & Accelerators</span>
-                    <svg 
-                      className={`w-4 h-4 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  {showCapabilitiesDropdown && (
-                    <div className="pl-8 sm:pl-10 space-y-1 sm:space-y-2">
-                      <button 
-                        onClick={() => {
-                          setShowInsightsModal(true);
-                          setIsMobileSidebarOpen(false);
-                        }}
-                        className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
-                      >
-                        Insights Generators (domain-specific)
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setShowAIOTModal(true);
-                          setIsMobileSidebarOpen(false);
-                        }}
-                        className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
-                      >
-                        AIOT Platform & Solutions
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setShowOperationsModal(true);
-                          setIsMobileSidebarOpen(false);
-                        }}
-                        className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
-                      >
-                        Operations Virtualization & Optimization
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      setShowApproachModal(true);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <span className="text-base sm:text-lg">⚡</span>
-                    <span className="text-sm sm:text-base">Our Approach To Accelerate Value Creation</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      setShowValueServicesModal(true);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <span className="text-base sm:text-lg">🎯</span>
-                    <span className="text-sm sm:text-base">Our Value Identification To Realization Services</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      setShowWhyUsModal(true);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <span className="text-base sm:text-lg">🌟</span>
-                    <span className="text-sm sm:text-base">Why Us - GetDeep.AI</span>
-                  </button>
-                </div>
-
-                {/* Chat History Section */}
-                <div className="space-y-2 border-t pt-4">
-                  <button 
-                    onClick={() => setShowChatHistoryDropdown(!showChatHistoryDropdown)}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <span className="text-base sm:text-lg">💬</span>
-                    <span className="text-sm sm:text-base">Chat History</span>
-                    <svg 
-                      className={`w-4 h-4 ml-auto transition-transform ${showChatHistoryDropdown ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  
-                  {showChatHistoryDropdown && (
-                    <div className="pl-8 sm:pl-10 space-y-1 max-h-40 sm:max-h-48 overflow-y-auto">
-                      {isLoadingChatHistory ? (
-                        <div className="text-sm text-gray-500 p-2">Loading...</div>
-                      ) : chatHistory.length > 0 ? (
-                        chatHistory.map((session) => (
-                          <button
-                            key={session.session_id}
-                            onClick={() => {
-                              loadChatBatch(session.session_id);
-                              setIsMobileSidebarOpen(false);
-                            }}
-                            className="block w-full text-left text-xs sm:text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors p-1.5 sm:p-2 rounded truncate"
-                          >
-                            {session.session_id}
-                          </button>
-                        ))
+                  {showCompanyDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                      {companiesLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
+                      ) : availableCompanies.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
                       ) : (
-                        <div className="text-sm text-gray-500 p-2">No chat history</div>
+                        availableCompanies
+                          .filter(company =>
+                            company.ticker.toLowerCase().includes(searchValue.toLowerCase()) ||
+                            company.name.toLowerCase().includes(searchValue.toLowerCase())
+                          )
+                          .map(company => (
+                            <div
+                              key={company.ticker}
+                              onClick={() => {
+                                setSearchValue(company.ticker);
+                                setShowCompanyDropdown(false);
+                              }}
+                              className="px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
+                            >
+                              {company.name} ({company.ticker})
+                            </div>
+                          ))
                       )}
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Report Sessions Section */}
-                <div className="space-y-2 border-t pt-4">
-                  <button 
-                    onClick={() => setShowReportHistoryDropdown(!showReportHistoryDropdown)}
-                    className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+              {/* GetDeeper icon container with user profile - hidden on mobile */}
+              <div className="hidden lg:flex flex-1 justify-end items-center gap-3 lg:gap-4 xl:gap-6">
+                <div className="absolute top-1 lg:top-2 left-1/3 transform -translate-x-1/2 lg:mr-[20%] xl:mr-[25%] 2xl:mr-[30%]">
+                  <button
+                    onClick={() => setShowPricingModal(true)}
+                    className="hover:opacity-80 transition-opacity cursor-pointer"
+                    title="Upgrade to Pro"
                   >
-                    <span className="text-base sm:text-lg">📊</span>
-                    <span className="text-sm sm:text-base">Report Sessions</span>
-                    <svg 
-                      className={`w-4 h-4 ml-auto transition-transform ${showReportHistoryDropdown ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
                   </button>
-                  
-                  {showReportHistoryDropdown && (
-                    <div className="pl-8 sm:pl-10 space-y-1 max-h-40 sm:max-h-48 overflow-y-auto">
-                      {isLoadingReportHistory ? (
-                        <div className="text-sm text-gray-500 p-2">Loading...</div>
-                      ) : reportChatHistory.length > 0 ? (
-                        reportChatHistory.map((session) => (
-                          <div
-                            key={session.session_id}
-                            className={`group flex items-center justify-between p-1.5 sm:p-2 rounded transition-colors ${
-                              currentReportSessionId === session.session_id 
-                                ? 'bg-blue-50 text-blue-700' 
-                                : 'hover:bg-gray-50 text-gray-700'
-                            }`}
-                          >
+                </div>
+
+                {/* Master Toggle - Sandbox Mode */}
+                <button
+                  onClick={toggleSandboxMode}
+                  className="hidden lg:flex absolute right-[26rem] lg:right-[28rem] xl:right-[30rem] top-1/2 -translate-y-1/2 items-center justify-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
+                  title={isSandboxMode ? "Switch to Default Mode" : "Switch to Sandbox Mode"}
+                >
+                  {isSandboxMode ? (
+                    <span className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                      Sandbox Mode
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                      Default Mode
+                    </span>
+                  )}
+                </button>
+
+                {/* Dark Mode Toggle - hidden on mobile, positioned between GetDeeper icon and username */}
+                <button
+                  onClick={toggleTheme}
+                  className="hidden lg:flex absolute right-[16rem] lg:right-[18rem] xl:right-[20rem] top-1/2 -translate-y-1/2 items-center justify-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
+                >
+                  {theme === 'light' ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                      </svg>
+                      Dark Mode
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                      </svg>
+                      Light Mode
+                    </>
+                  )}
+                </button>
+
+                {/* User Profile - hidden on mobile */}
+                <div className="absolute right-3 lg:right-4 xl:right-6" ref={profileDropdownRef}>
+                  <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
+                    <div className="text-right relative">
+                      <button
+                        className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4] focus:outline-none"
+                        onClick={() => setProfileDropdownOpen((open) => !open)}
+                      >
+                        {userName}
+                      </button>
+                      {profileDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg z-50">
+                          {/* User Profile Section */}
+                          <div className="px-4 py-3 border-b border-gray-100 dark:border-[#161C1A]">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                                {userInitials}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 dark:text-[#E0E6E4] truncate">
+                                  {userName}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-[#889691] truncate">
+                                  {(() => {
+                                    const userInfo = localStorage.getItem('user_info');
+                                    if (userInfo) {
+                                      try {
+                                        const user = JSON.parse(userInfo);
+                                        return user.email || 'No email';
+                                      } catch (error) {
+                                        return 'No email';
+                                      }
+                                    }
+                                    return 'No email';
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="py-1">
                             <button
                               onClick={() => {
-                                loadReportSession(session.session_id);
-                                setIsMobileSidebarOpen(false);
+                                navigate('/profile');
+                                setProfileDropdownOpen(false);
                               }}
-                              className="flex-1 min-w-0 text-left text-xs sm:text-sm truncate"
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
                             >
-                              <div className="truncate">{session.session_id}</div>
-                              <div className="text-xs text-gray-500">{session.message_count} messages</div>
+                              View Profile
                             </button>
                             <button
-                              onClick={(e) => deleteReportSession(session.session_id, e)}
-                              className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Delete Session"
+                              onClick={logout}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
+                              Sign out
                             </button>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-sm text-gray-500 p-2">No report sessions</div>
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-
-                {/* Upgrade Section */}
-                <div className="border-t pt-4">
-                  <button 
-                    onClick={() => {
-                      setShowPricingModal(true);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm sm:text-base"
-                  >
-                    ⚡ Go Pro
-                  </button>
-                </div>
-
-                {/* User Profile Section */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                    <div className="w-10 h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white">
-                      {(() => {
-                        const userInfo = localStorage.getItem('user_info');
-                        if (userInfo) {
-                          try {
-                            const user = JSON.parse(userInfo);
-                            const firstName = user.first_name || '';
-                            const lastName = user.last_name || '';
-                            return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || 'U';
-                          } catch (error) {
-                            return 'U';
-                          }
-                        }
-                        return 'U';
-                      })()}
+                    <div className="w-8 lg:w-9 xl:w-10 2xl:w-12 h-8 lg:h-9 xl:h-10 2xl:h-12 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm lg:text-base xl:text-lg">
+                      {userInitials}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {(() => {
-                          const userInfo = localStorage.getItem('user_info');
-                          if (userInfo) {
-                            try {
-                              const user = JSON.parse(userInfo);
-                              return `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
-                            } catch (error) {
-                              return 'User';
-                            }
-                          }
-                          return 'User';
-                        })()}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {(() => {
-                          const userInfo = localStorage.getItem('user_info');
-                          if (userInfo) {
-                            try {
-                              const user = JSON.parse(userInfo);
-                              return user.email || 'No email';
-                            } catch (error) {
-                              return 'No email';
-                            }
-                          }
-                          return 'No email';
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 space-y-1">
-                    <button
-                      onClick={() => {
-                        navigate('/profile');
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
-                    >
-                      View Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        logout();
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
-                    >
-                      Sign out
-                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Mobile Sidebar Overlay */}
+          {isMobileSidebarOpen && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50"
+                onClick={() => setIsMobileSidebarOpen(false)}
+              />
+
+              {/* Sidebar */}
+              <div className="fixed left-0 top-0 h-full w-64 xm:w-72 xs:w-80 sm:w-96 md:w-80 bg-white dark:bg-[#161C1A] shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b dark:border-[#161C1A]">
+                  <img src={theme === 'dark' ? "/vshape.svg" : "/logo.svg"} alt="GetDeep.AI" className="h-12 w-fit opacity-100" />
+                  <div className="flex items-center gap-2">
+                    {/* Sandbox Toggle Mobile */}
+                    <button
+                      onClick={toggleSandboxMode}
+                      className={`p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors ${isSandboxMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                      title={isSandboxMode ? "Switch to Default Mode" : "Switch to Sandbox Mode"}
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                    </button>
+
+                    {/* Dark Mode Toggle */}
+                    <button
+                      onClick={toggleTheme}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors text-sm font-medium text-gray-700 dark:text-[#E0E6E4]"
+                    >
+                      {theme === 'light' ? (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                          </svg>
+                          Dark Mode
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                          </svg>
+                          Light Mode
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1C2220] transition-colors"
+                      aria-label="Close menu"
+                    >
+                      <svg className="w-6 h-6 dark:text-[#E0E6E4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Navigation Items */}
+                <div className="px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setShowValuationModal(true);
+                        setIsChatbotMinimized(true); // full-width like Performance double-click
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
+                    >
+                      <span className="text-base sm:text-lg">📊</span>
+                      <span className="text-sm sm:text-base">Company Valuation</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setShowContactModal(true);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
+                    >
+                      <span className="text-base sm:text-lg">📞</span>
+                      <span className="text-sm sm:text-base">Contact Us</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setShowCapabilitiesDropdown(!showCapabilitiesDropdown)}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-[#1C2220] rounded-lg transition-colors dark:text-[#E0E6E4]"
+                    >
+                      <span className="text-base sm:text-lg">💡</span>
+                      <span className="text-sm sm:text-base">Our Capabilities, Solutions, & Accelerators</span>
+                      <svg
+                        className={`w-4 h-4 ml-auto transition-transform ${showCapabilitiesDropdown ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showCapabilitiesDropdown && (
+                      <div className="pl-8 sm:pl-10 space-y-1 sm:space-y-2">
+                        <button
+                          onClick={() => {
+                            setShowInsightsModal(true);
+                            setIsMobileSidebarOpen(false);
+                          }}
+                          className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
+                        >
+                          Insights Generators (domain-specific)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAIOTModal(true);
+                            setIsMobileSidebarOpen(false);
+                          }}
+                          className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
+                        >
+                          AIOT Platform & Solutions
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowOperationsModal(true);
+                            setIsMobileSidebarOpen(false);
+                          }}
+                          className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors p-1.5 sm:p-2 rounded text-xs sm:text-sm"
+                        >
+                          Operations Virtualization & Optimization
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setShowApproachModal(true);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="text-base sm:text-lg">⚡</span>
+                      <span className="text-sm sm:text-base">Our Approach To Accelerate Value Creation</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setShowValueServicesModal(true);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="text-base sm:text-lg">🎯</span>
+                      <span className="text-sm sm:text-base">Our Value Identification To Realization Services</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setShowWhyUsModal(true);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="text-base sm:text-lg">🌟</span>
+                      <span className="text-sm sm:text-base">Why Us - GetDeep.AI</span>
+                    </button>
+                  </div>
+
+                  {/* Chat History Section */}
+                  <div className="space-y-2 border-t pt-4">
+                    <button
+                      onClick={() => setShowChatHistoryDropdown(!showChatHistoryDropdown)}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="text-base sm:text-lg">💬</span>
+                      <span className="text-sm sm:text-base">Chat History</span>
+                      <svg
+                        className={`w-4 h-4 ml-auto transition-transform ${showChatHistoryDropdown ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {showChatHistoryDropdown && (
+                      <div className="pl-8 sm:pl-10 space-y-1 max-h-40 sm:max-h-48 overflow-y-auto">
+                        {isLoadingChatHistory ? (
+                          <div className="text-sm text-gray-500 p-2">Loading...</div>
+                        ) : chatHistory.length > 0 ? (
+                          chatHistory.map((session) => (
+                            <button
+                              key={session.session_id}
+                              onClick={() => {
+                                loadChatBatch(session.session_id);
+                                setIsMobileSidebarOpen(false);
+                              }}
+                              className="block w-full text-left text-xs sm:text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors p-1.5 sm:p-2 rounded truncate"
+                            >
+                              {session.session_id}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 p-2">No chat history</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Report Sessions Section */}
+                  <div className="space-y-2 border-t pt-4">
+                    <button
+                      onClick={() => setShowReportHistoryDropdown(!showReportHistoryDropdown)}
+                      className="flex items-center gap-2 sm:gap-3 w-full text-left p-2 sm:p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="text-base sm:text-lg">📊</span>
+                      <span className="text-sm sm:text-base">Report Sessions</span>
+                      <svg
+                        className={`w-4 h-4 ml-auto transition-transform ${showReportHistoryDropdown ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {showReportHistoryDropdown && (
+                      <div className="pl-8 sm:pl-10 space-y-1 max-h-40 sm:max-h-48 overflow-y-auto">
+                        {isLoadingReportHistory ? (
+                          <div className="text-sm text-gray-500 p-2">Loading...</div>
+                        ) : reportChatHistory.length > 0 ? (
+                          reportChatHistory.map((session) => (
+                            <div
+                              key={session.session_id}
+                              className={`group flex items-center justify-between p-1.5 sm:p-2 rounded transition-colors ${currentReportSessionId === session.session_id
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'hover:bg-gray-50 text-gray-700'
+                                }`}
+                            >
+                              <button
+                                onClick={() => {
+                                  loadReportSession(session.session_id);
+                                  setIsMobileSidebarOpen(false);
+                                }}
+                                className="flex-1 min-w-0 text-left text-xs sm:text-sm truncate"
+                              >
+                                <div className="truncate">{session.session_id}</div>
+                                <div className="text-xs text-gray-500">{session.message_count} messages</div>
+                              </button>
+                              <button
+                                onClick={(e) => deleteReportSession(session.session_id, e)}
+                                className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Delete Session"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 p-2">No report sessions</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Upgrade Section */}
+                  <div className="border-t pt-4">
+                    <button
+                      onClick={() => {
+                        setShowPricingModal(true);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm sm:text-base"
+                    >
+                      ⚡ Go Pro
+                    </button>
+                  </div>
+
+                  {/* User Profile Section */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                      <div className="w-10 h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white">
+                        {(() => {
+                          const userInfo = localStorage.getItem('user_info');
+                          if (userInfo) {
+                            try {
+                              const user = JSON.parse(userInfo);
+                              const firstName = user.first_name || '';
+                              const lastName = user.last_name || '';
+                              return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || 'U';
+                            } catch (error) {
+                              return 'U';
+                            }
+                          }
+                          return 'U';
+                        })()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {(() => {
+                            const userInfo = localStorage.getItem('user_info');
+                            if (userInfo) {
+                              try {
+                                const user = JSON.parse(userInfo);
+                                return `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
+                              } catch (error) {
+                                return 'User';
+                              }
+                            }
+                            return 'User';
+                          })()}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {(() => {
+                            const userInfo = localStorage.getItem('user_info');
+                            if (userInfo) {
+                              try {
+                                const user = JSON.parse(userInfo);
+                                return user.email || 'No email';
+                              } catch (error) {
+                                return 'No email';
+                              }
+                            }
+                            return 'No email';
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-1">
+                      <button
+                        onClick={() => {
+                          navigate('/profile');
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
+                      >
+                        View Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         {/* Main Grid */}
         <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:px-0 lg:pt-6 lg:pb-0 xl:px-0 xl:pt-8 xl:pb-0 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
@@ -3416,585 +3425,516 @@ const Dashboard: React.FC = () => {
                   )}
                 </div>
 
-        {/* Compare with company - ONLY show when Performance tab + Across Peers. Single-select; value in input. */}
-        {activePerformanceTab === 'performance' && activeChart === 'peers' && (
-          <div className="-mt-1 mb-3 xm:-mt-1.5 xm:mb-4 xs:-mt-2 xs:mb-4 sm:-mt-2 sm:mb-4 md:-mt-2.5 md:mb-5">
-            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1.5">Compare with</label>
-            <div className="relative max-w-md" ref={peerCompareDropdownRef}>
-              <input
-                type="text"
-                value={
-                  selectedCompanies.length > 0
-                    ? `${selectedCompanies[0].name} (${selectedCompanies[0].ticker})`
-                    : peerCompareInput
-                }
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setPeerCompareInput(v);
-                  if (selectedCompanies.length > 0) setSelectedCompanies([]);
-                  setShowPeerCompareDropdown(true);
-                }}
-                onFocus={() => setShowPeerCompareDropdown(true)}
-                placeholder="Search company to compare..."
-                className="w-full font-medium text-sm px-3 py-2 pr-16 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
-              />
-              {selectedCompanies.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCompanies([]);
-                    setPeerCompareInput('');
-                  }}
-                  className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-[#E0E6E4] p-0.5"
-                  aria-label="Clear selection"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              {showPeerCompareDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                  {companiesLoading ? (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
-                  ) : availableCompanies.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
-                  ) : (
-                    availableCompanies
-                      .filter(
-                        (c) =>
-                          (c.ticker.toLowerCase().includes(peerCompareInput.toLowerCase()) ||
-                            c.name.toLowerCase().includes(peerCompareInput.toLowerCase())) &&
-                          c.ticker !== searchValue
-                      )
-                      .map((company) => (
-                        <div
-                          key={company.ticker}
-                          onClick={() => {
-                            setSelectedCompanies([{ ticker: company.ticker, name: company.name }]);
-                            setPeerCompareInput('');
-                            setShowPeerCompareDropdown(false);
-                          }}
-                          className="px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
-                        >
-                          {company.name} ({company.ticker})
-                        </div>
-                      ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Metrics Selector - ONLY show when Performance tab is active */}
-        {activePerformanceTab === 'performance' && (
-          <>
-            {/* Metrics Selector */}
-            <div className="-mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
-              {/* ... existing metrics selector code ... */}
-              <div className="space-y-1 xm:space-y-1.5 xs:space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 xl:space-y-3 px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
-                 {/* Across tabs - NO scrolling, stays fixed */}
-                 <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
-                  <button 
-                    onClick={() => setActiveChart('valuation')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${
-                      activeChart === 'valuation' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                    }`}
-                  >
-                    Valuation
-                  </button>
-                  <button 
-                    onClick={() => setActiveChart('metrics')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${
-                      activeChart === 'metrics' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                    }`}
-                  >
-                    Across Metrics
-                  </button>
-                  <button 
-                    onClick={() => setActiveChart('peers')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm transition-colors rounded ${
-                      activeChart === 'peers' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                    }`}
-                  >
-                    Across Peers
-                  </button>
-                  <button 
-                    onClick={() => setActiveChart('industry')}
-                     className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm transition-colors rounded ${
-                      activeChart === 'industry' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                    }`}
-                  >
-                    Across Industry
-                  </button>
-                </div>
-                 
-                 {/* Period buttons - conditionally scrollable */}
-                {activeChart === 'industry' ? (
-                  <div className="overflow-x-auto -mx-1 px-1">
-                    <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3 min-w-max">
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 1Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 1Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 1Y AVG
-                          </button>
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 2Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 2Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 2Y AVG
-                          </button>
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 3Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 3Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 3Y AVG
-                          </button>
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 4Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 4Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 4Y AVG
-                          </button>
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 5Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 5Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 5Y AVG
-                          </button>
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 10Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 10Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 10Y AVG
-                          </button>
-                          <button 
-                      onClick={() => setSelectedPeriod('Last 15Y AVG')}
-                      className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${
-                        selectedPeriod === 'Last 15Y AVG' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Last 15Y AVG
-                          </button>
-                    </div>
-                  </div>
-                ) : activeChart === 'valuation' ? null : (
-                  <div className="flex gap-1 xm:gap-1 xs:gap-1 sm:gap-1.5 md:gap-1.5 lg:gap-2 xl:gap-2">
-                          <button 
-                      onClick={() => setSelectedPeriod('Annual')}
-                       className={`flex-1 px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3.5 xl:py-1 rounded text-xs xm:text-xs xs:text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm transition-colors ${
-                        selectedPeriod === 'Annual' 
-                                ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                                : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                            }`}
-                          >
-                      Annual
-                    </button>
-                    <button 
-                      onClick={() => setSelectedPeriod('Average')}
-                       className={`flex-1 px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3.5 xl:py-1 rounded text-xs xm:text-xs xs:text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm transition-colors ${
-                        selectedPeriod === 'Average' 
-                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                      }`}
-                    >
-                      Average
-                    </button>
-                    <button 
-                      onClick={() => setSelectedPeriod('CAGR')}
-                       className={`flex-1 px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3.5 xl:py-1 rounded text-xs xm:text-xs xs:text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm transition-colors ${
-                        selectedPeriod === 'CAGR' 
-                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' 
-                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                      }`}
-                    >
-                      CAGR
-                          </button>
-                        </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-                {/* Chart Content */}
-                <div className="mt-4 xl:mt-6">
-                  <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-1 gap-2 sm:gap-3 xl:gap-4 mb-3 sm:mb-4">
-            {/* Industry selection - restored */}
-            {activeChart === 'industry' && (
-              <div>
-                <div className="text-sm xl:text-base text-gray-500 dark:text-[#889691]">Industry</div>
-                <div className="relative" ref={industryDropdownRef}>
-                  <input
-                    type="text"
-                    placeholder="Select Industry..."
-                    value={selectedIndustry || industrySearch}
-                    onChange={(e) => {
-                      setIndustrySearch(e.target.value);
-                      if (e.target.value === '') {
-                        setSelectedIndustry('');
-                      }
-                      setShowIndustryDropdown(true);
-                    }}
-                    onFocus={() => {
-                        setShowIndustryDropdown(true);
-                    }}
-                    className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#1C2220] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
-                  />
-                  {(selectedIndustry || industrySearch) && (
-                    <button
-                      onClick={() => {
-                        setSelectedIndustry('');
-                        setIndustrySearch('');
-                        setShowIndustryDropdown(false);
-                      }}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  
-                  {showIndustryDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                      {availableIndustries.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No industries available</div>
-                      ) : (
-                        availableIndustries
-                          .filter(ind => 
-                            !industrySearch || 
-                            (selectedIndustry && ind.label === selectedIndustry) || 
-                            ind.label.toLowerCase().includes(industrySearch.toLowerCase())
-                          )
-                          .map(ind => (
-                            <div
-                              key={ind.value}
-                              onClick={() => {
-                                console.log('Selected industry:', ind.value, ind.label);
-                                setSelectedIndustry(ind.label); // Use label (e.g. "Discount Stores") not value if they differ
-                                setIndustrySearch(ind.label);
-                                setShowIndustryDropdown(false);
-                              }}
-                              className="px-3 py-1 text-sm xl:text-base text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer"
-                            >
-                              {ind.label}
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-
-            {/* Metric Search */}
-            {activePerformanceTab === 'performance' && activeChart !== 'valuation' && (
-            <div>
-              <div className="text-sm xl:text-base text-gray-500">Metric</div>
-              {activeChart === 'peers' ? (
-                <div className="relative" ref={peerDropdownRef}>
-                  {/* Unified input with inline chips */}
-                  <div className="relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] bg-white dark:bg-[#1C2220]">
-                    {/* Selected metrics as chips */}
-                    {selectedPeerMetrics.map((metric, index) => {
-                      const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
-                      return (
-                        <div 
-                          key={index} 
-                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
-                        >
-                          {metricLabel}
-                    <button
-                      onClick={() => {
-                              setSelectedPeerMetrics(metrics => metrics.filter((_, i) => i !== index));
-                        setSelectedPeerMetric('');
-                      }}
-                            className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
-                          >
-                            <svg
-                              className="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                      </svg>
-                    </button>
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Search input */}
-                    <input
-                      type="text"
-                      placeholder={selectedPeerMetrics.length === 0 ? "Search metrics..." : ""}
-                      value={peerMetricSearch}
-                      onChange={(e) => setPeerMetricSearch(e.target.value)}
-                      onFocus={() => setShowPeerMetricDropdown(true)}
-                      className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-white dark:placeholder-gray-400"
-                    />
-                    
-                    {/* Dropdown chevron */}
-                    <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                    </div>
-                  </div>
-                  
-                  {/* Dropdown menu */}
-                  {showPeerMetricDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                      {availableMetrics
-                        .filter(metric => 
-                          !selectedPeerMetrics.includes(metric.value) &&
-                          (metric.label.toLowerCase().includes(peerMetricSearch.toLowerCase()) ||
-                          metric.value.toLowerCase().includes(peerMetricSearch.toLowerCase()))
-                        )
-                        .map(metric => (
-                          <div
-                            key={metric.value}
-                            onClick={() => {
-                              if (!selectedPeerMetrics.includes(metric.value)) {
-                                setSelectedPeerMetrics([...selectedPeerMetrics, metric.value]);
-                              setSelectedPeerMetric(metric.value);
-                              }
-                              setPeerMetricSearch('');
-                              setShowPeerMetricDropdown(false);
-                            }}
-                            className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
-                          >
-                        {metric.label}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              ) : activeChart === 'metrics' ? (
-                <div className="relative" ref={dropdownRef}>
-                  {/* Unified input with inline chips */}
-                  <div className="relative border border-gray-200 dark:border-[#161C1A] rounded p-1.5 min-h-[32px] flex flex-wrap gap-1.5 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] bg-white dark:bg-[#1C2220]">
-                    {/* Selected metrics as chips */}
-                    {selectedSearchMetrics.map((metric, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-xs"
-                      >
-                        {metric}
-                        <button
-                          onClick={() => setSelectedSearchMetrics(metrics => 
-                            metrics.filter((_, i) => i !== index)
-                          )}
-                          className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
-                        >
-                          <svg
-                            className="w-2.5 h-2.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Search input */}
-                    <input
-                      type="text"
-                      placeholder={selectedSearchMetrics.length === 0 ? "Search metrics..." : ""}
-                      value={searchMetricInput}
-                      onChange={(e) => setSearchMetricInput(e.target.value)}
-                      onFocus={() => setShowMetricDropdown(true)}
-                      className="flex-1 min-w-[120px] outline-none font-medium text-xs xl:text-sm bg-transparent dark:text-white dark:placeholder-gray-400"
-                    />
-                    
-                    {/* Dropdown chevron */}
-                    <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                    </div>
-
-                  {/* Dropdown menu */}
-                    {showMetricDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                        {availableMetrics
-                          .filter(metric => 
-                            !selectedSearchMetrics.includes(metric.value) &&
-                            (metric.label.toLowerCase().includes(searchMetricInput.toLowerCase()) ||
-                            metric.value.toLowerCase().includes(searchMetricInput.toLowerCase()))
-                          )
-                          .map(metric => (
-                            <div
-                              key={metric.value}
-                              onClick={() => {
-                                if (!selectedSearchMetrics.includes(metric.value)) {
-                                  setSelectedSearchMetrics([...selectedSearchMetrics, metric.value]);
+                        {/* Compare with company - ONLY show when Performance tab + Across Peers. Single-select; value in input. */}
+                        {activePerformanceTab === 'performance' && activeChart === 'peers' && (
+                          <div className="-mt-1 mb-3 xm:-mt-1.5 xm:mb-4 xs:-mt-2 xs:mb-4 sm:-mt-2 sm:mb-4 md:-mt-2.5 md:mb-5">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1.5">Compare with</label>
+                            <div className="relative max-w-md" ref={peerCompareDropdownRef}>
+                              <input
+                                type="text"
+                                value={
+                                  selectedCompanies.length > 0
+                                    ? `${selectedCompanies[0].name} (${selectedCompanies[0].ticker})`
+                                    : peerCompareInput
                                 }
-                                setSearchMetricInput('');
-                                setShowMetricDropdown(false);
-                              }}
-                            className="px-2.5 py-1 text-xs xl:text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
-                            >
-                            {metric.label}
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                </div>
-              ) : (
-                <div className="relative" ref={dropdownRef}>
-                  {/* Unified input with inline chips */}
-                  <div className={`relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 dark:bg-[#161C1A]' : 'bg-white dark:bg-[#1C2220]'}`}>
-                  {/* Selected metrics as chips */}
-                    {selectedIndustryMetrics.map((metric, index) => {
-                      const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
-                      return (
-                        <div 
-                          key={index} 
-                          className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm"
-                        >
-                          {metricLabel}
-                          <button
-                            onClick={() => setSelectedIndustryMetrics(metrics => 
-                              metrics.filter((_, i) => i !== index)
-                            )}
-                            className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
-                          >
-                            <svg
-                              className="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setPeerCompareInput(v);
+                                  if (selectedCompanies.length > 0) setSelectedCompanies([]);
+                                  setShowPeerCompareDropdown(true);
+                                }}
+                                onFocus={() => setShowPeerCompareDropdown(true)}
+                                placeholder="Search company to compare..."
+                                className="w-full font-medium text-sm px-3 py-2 pr-16 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                               />
-                            </svg>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  
-                    {/* Search input */}
-                    <input
-                      type="text"
-                      placeholder={selectedIndustryMetrics.length === 0 ? "Search metrics..." : ""}
-                      value={industryMetricInput}
-                      onChange={(e) => setIndustryMetricInput(e.target.value)}
-                      onFocus={() => setShowMetricDropdown(true)}
-                      className={`flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-[#E0E6E4] dark:placeholder-[#889691] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 dark:bg-[#161C1A] cursor-not-allowed' : ''}`}
-                      disabled={selectedIndustryMetrics.length >= 3}
-                    />
-                    
-                    {/* Dropdown chevron */}
-                    <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                    </div>
-                    
-                  {/* Dropdown menu */}
-                    {showMetricDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                        {availableMetrics
-                          .filter(metric => 
-                            !selectedIndustryMetrics.includes(metric.value) &&
-                            (metric.label.toLowerCase().includes(industryMetricInput.toLowerCase()) ||
-                            metric.value.toLowerCase().includes(industryMetricInput.toLowerCase()))
-                          )
-                          .map(metric => (
-                            <div
-                              key={metric.value}
-                              onClick={() => {
-                              if (selectedIndustryMetrics.length < 3 && !selectedIndustryMetrics.includes(metric.value)) {
-                                setSelectedIndustryMetrics([...selectedIndustryMetrics, metric.value]);
-                              }
-                                setIndustryMetricInput('');
-                                setShowMetricDropdown(false);
-                              }}
-                            className={`px-3 py-1 text-sm xl:text-base cursor-pointer ${
-                                selectedIndustryMetrics.length >= 3 
-                                  ? 'bg-gray-50 dark:bg-[#161C1A] text-gray-400 cursor-not-allowed' 
-                                  : 'hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4]'
-                              }`}
-                            >
-                              {metric.label}
+                              {selectedCompanies.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCompanies([]);
+                                    setPeerCompareInput('');
+                                  }}
+                                  className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-[#E0E6E4] p-0.5"
+                                  aria-label="Clear selection"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              )}
+                              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                              {showPeerCompareDropdown && (
+                                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                                  {companiesLoading ? (
+                                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">Loading companies...</div>
+                                  ) : availableCompanies.length === 0 ? (
+                                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies available</div>
+                                  ) : (
+                                    availableCompanies
+                                      .filter(
+                                        (c) =>
+                                          (c.ticker.toLowerCase().includes(peerCompareInput.toLowerCase()) ||
+                                            c.name.toLowerCase().includes(peerCompareInput.toLowerCase())) &&
+                                          c.ticker !== searchValue
+                                      )
+                                      .map((company) => (
+                                        <div
+                                          key={company.ticker}
+                                          onClick={() => {
+                                            setSelectedCompanies([{ ticker: company.ticker, name: company.name }]);
+                                            setPeerCompareInput('');
+                                            setShowPeerCompareDropdown(false);
+                                          }}
+                                          className="px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
+                                        >
+                                          {company.name} ({company.ticker})
+                                        </div>
+                                      ))
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          ))}
-                      </div>
-                    )}
-                </div>
-              )}
-            </div>
-            )}
-          </div>
+                          </div>
+                        )}
+
+                        {/* Metrics Selector - ONLY show when Performance tab is active */}
+                        {activePerformanceTab === 'performance' && (
+                          <>
+                            {/* Metrics Selector */}
+                            <div className="-mx-1 xm:-mx-1.5 xs:-mx-2 sm:-mx-4 md:mx-0">
+                              {/* ... existing metrics selector code ... */}
+                              <div className="space-y-1 xm:space-y-1.5 xs:space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 xl:space-y-3 px-1 xm:px-1.5 xs:px-2 sm:px-4 md:px-0">
+                                {/* Across tabs - NO scrolling, stays fixed */}
+                                <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
+                                  <button
+                                  // onClick={() => setActiveChart('')}
+                                  // className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === '' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                  //   }`}
+                                  >
+                                    Intrinsics
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveChart('valuation')}
+                                    className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === 'valuation' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                      }`}
+                                  >
+                                    Multiples
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveChart('metrics')}
+                                    className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === 'metrics' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                      }`}
+                                  >
+                                    Metrics
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveChart('peers')}
+                                    className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm transition-colors rounded ${activeChart === 'peers' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                      }`}
+                                  >
+                                    Peers
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveChart('industry')}
+                                    className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm transition-colors rounded ${activeChart === 'industry' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                      }`}
+                                  >
+                                    Industry
+                                  </button>
+                                </div>
+
+                                {/* Period buttons - conditionally scrollable */}
+                                {activeChart === 'industry' ? (
+                                  <div className="overflow-x-auto -mx-1 px-1">
+                                    <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3 min-w-max">
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 1Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 1Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 1Y
+                                      </button>
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 2Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 2Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 2Y
+                                      </button>
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 3Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 3Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 3Y
+                                      </button>
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 4Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 4Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 4Y
+                                      </button>
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 5Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 5Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 5Y
+                                      </button>
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 10Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 10Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 10Y
+                                      </button>
+                                      <button
+                                        onClick={() => setSelectedPeriod('Last 15Y AVG')}
+                                        className={`flex-1 px-2 py-2 rounded text-xs transition-colors ${selectedPeriod === 'Last 15Y AVG'
+                                          ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                          : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                          }`}
+                                      >
+                                        Last 15Y
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : activeChart === 'valuation' ? null : (
+                                  <div className="flex gap-1 xm:gap-1 xs:gap-1 sm:gap-1.5 md:gap-1.5 lg:gap-2 xl:gap-2">
+                                    <button
+                                      onClick={() => setSelectedPeriod('Annual')}
+                                      className={`flex-1 px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3.5 xl:py-1 rounded text-xs xm:text-xs xs:text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm transition-colors ${selectedPeriod === 'Annual'
+                                        ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                        : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                        }`}
+                                    >
+                                      Annual
+                                    </button>
+                                    <button
+                                      onClick={() => setSelectedPeriod('Average')}
+                                      className={`flex-1 px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3.5 xl:py-1 rounded text-xs xm:text-xs xs:text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm transition-colors ${selectedPeriod === 'Average'
+                                        ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                        : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                        }`}
+                                    >
+                                      Average
+                                    </button>
+                                    <button
+                                      onClick={() => setSelectedPeriod('CAGR')}
+                                      className={`flex-1 px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3.5 xl:py-1 rounded text-xs xm:text-xs xs:text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm transition-colors ${selectedPeriod === 'CAGR'
+                                        ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]'
+                                        : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
+                                        }`}
+                                    >
+                                      CAGR
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Chart Content */}
+                        <div className="mt-4 xl:mt-6">
+                          {activePerformanceTab === 'performance' && activeChart !== 'valuation' && (
+                            <div className={activeChart === 'industry' ? "flex flex-col lg:flex-row gap-4 mb-4" : "grid grid-cols-1 gap-2 mb-4"}>
+                              {activeChart === 'industry' && (
+                                <div className="flex-1">
+                                  <div className="text-sm xl:text-base text-gray-500 dark:text-[#889691] mb-1">Industry</div>
+                                  <div className="relative" ref={industryDropdownRef}>
+                                    <input
+                                      type="text"
+                                      placeholder="Select Industry..."
+                                      value={selectedIndustry || industrySearch}
+                                      onChange={(e) => {
+                                        setIndustrySearch(e.target.value);
+                                        if (e.target.value === '') {
+                                          setSelectedIndustry('');
+                                        }
+                                        setShowIndustryDropdown(true);
+                                      }}
+                                      onFocus={() => {
+                                        setShowIndustryDropdown(true);
+                                      }}
+                                      className="w-full font-medium text-sm xl:text-base px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#1C2220] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D]"
+                                    />
+                                    {(selectedIndustry || industrySearch) && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedIndustry('');
+                                          setIndustrySearch('');
+                                          setShowIndustryDropdown(false);
+                                        }}
+                                        className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                      <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                      </svg>
+                                    </div>
+
+                                    {showIndustryDropdown && (
+                                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                                        {availableIndustries.length === 0 ? (
+                                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No industries available</div>
+                                        ) : (
+                                          availableIndustries
+                                            .filter(ind =>
+                                              !industrySearch ||
+                                              (selectedIndustry && ind.label === selectedIndustry) ||
+                                              ind.label.toLowerCase().includes(industrySearch.toLowerCase())
+                                            )
+                                            .map(ind => (
+                                              <div
+                                                key={ind.value}
+                                                onClick={() => {
+                                                  setSelectedIndustry(ind.label);
+                                                  setIndustrySearch(ind.label);
+                                                  setShowIndustryDropdown(false);
+                                                }}
+                                                className="px-3 py-1 text-sm xl:text-base text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer"
+                                              >
+                                                {ind.label}
+                                              </div>
+                                            ))
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="text-sm xl:text-base text-gray-500">Metric</div>
+                                  {(activeChart === 'industry' || activeChart === 'peers' || activeChart === 'metrics') && (
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-[10px] uppercase font-bold tracking-wider ${isKPIOnly ? 'text-[#1B5A7D]' : 'text-gray-400'}`}>KPIs</span>
+                                      <button
+                                        onClick={() => setIsKPIOnly(!isKPIOnly)}
+                                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${isKPIOnly ? 'bg-[#1B5A7D]' : 'bg-gray-200'}`}
+                                        aria-label="Toggle KPIs"
+                                      >
+                                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isKPIOnly ? 'translate-x-5' : 'translate-x-1'}`} />
+                                      </button>
+                                      <span className={`text-[10px] uppercase font-bold tracking-wider ${!isKPIOnly ? 'text-[#1B5A7D]' : 'text-gray-400'}`}>All Metrics</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {activeChart === 'peers' ? (
+                                  <div className="relative" ref={peerDropdownRef}>
+                                    <div className="relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] bg-white dark:bg-[#1C2220]">
+                                      {selectedPeerMetrics.map((metric, index) => {
+                                        const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
+                                        return (
+                                          <div key={index} className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm">
+                                            {metricLabel}
+                                            <button
+                                              onClick={() => {
+                                                setSelectedPeerMetrics(metrics => metrics.filter((_, i) => i !== index));
+                                                setSelectedPeerMetric('');
+                                              }}
+                                              className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
+                                            >
+                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                      <input
+                                        type="text"
+                                        placeholder={selectedPeerMetrics.length === 0 ? "Search metrics..." : ""}
+                                        value={peerMetricSearch}
+                                        onChange={(e) => setPeerMetricSearch(e.target.value)}
+                                        onFocus={() => setShowPeerMetricDropdown(true)}
+                                        className="flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-white dark:placeholder-gray-400"
+                                      />
+                                      <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </div>
+                                    </div>
+                                    {showPeerMetricDropdown && (
+                                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                                        {availableMetrics
+                                          .filter(metric =>
+                                            !selectedPeerMetrics.includes(metric.value) &&
+                                            (metric.label.toLowerCase().includes(peerMetricSearch.toLowerCase()) ||
+                                              metric.value.toLowerCase().includes(peerMetricSearch.toLowerCase())) &&
+                                            (!isKPIOnly || KPI_METRIC_VALUES.includes(metric.value))
+                                          )
+                                          .map(metric => (
+                                            <div
+                                              key={metric.value}
+                                              onClick={() => {
+                                                if (!selectedPeerMetrics.includes(metric.value)) {
+                                                  setSelectedPeerMetrics([...selectedPeerMetrics, metric.value]);
+                                                  setSelectedPeerMetric(metric.value);
+                                                }
+                                                setPeerMetricSearch('');
+                                                setShowPeerMetricDropdown(false);
+                                              }}
+                                              className="px-3 py-1 text-sm xl:text-base hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
+                                            >
+                                              {metric.label}
+                                            </div>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : activeChart === 'metrics' ? (
+                                  <div className="relative" ref={dropdownRef}>
+                                    <div className="relative border border-gray-200 dark:border-[#161C1A] rounded p-1.5 min-h-[32px] flex flex-wrap gap-1.5 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] bg-white dark:bg-[#1C2220]">
+                                      {selectedSearchMetrics.map((metric, index) => (
+                                        <div key={index} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-xs">
+                                          {metric}
+                                          <button
+                                            onClick={() => setSelectedSearchMetrics(metrics => metrics.filter((_, i) => i !== index))}
+                                            className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
+                                          >
+                                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      ))}
+                                      <input
+                                        type="text"
+                                        placeholder={selectedSearchMetrics.length === 0 ? "Search metrics..." : ""}
+                                        value={searchMetricInput}
+                                        onChange={(e) => setSearchMetricInput(e.target.value)}
+                                        onFocus={() => setShowMetricDropdown(true)}
+                                        className="flex-1 min-w-[120px] outline-none font-medium text-xs xl:text-sm bg-transparent dark:text-white dark:placeholder-gray-400"
+                                      />
+                                      <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none">
+                                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </div>
+                                    </div>
+                                    {showMetricDropdown && (
+                                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                                        {availableMetrics
+                                          .filter(metric =>
+                                            !selectedSearchMetrics.includes(metric.value) &&
+                                            (metric.label.toLowerCase().includes(searchMetricInput.toLowerCase()) ||
+                                              metric.value.toLowerCase().includes(searchMetricInput.toLowerCase())) &&
+                                            (!isKPIOnly || KPI_METRIC_VALUES.includes(metric.value))
+                                          )
+                                          .map(metric => (
+                                            <div
+                                              key={metric.value}
+                                              onClick={() => {
+                                                if (!selectedSearchMetrics.includes(metric.value)) {
+                                                  setSelectedSearchMetrics([...selectedSearchMetrics, metric.value]);
+                                                }
+                                                setSearchMetricInput('');
+                                                setShowMetricDropdown(false);
+                                              }}
+                                              className="px-2.5 py-1 text-xs xl:text-sm hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4] cursor-pointer"
+                                            >
+                                              {metric.label}
+                                            </div>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : activeChart === 'industry' ? (
+                                  <div className="relative" ref={dropdownRef}>
+                                    <div className={`relative border border-gray-200 dark:border-[#161C1A] rounded p-2 min-h-[42px] flex flex-wrap gap-2 focus-within:border-[#1B5A7D] focus-within:ring-1 focus-within:ring-[#1B5A7D] ${selectedIndustryMetrics.length >= 3 ? 'bg-gray-50 dark:bg-[#161C1A]' : 'bg-white dark:bg-[#1C2220]'}`}>
+                                      {selectedIndustryMetrics.map((metric, index) => {
+                                        const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
+                                        return (
+                                          <div key={index} className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-[#161C1A] dark:text-[#E0E6E4] rounded text-sm">
+                                            {metricLabel}
+                                            <button
+                                              onClick={() => setSelectedIndustryMetrics(metrics => metrics.filter((_, i) => i !== index))}
+                                              className="text-gray-400 hover:text-gray-600 dark:text-[#889691] dark:hover:text-[#E0E6E4]"
+                                            >
+                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                      <input
+                                        type="text"
+                                        placeholder={selectedIndustryMetrics.length === 0 ? "Search metrics..." : ""}
+                                        value={industryMetricInput}
+                                        onChange={(e) => setIndustryMetricInput(e.target.value)}
+                                        onFocus={() => setShowMetricDropdown(true)}
+                                        className={`flex-1 min-w-[120px] outline-none font-medium text-sm xl:text-base bg-transparent dark:text-[#E0E6E4] dark:placeholder-[#889691] ${selectedIndustryMetrics.length >= 3 ? 'cursor-not-allowed' : ''}`}
+                                        disabled={selectedIndustryMetrics.length >= 3}
+                                      />
+                                      <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </div>
+                                    </div>
+                                    {showMetricDropdown && (
+                                      <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
+                                        {availableMetrics
+                                          .filter(metric =>
+                                            !selectedIndustryMetrics.includes(metric.value) &&
+                                            (metric.label.toLowerCase().includes(industryMetricInput.toLowerCase()) ||
+                                              metric.value.toLowerCase().includes(industryMetricInput.toLowerCase())) &&
+                                            (!isKPIOnly || KPI_METRIC_VALUES.includes(metric.value))
+                                          )
+                                          .map(metric => (
+                                            <div
+                                              key={metric.value}
+                                              onClick={() => {
+                                                if (selectedIndustryMetrics.length < 3) {
+                                                  setSelectedIndustryMetrics([...selectedIndustryMetrics, metric.value]);
+                                                }
+                                                setIndustryMetricInput('');
+                                                setShowMetricDropdown(false);
+                                              }}
+                                              className={`px-3 py-1 text-sm xl:text-base cursor-pointer ${selectedIndustryMetrics.length >= 3
+                                                ? 'bg-gray-50 dark:bg-[#161C1A] text-gray-400 cursor-not-allowed'
+                                                : 'hover:bg-gray-100 dark:hover:bg-[#1C2220] dark:text-[#E0E6E4]'
+                                                }`}
+                                            >
+                                              {metric.label}
+                                            </div>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
                 <div className={`flex-1 min-h-0 overflow-y-auto bp-scroll ${activePerformanceTab === 'top-picks' ? 'p-0 -mt-2 pt-0' : 'p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4'}`}>
           {activePerformanceTab === 'top-picks' ? (
@@ -4141,461 +4081,463 @@ const Dashboard: React.FC = () => {
                               filterNull={false}  // Changed to false to show null values
                             />
 
-                            {selectedPeriod === 'Annual' ? (
-                              // For Annual: Render historical and future series separately
-                              // Get the actual Performance metric names from the chart data
-                              (() => {
-                                // Extract unique metric names from chart data (remove _historical and _future suffixes)
-                                const metricNames = new Set<string>();
-                                effectiveChartData.forEach((point: any) => {
-                                  Object.keys(point).forEach(key => {
-                                    if (key.endsWith('_historical') || key.endsWith('_future')) {
-                                      const metricName = key.replace(/_historical$|_future$/, '');
-                                      metricNames.add(metricName);
-                                    }
-                                  });
-                                });
-                                
-                                const metricsToRender = Array.from(metricNames).slice(0, selectedSearchMetrics.length || 10);
-                                
-                                return metricsToRender.flatMap((metricName, idx) => {
-                                  const baseColor = generateColorPalette(metricsToRender.length)[idx];
-                                  const metricLabel = availableMetrics.find(m => m.value === metricName)?.label || 
-                                    metricName.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()).trim();
-                                
-                                return [
-                                    // Historical series
-                                  <Line
-                                      key={`${metricName}_historical`}
-                                    type="monotone"
-                                      dataKey={`${metricName}_historical`}
-                                    stroke={baseColor}
-                                    name={`${metricLabel} (Historical)`}
-                                    strokeWidth={2}
-                                    dot={{
-                                      fill: baseColor,
-                                      r: 4
-                                    }}
-                                    connectNulls={false}
-                                  />,
-                                    // Future series
-                                  <Line
-                                      key={`${metricName}_future`}
-                                    type="monotone"
-                                      dataKey={`${metricName}_future`}
-                                    stroke={addOpacityToColor(baseColor, 0.5)}
-                                    strokeDasharray="5 5"
-                                    name={`${metricLabel} (Future)`}
-                                    strokeWidth={2}
-                                    dot={{
-                                      fill: addOpacityToColor(baseColor, 0.5),
-                                      r: 4
-                                    }}
-                                    connectNulls={false}
-                                  />
-                                ];
-                                });
-                              })()
-                            ) : (
-                              // For Average and CAGR: Render single series per metric
-                              selectedSearchMetrics.map((metric, idx) => {
-                              const color = generateColorPalette(selectedSearchMetrics.length)[idx];
-                              const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
-                              return (
-                                <Line
-                                  key={metric}
-                                  type="monotone"
-                                  dataKey={metric}
-                                  stroke={color}
-                                  name={metricLabel}
-                                  strokeWidth={2}
-                                  dot={{
-                                    fill: color,
-                                    r: 4
-                                  }}
-                                    connectNulls={false}
-                                />
-                              );
-                              })
-                            )}
-                          </LineChart>
-                        </ResponsiveContainer>
-                        
-                        {/* Fixed tooltip positioned below legend inside chart */}
-                        {selectedSearchMetrics.length > 0 && fixed2024Data && (
-                          <div
-                            className="fixed-tooltip absolute left-4 right-4 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md p-2 text-xs shadow-sm"
-                            style={{
-                              bottom: `${-80 - Math.floor((selectedSearchMetrics.length - 1) / 3) * 25}px`
-                            }}
-                          >
-                            <div className="font-medium text-gray-700 mb-1 text-xs">
-                              {selectedPeriod === '1Y' ? '2024' : 
-                               selectedPeriod === '2Y' ? '2023-24' :
-                               selectedPeriod === '3Y' ? '2022-24' :
-                               selectedPeriod === '4Y' ? '2021-24' :
-                               selectedPeriod === '5Y' ? '2020-24' :
-                               selectedPeriod === '10Y' ? '2015-24' :
-                               selectedPeriod === '15Y' ? '2010-24' :
-                               selectedPeriod === '20Y' ? '2005-24' :
-                               fixed2024Data.name} Values
-                            </div>
-                            <div className="space-y-1">
-                              {selectedSearchMetrics.map((metric, idx) => {
-                              // For Annual period, metrics are stored with _historical or _future suffix
-                              // For 2024, it should be _historical (since year <= 2024)
-                              // Check both possibilities for robustness
-                              const value = selectedPeriod === 'Annual' 
-                                ? (fixed2024Data[`${metric}_historical`] ?? fixed2024Data[`${metric}_future`] ?? fixed2024Data[metric])
-                                : fixed2024Data[metric];
-                              const hoveredValue = (activeTooltip && activeTooltip[metric] != null)
-                                ? Number(activeTooltip[metric])
-                                : null;
-                              const diff = value != null && hoveredValue != null ? value - hoveredValue : null;
-                              const percent = (hoveredValue != null && hoveredValue !== 0 && diff != null)
-                                ? (diff / hoveredValue) * 100
-                                : null;
-                              const isIncrease = percent != null && percent >= 0;
-                                const color = generateColorPalette(selectedSearchMetrics.length)[idx];
+                                    {selectedPeriod === 'Annual' ? (
+                                      // For Annual: Render historical and future series separately
+                                      // Get the actual Performance metric names from the chart data
+                                      (() => {
+                                        // Extract unique metric names from chart data (remove _historical and _future suffixes)
+                                        const metricNames = new Set<string>();
+                                        effectiveChartData.forEach((point: any) => {
+                                          Object.keys(point).forEach(key => {
+                                            if (key.endsWith('_historical') || key.endsWith('_future')) {
+                                              const metricName = key.replace(/_historical$|_future$/, '');
+                                              metricNames.add(metricName);
+                                            }
+                                          });
+                                        });
 
-                              return (
-                                  <div key={metric} className="flex items-center text-xs">
-                                    <div 
-                                      className="w-2 h-2 rounded-full mr-2"
-                                      style={{ backgroundColor: color }}
-                                    ></div>
-                                    <span style={{ color, minWidth: 60, display: 'inline-block' }}>
-                                      {metric}:
-                                  </span>
-                                    <span className="ml-1">
-                                    {value === null ? "N/A" : new Intl.NumberFormat('en-US', {
-                                      notation: 'compact',
-                                      maximumFractionDigits: 1
-                                    }).format(value)}
-                                  </span>
-                                  {percent != null && (
-                                    <span
-                                        className={`ml-2 flex items-center font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
-                                        style={{ minWidth: 40 }}
-                                    >
-                                      {isIncrease ? '▲' : '▼'}
-                                      {Math.abs(percent).toFixed(1)}%
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            </div>
-                          </div>
-                        )}
+                                        const metricsToRender = Array.from(metricNames).slice(0, selectedSearchMetrics.length || 10);
 
-                      </div>
-                    )
-                  ) : activeChart === 'peers' ? (
-                    // Peers Chart
-                    peerLoading ? (
-                      <div className="flex items-center justify-center h-full">
-                        <span>Loading...</span>
-                      </div>
-                    ) : peerError ? (
-                      <div className="flex items-center justify-center h-full text-red-500">
-                        {peerError}
-                      </div>
-                    ) : peerChartData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-gray-500">
-                        No data available
-                      </div>
-                    ) : (
-                      <div ref={chartContainerRef} className="w-full min-h-[400px]" style={{ position: 'relative' }}>
-                        <ResponsiveContainer width="100%" height={400}>
-                          <LineChart 
-                            data={peerChartData.filter(dataPoint => {
-                              // Filter out dummy data points based on selected period
-                              if (selectedPeriod === '2Y') {
-                                // Only keep valid 2Y periods
-                                return ['2005-06', '2007-08', '2009-10', '2011-12', '2013-14', 
-                                        '2015-16', '2017-18', '2019-20', '2021-22', '2023-24'].includes(dataPoint.name);
-                              } else if (selectedPeriod === '3Y') {
-                                return ['2007-09', '2010-12', '2013-15', '2016-18', '2019-21', '2022-24'].includes(dataPoint.name);
-                              } else if (selectedPeriod === '4Y') {
-                                return ['2005-08', '2009-12', '2013-16', '2017-20', '2021-24'].includes(dataPoint.name);
-                              } else if (selectedPeriod === '5Y') {
-                                return ['2005-09', '2010-14', '2015-19', '2020-24'].includes(dataPoint.name);
-                              } else if (selectedPeriod === '10Y') {
-                                return ['2005-14', '2015-24'].includes(dataPoint.name);
-                              } else if (selectedPeriod === '15Y') {
-                                return ['2010-24'].includes(dataPoint.name);
-                              } else if (selectedPeriod === '20Y') {
-                                return ['2005-24'].includes(dataPoint.name);
-                              }
-                              return true;
-                            })}
-                            onMouseMove={e => {
-                              if (e && e.activePayload && e.activePayload.length > 0) {
-                                const payload = e.activePayload[0].payload;
-                                const isFixedPoint = selectedPeriod === '1Y' 
-                                  ? payload.name?.startsWith('2024')
-                                  : payload.name === peerChartData[peerChartData.length - 1]?.name;
-                                
-                                if (!isFixedPoint) {
-                                  setActiveTooltip(payload);
-                                } else {
-                                  setActiveTooltip(null);
-                                }
-                              } else {
-                                setActiveTooltip(null);
-                              }
-                            }}
-                            onMouseLeave={() => setActiveTooltip(null)}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                            <XAxis 
-                              dataKey="name" 
-                              tickFormatter={(value) => {
-                                // Display the full range for multi-year periods
-                                if (typeof value === 'string') {
-                                  if (selectedPeriod !== 'Annual') {
-                                    return value; // Return the full range (e.g., "2005-06", "2007-08")
-                                  } else {
-                                    // For 1Y period, just show the year
-                                    return value.includes('-') ? value.split('-')[0] : value;
-                                  }
-                                }
-                                return value;
-                              }}
-                            />
-                            <YAxis 
-                              tickFormatter={(value) => new Intl.NumberFormat('en-US', {
-                                notation: 'compact',
-                                maximumFractionDigits: 1
-                              }).format(value)}
-                            />
-                            <Tooltip 
-                              content={({ active, payload, label }) => {
-                                if (active && payload && payload.length > 0) {
-                                  const point = payload[0].payload;
-                                  if ((selectedPeriod === '1Y' && point.name?.startsWith('2024')) || 
-                                      (selectedPeriod !== '1Y' && point.name === peerChartData[peerChartData.length - 1]?.name)) {
-                                    return null;
-                                  }
-                                  
-                                  // For Annual period, filter payload to show only historical OR future based on the year
-                                  let filteredPayload = payload;
-                                  if (selectedPeriod === 'Annual' && payload.length > 0) {
-                                    // Determine if the year is historical or future based on the point name
-                                    const year = parseInt(String(point.name || '0'));
-                                    const isHistoricalYear = !isNaN(year) && year <= 2024;
-                                    
-                                    // Filter to show only entries matching the type based on year
-                                    // For historical years (<= 2024), show only historical entries
-                                    // For future years (> 2024), show only future entries
-                                    filteredPayload = payload.filter((entry: any) => {
-                                      const isHistorical = entry.dataKey?.includes('_historical') ?? false;
-                                      const isFuture = entry.dataKey?.includes('_future') ?? false;
-                                      
-                                      if (isHistoricalYear) {
-                                        return isHistorical;
-                                      } else {
-                                        return isFuture;
-                                      }
-                                    });
-                                  }
-                                  
-                                  if (filteredPayload.length === 0) {
-                                    return null;
-                                  }
-                                  
-                                  return (
-                                    <div className="custom-tooltip bg-white p-2 border rounded shadow">
-                                      <p className="label">{label}</p>
-                                      {filteredPayload.map((entry: any) => (
-                                        <p key={entry.name} style={{ color: entry.color }}>
-                                          {entry.name}: {entry.value === null || entry.value === undefined || isNaN(entry.value) ? "N/A" : new Intl.NumberFormat('en-US', {
-                                            notation: 'compact',
-                                            maximumFractionDigits: 1
-                                          }).format(entry.value)}
-                                        </p>
-                                      ))}
+                                        return metricsToRender.flatMap((metricName, idx) => {
+                                          const baseColor = generateColorPalette(metricsToRender.length)[idx];
+                                          const metricLabel = availableMetrics.find(m => m.value === metricName)?.label ||
+                                            metricName.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()).trim();
+
+                                          return [
+                                            // Historical series
+                                            <Line
+                                              key={`${metricName}_historical`}
+                                              type="monotone"
+                                              dataKey={`${metricName}_historical`}
+                                              stroke={baseColor}
+                                              name={`${metricLabel} (Historical)`}
+                                              strokeWidth={2}
+                                              dot={{
+                                                fill: baseColor,
+                                                r: 4
+                                              }}
+                                              connectNulls={false}
+                                            />,
+                                            // Future series
+                                            <Line
+                                              key={`${metricName}_future`}
+                                              type="monotone"
+                                              dataKey={`${metricName}_future`}
+                                              stroke={addOpacityToColor(baseColor, 0.5)}
+                                              strokeDasharray="5 5"
+                                              name={`${metricLabel} (Future)`}
+                                              strokeWidth={2}
+                                              dot={{
+                                                fill: addOpacityToColor(baseColor, 0.5),
+                                                r: 4
+                                              }}
+                                              connectNulls={false}
+                                            />
+                                          ];
+                                        });
+                                      })()
+                                    ) : (
+                                      // For Average and CAGR: Render single series per metric
+                                      selectedSearchMetrics.map((metric, idx) => {
+                                        const color = generateColorPalette(selectedSearchMetrics.length)[idx];
+                                        const metricLabel = availableMetrics.find(m => m.value === metric)?.label || metric;
+                                        return (
+                                          <Line
+                                            key={metric}
+                                            type="monotone"
+                                            dataKey={metric}
+                                            stroke={color}
+                                            name={metricLabel}
+                                            strokeWidth={2}
+                                            dot={{
+                                              fill: color,
+                                              r: 4
+                                            }}
+                                            connectNulls={false}
+                                          />
+                                        );
+                                      })
+                                    )}
+                                  </LineChart>
+                                </ResponsiveContainer>
+
+                                {/* Fixed tooltip positioned below legend inside chart */}
+                                {selectedSearchMetrics.length > 0 && fixed2024Data && (
+                                  <div
+                                    className="fixed-tooltip absolute left-4 right-4 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md p-2 text-xs shadow-sm"
+                                    style={{
+                                      bottom: `${-80 - Math.floor((selectedSearchMetrics.length - 1) / 3) * 25}px`
+                                    }}
+                                  >
+                                    <div className="font-medium text-gray-700 mb-1 text-xs">
+                                      {selectedPeriod === '1Y' ? '2024' :
+                                        selectedPeriod === '2Y' ? '2023-24' :
+                                          selectedPeriod === '3Y' ? '2022-24' :
+                                            selectedPeriod === '4Y' ? '2021-24' :
+                                              selectedPeriod === '5Y' ? '2020-24' :
+                                                selectedPeriod === '10Y' ? '2015-24' :
+                                                  selectedPeriod === '15Y' ? '2010-24' :
+                                                    selectedPeriod === '20Y' ? '2005-24' :
+                                                      fixed2024Data.name} Values
                                     </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                              contentStyle={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-                              itemStyle={{ padding: 0 }}
-                              filterNull={false}
-                            />
-                            {selectedPeriod === 'Annual' ? (
-                              // For Annual: Render historical and future separately
-                              peerCompaniesForChart.flatMap((company, idx) => {
-                                const baseColor = generateColorPalette(peerCompaniesForChart.length)[idx];
-                                return [
-                                  <Line
-                                    key={`${company.ticker}_historical`}
-                                    type="monotone"
-                                    dataKey={`${selectedPeerMetric}_historical.${company.ticker}`}
-                                    stroke={baseColor}
-                                    name={`${company.ticker} (Historical)`}
-                                    strokeWidth={2}
-                                    dot={{
-                                      fill: baseColor,
-                                      r: 4
-                                    }}
-                                    connectNulls={false}
-                                  />,
-                                  <Line
-                                    key={`${company.ticker}_future`}
-                                    type="monotone"
-                                    dataKey={`${selectedPeerMetric}_future.${company.ticker}`}
-                                    stroke={addOpacityToColor(baseColor, 0.5)}
-                                    strokeDasharray="5 5"
-                                    name={`${company.ticker} (Future)`}
-                                    strokeWidth={2}
-                                    dot={{
-                                      fill: addOpacityToColor(baseColor, 0.5),
-                                      r: 4
-                                    }}
-                                    connectNulls={false}
-                                  />
-                                ];
-                              })
-                            ) : (
-                              // For Average/CAGR: Single line per company
-                              peerCompaniesForChart.map((company, idx) => {
-                                const color = generateColorPalette(peerCompaniesForChart.length)[idx];
-                              return (
-                                <Line
-                                  key={company.ticker}
-                                  type="monotone"
-                                  dataKey={`${selectedPeerMetric}.${company.ticker}`}
-                                  stroke={color}
-                                    name={`${company.ticker}`}
-                                  strokeWidth={2}
-                                  dot={{
-                                    fill: color,
-                                    r: 4
-                                  }}
-                                  connectNulls={false}
-                                />
-                              );
-                              })
-                            )}
-                          </LineChart>
-                        </ResponsiveContainer>
-                        
-                        {/* Fixed tooltip for peers chart positioned below legend inside chart */}
-                        {peerCompaniesForChart.length > 0 && selectedPeerMetric && fixed2024Data && (
-                          <div
-                            className="fixed-tooltip absolute left-4 right-4 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md p-2 text-xs shadow-sm"
-                            style={{
-                              bottom: `${-80 - Math.floor((peerCompaniesForChart.length - 1) / 3) * 25}px`
-                            }}
-                          >
-                            <div className="font-medium text-gray-700 mb-1 text-xs">
-                              {selectedPeriod === '1Y' ? '2024' : 
-                               selectedPeriod === '2Y' ? '2023-24' :
-                               selectedPeriod === '3Y' ? '2022-24' :
-                               selectedPeriod === '4Y' ? '2021-24' :
-                               selectedPeriod === '5Y' ? '2020-24' :
-                               selectedPeriod === '10Y' ? '2015-24' :
-                               selectedPeriod === '15Y' ? '2010-24' :
-                               selectedPeriod === '20Y' ? '2005-24' :
-                               fixed2024Data.name} Values
-                            </div>
-                            <div className="space-y-1">
-                            {peerCompaniesForChart.map((company, idx) => {
-                              // For Annual period, metrics are stored with _historical or _future suffix
-                              // For 2024, it should be _historical (since year <= 2024)
-                              const value = selectedPeriod === 'Annual'
-                                ? (fixed2024Data[`${selectedPeerMetric}_historical`]?.[company.ticker] ?? fixed2024Data[`${selectedPeerMetric}_future`]?.[company.ticker] ?? fixed2024Data[selectedPeerMetric]?.[company.ticker])
-                                : fixed2024Data[selectedPeerMetric]?.[company.ticker];
-                              const hoveredValue = (activeTooltip && activeTooltip[selectedPeerMetric]?.[company.ticker] != null)
-                                ? Number(activeTooltip[selectedPeerMetric][company.ticker])
-                                : null;
-                              const diff = value != null && hoveredValue != null ? value - hoveredValue : null;
-                              const percent = (hoveredValue != null && hoveredValue !== 0 && diff != null)
-                                ? (diff / hoveredValue) * 100
-                                : null;
-                              const isIncrease = percent != null && percent >= 0;
-                              const color = generateColorPalette(peerCompaniesForChart.length)[idx];
-                                
-                              return (
-                                  <div key={company.ticker} className="flex items-center text-xs">
-                                    <div 
-                                      className="w-2 h-2 rounded-full mr-2"
-                                      style={{ backgroundColor: color }}
-                                    ></div>
-                                    <span style={{ color, minWidth: 60, display: 'inline-block' }}>
-                                    {company.ticker}:
-                                  </span>
-                                    <span className="ml-1">
-                                    {value === null ? "N/A" : new Intl.NumberFormat('en-US', {
-                                      notation: 'compact',
-                                      maximumFractionDigits: 1
-                                    }).format(value)}
-                                  </span>
-                                  {percent != null && (
-                                    <span
-                                        className={`ml-2 flex items-center font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
-                                        style={{ minWidth: 40 }}
-                                    >
-                                      {isIncrease ? '▲' : '▼'}
-                                      {Math.abs(percent).toFixed(1)}%
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            </div>
-                          </div>
-                        )}
+                                    <div className="space-y-1">
+                                      {selectedSearchMetrics.map((metric, idx) => {
+                                        // For Annual period, metrics are stored with _historical or _future suffix
+                                        // For 2024, it should be _historical (since year <= 2024)
+                                        // Check both possibilities for robustness
+                                        const value = selectedPeriod === 'Annual'
+                                          ? (fixed2024Data[`${metric}_historical`] ?? fixed2024Data[`${metric}_future`] ?? fixed2024Data[metric])
+                                          : fixed2024Data[metric];
+                                        const hoveredValue = (activeTooltip && activeTooltip[metric] != null)
+                                          ? Number(activeTooltip[metric])
+                                          : null;
+                                        const diff = value != null && hoveredValue != null ? value - hoveredValue : null;
+                                        const percent = (hoveredValue != null && hoveredValue !== 0 && diff != null)
+                                          ? (diff / hoveredValue) * 100
+                                          : null;
+                                        const isIncrease = percent != null && percent >= 0;
+                                        const color = generateColorPalette(selectedSearchMetrics.length)[idx];
 
-                      </div>
-                    )
-                  ) : activeChart === 'valuation' ? (
-                    // Valuation Charts - Conditional Layout
-                    <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
-                      <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                        <ValueBuildupChart initialCompany={searchValue} />
-                      </div>
-                      <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                        <MultiplesChart initialCompany={searchValue} />
+                                        return (
+                                          <div key={metric} className="flex items-center text-xs">
+                                            <div
+                                              className="w-2 h-2 rounded-full mr-2"
+                                              style={{ backgroundColor: color }}
+                                            ></div>
+                                            <span style={{ color, minWidth: 60, display: 'inline-block' }}>
+                                              {metric}:
+                                            </span>
+                                            <span className="ml-1">
+                                              {value === null ? "N/A" : new Intl.NumberFormat('en-US', {
+                                                notation: 'compact',
+                                                maximumFractionDigits: 1
+                                              }).format(value)}
+                                            </span>
+                                            {percent != null && (
+                                              <span
+                                                className={`ml-2 flex items-center font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
+                                                style={{ minWidth: 40 }}
+                                              >
+                                                {isIncrease ? '▲' : '▼'}
+                                                {Math.abs(percent).toFixed(1)}%
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                              </div>
+                            )
+                          ) : activeChart === 'peers' ? (
+                            // Peers Chart
+                            peerLoading ? (
+                              <div className="flex items-center justify-center h-full">
+                                <span>Loading...</span>
+                              </div>
+                            ) : peerError ? (
+                              <div className="flex items-center justify-center h-full text-red-500">
+                                {peerError}
+                              </div>
+                            ) : peerChartData.length === 0 ? (
+                              <div className="flex items-center justify-center h-full text-gray-500">
+                                No data available
+                              </div>
+                            ) : (
+                              <div ref={chartContainerRef} className="w-full min-h-[400px]" style={{ position: 'relative' }}>
+                                <ResponsiveContainer width="100%" height={400}>
+                                  <LineChart
+                                    data={peerChartData.filter(dataPoint => {
+                                      // Filter out dummy data points based on selected period
+                                      if (selectedPeriod === '2Y') {
+                                        // Only keep valid 2Y periods
+                                        return ['2005-06', '2007-08', '2009-10', '2011-12', '2013-14',
+                                          '2015-16', '2017-18', '2019-20', '2021-22', '2023-24'].includes(dataPoint.name);
+                                      } else if (selectedPeriod === '3Y') {
+                                        return ['2007-09', '2010-12', '2013-15', '2016-18', '2019-21', '2022-24'].includes(dataPoint.name);
+                                      } else if (selectedPeriod === '4Y') {
+                                        return ['2005-08', '2009-12', '2013-16', '2017-20', '2021-24'].includes(dataPoint.name);
+                                      } else if (selectedPeriod === '5Y') {
+                                        return ['2005-09', '2010-14', '2015-19', '2020-24'].includes(dataPoint.name);
+                                      } else if (selectedPeriod === '10Y') {
+                                        return ['2005-14', '2015-24'].includes(dataPoint.name);
+                                      } else if (selectedPeriod === '15Y') {
+                                        return ['2010-24'].includes(dataPoint.name);
+                                      } else if (selectedPeriod === '20Y') {
+                                        return ['2005-24'].includes(dataPoint.name);
+                                      }
+                                      return true;
+                                    })}
+                                    onMouseMove={e => {
+                                      if (e && e.activePayload && e.activePayload.length > 0) {
+                                        const payload = e.activePayload[0].payload;
+                                        const isFixedPoint = selectedPeriod === '1Y'
+                                          ? payload.name?.startsWith('2024')
+                                          : payload.name === peerChartData[peerChartData.length - 1]?.name;
+
+                                        if (!isFixedPoint) {
+                                          setActiveTooltip(payload);
+                                        } else {
+                                          setActiveTooltip(null);
+                                        }
+                                      } else {
+                                        setActiveTooltip(null);
+                                      }
+                                    }}
+                                    onMouseLeave={() => setActiveTooltip(null)}
+                                  >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                                    <XAxis
+                                      dataKey="name"
+                                      tickFormatter={(value) => {
+                                        // Display the full range for multi-year periods
+                                        if (typeof value === 'string') {
+                                          if (selectedPeriod !== 'Annual') {
+                                            return value; // Return the full range (e.g., "2005-06", "2007-08")
+                                          } else {
+                                            // For 1Y period, just show the year
+                                            return value.includes('-') ? value.split('-')[0] : value;
+                                          }
+                                        }
+                                        return value;
+                                      }}
+                                    />
+                                    <YAxis
+                                      tickFormatter={(value) => new Intl.NumberFormat('en-US', {
+                                        notation: 'compact',
+                                        maximumFractionDigits: 1
+                                      }).format(value)}
+                                    />
+                                    <Tooltip
+                                      content={({ active, payload, label }) => {
+                                        if (active && payload && payload.length > 0) {
+                                          const point = payload[0].payload;
+                                          if ((selectedPeriod === '1Y' && point.name?.startsWith('2024')) ||
+                                            (selectedPeriod !== '1Y' && point.name === peerChartData[peerChartData.length - 1]?.name)) {
+                                            return null;
+                                          }
+
+                                          // For Annual period, filter payload to show only historical OR future based on the year
+                                          let filteredPayload = payload;
+                                          if (selectedPeriod === 'Annual' && payload.length > 0) {
+                                            // Determine if the year is historical or future based on the point name
+                                            const year = parseInt(String(point.name || '0'));
+                                            const isHistoricalYear = !isNaN(year) && year <= 2024;
+
+                                            // Filter to show only entries matching the type based on year
+                                            // For historical years (<= 2024), show only historical entries
+                                            // For future years (> 2024), show only future entries
+                                            filteredPayload = payload.filter((entry: any) => {
+                                              const isHistorical = entry.dataKey?.includes('_historical') ?? false;
+                                              const isFuture = entry.dataKey?.includes('_future') ?? false;
+
+                                              if (isHistoricalYear) {
+                                                return isHistorical;
+                                              } else {
+                                                return isFuture;
+                                              }
+                                            });
+                                          }
+
+                                          if (filteredPayload.length === 0) {
+                                            return null;
+                                          }
+
+                                          return (
+                                            <div className="custom-tooltip bg-white p-2 border rounded shadow">
+                                              <p className="label">{label}</p>
+                                              {filteredPayload.map((entry: any) => (
+                                                <p key={entry.name} style={{ color: entry.color }}>
+                                                  {entry.name}: {entry.value === null || entry.value === undefined || isNaN(entry.value) ? "N/A" : new Intl.NumberFormat('en-US', {
+                                                    notation: 'compact',
+                                                    maximumFractionDigits: 1
+                                                  }).format(entry.value)}
+                                                </p>
+                                              ))}
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      }}
+                                      contentStyle={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                                      itemStyle={{ padding: 0 }}
+                                      filterNull={false}
+                                    />
+                                    {selectedPeriod === 'Annual' ? (
+                                      // For Annual: Render historical and future separately
+                                      peerCompaniesForChart.flatMap((company, idx) => {
+                                        const baseColor = generateColorPalette(peerCompaniesForChart.length)[idx];
+                                        return [
+                                          <Line
+                                            key={`${company.ticker}_historical`}
+                                            type="monotone"
+                                            dataKey={`${selectedPeerMetric}_historical.${company.ticker}`}
+                                            stroke={baseColor}
+                                            name={`${company.ticker} (Historical)`}
+                                            strokeWidth={2}
+                                            dot={{
+                                              fill: baseColor,
+                                              r: 4
+                                            }}
+                                            connectNulls={false}
+                                          />,
+                                          <Line
+                                            key={`${company.ticker}_future`}
+                                            type="monotone"
+                                            dataKey={`${selectedPeerMetric}_future.${company.ticker}`}
+                                            stroke={addOpacityToColor(baseColor, 0.5)}
+                                            strokeDasharray="5 5"
+                                            name={`${company.ticker} (Future)`}
+                                            strokeWidth={2}
+                                            dot={{
+                                              fill: addOpacityToColor(baseColor, 0.5),
+                                              r: 4
+                                            }}
+                                            connectNulls={false}
+                                          />
+                                        ];
+                                      })
+                                    ) : (
+                                      // For Average/CAGR: Single line per company
+                                      peerCompaniesForChart.map((company, idx) => {
+                                        const color = generateColorPalette(peerCompaniesForChart.length)[idx];
+                                        return (
+                                          <Line
+                                            key={company.ticker}
+                                            type="monotone"
+                                            dataKey={`${selectedPeerMetric}.${company.ticker}`}
+                                            stroke={color}
+                                            name={`${company.ticker}`}
+                                            strokeWidth={2}
+                                            dot={{
+                                              fill: color,
+                                              r: 4
+                                            }}
+                                            connectNulls={false}
+                                          />
+                                        );
+                                      })
+                                    )}
+                                  </LineChart>
+                                </ResponsiveContainer>
+
+                                {/* Fixed tooltip for peers chart positioned below legend inside chart */}
+                                {peerCompaniesForChart.length > 0 && selectedPeerMetric && fixed2024Data && (
+                                  <div
+                                    className="fixed-tooltip absolute left-4 right-4 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md p-2 text-xs shadow-sm"
+                                    style={{
+                                      bottom: `${-80 - Math.floor((peerCompaniesForChart.length - 1) / 3) * 25}px`
+                                    }}
+                                  >
+                                    <div className="font-medium text-gray-700 mb-1 text-xs">
+                                      {selectedPeriod === '1Y' ? '2024' :
+                                        selectedPeriod === '2Y' ? '2023-24' :
+                                          selectedPeriod === '3Y' ? '2022-24' :
+                                            selectedPeriod === '4Y' ? '2021-24' :
+                                              selectedPeriod === '5Y' ? '2020-24' :
+                                                selectedPeriod === '10Y' ? '2015-24' :
+                                                  selectedPeriod === '15Y' ? '2010-24' :
+                                                    selectedPeriod === '20Y' ? '2005-24' :
+                                                      fixed2024Data.name} Values
+                                    </div>
+                                    <div className="space-y-1">
+                                      {peerCompaniesForChart.map((company, idx) => {
+                                        // For Annual period, metrics are stored with _historical or _future suffix
+                                        // For 2024, it should be _historical (since year <= 2024)
+                                        const value = selectedPeriod === 'Annual'
+                                          ? (fixed2024Data[`${selectedPeerMetric}_historical`]?.[company.ticker] ?? fixed2024Data[`${selectedPeerMetric}_future`]?.[company.ticker] ?? fixed2024Data[selectedPeerMetric]?.[company.ticker])
+                                          : fixed2024Data[selectedPeerMetric]?.[company.ticker];
+                                        const hoveredValue = (activeTooltip && activeTooltip[selectedPeerMetric]?.[company.ticker] != null)
+                                          ? Number(activeTooltip[selectedPeerMetric][company.ticker])
+                                          : null;
+                                        const diff = value != null && hoveredValue != null ? value - hoveredValue : null;
+                                        const percent = (hoveredValue != null && hoveredValue !== 0 && diff != null)
+                                          ? (diff / hoveredValue) * 100
+                                          : null;
+                                        const isIncrease = percent != null && percent >= 0;
+                                        const color = generateColorPalette(peerCompaniesForChart.length)[idx];
+
+                                        return (
+                                          <div key={company.ticker} className="flex items-center text-xs">
+                                            <div
+                                              className="w-2 h-2 rounded-full mr-2"
+                                              style={{ backgroundColor: color }}
+                                            ></div>
+                                            <span style={{ color, minWidth: 60, display: 'inline-block' }}>
+                                              {company.ticker}:
+                                            </span>
+                                            <span className="ml-1">
+                                              {value === null ? "N/A" : new Intl.NumberFormat('en-US', {
+                                                notation: 'compact',
+                                                maximumFractionDigits: 1
+                                              }).format(value)}
+                                            </span>
+                                            {percent != null && (
+                                              <span
+                                                className={`ml-2 flex items-center font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}
+                                                style={{ minWidth: 40 }}
+                                              >
+                                                {isIncrease ? '▲' : '▼'}
+                                                {Math.abs(percent).toFixed(1)}%
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                              </div>
+                            )
+                          ) : activeChart === 'valuation' ? (
+                            // Valuation Charts - Conditional Layout
+                            <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
+                              {searchValue && (
+                                <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
+                                  <ValueBuildupChart initialCompany={searchValue} />
+                                </div>
+                              )}
+                              <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
+                                <MultiplesChart initialCompany={searchValue} />
+                              </div>
+                            </div>
+                          ) : activeChart === 'industry' ? (
+                            // Industry Chart
+                            industryLoading ? (
+                              <div className="flex items-center justify-center h-full">
+                                <span>Loading...</span>
+                              </div>
+                            ) : industryError ? (
+                              <div className="flex items-center justify-center h-full text-red-500">
+                                {industryError}
+                              </div>
+                            ) : industryChartData && Object.keys(industryChartData).length > 0 ? (
+                              <div className="w-full min-h-[400px]" style={{ position: 'relative' }}>
+                                <BoxPlot
+                                  data={industryChartData}
+                                  title={`${selectedIndustry} • ${selectedPeriod}`}
+                                  companyNames={industryCompanyNames}
+                                  selectedTicker={searchValue ? searchValue.split(':')[0].trim().toUpperCase() : ''}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-gray-500">
+                                No data available
+                              </div>
+                            )
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  ) : activeChart === 'industry' ? (
-                    // Industry Chart
-                    industryLoading ? (
-                      <div className="flex items-center justify-center h-full">
-                        <span>Loading...</span>
-                      </div>
-                    ) : industryError ? (
-                      <div className="flex items-center justify-center h-full text-red-500">
-                        {industryError}
-                      </div>
-                    ) : industryChartData && Object.keys(industryChartData).length > 0 ? (
-                      <div className="w-full min-h-[400px]" style={{ position: 'relative' }}>
-                        <BoxPlot
-                          data={industryChartData}
-                          title={`${selectedIndustry} • ${selectedPeriod}`}
-                          companyNames={industryCompanyNames}
-                          selectedTicker={searchValue ? searchValue.split(':')[0].trim().toUpperCase() : ''}
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-500">
-                        No data available
-                      </div>
-                    )
-                  ) : null}
-                </div>
-              </div>
-            </div>
 
 
 
 
-            </div>
-            )}
+
+                  )}
 
             {/* Insights Generation - full width on mobile */}
             {!isChatbotMinimized && (
@@ -4745,886 +4687,898 @@ const Dashboard: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Conditional Content */}
-                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                  {chatMode === 'insights' ? (
-                    <>
-                  {/* Chat Header with New Chat Button */}
-                  <div className="flex items-center justify-between p-4 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">
-                      {currentChatSession ? 'Chat Session' : 'New Chat'}
-                    </h3>
-                    <button
-                      onClick={startNewChat}
-                      className="px-3 py-1.5 text-sm bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors"
-                    >
-                      ✨ New Chat
-                    </button>
-                  </div>
-                  
-                  {/* Chat Messages */}
-                  <div 
-                    ref={chatMessagesRef}
-                    className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
-                  >
-                    {messages.map((message, index) => 
-                      message.role === 'assistant' ? (
-                        <div key={index} className="flex gap-3 xl:gap-4">
-                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
-                            AI
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-2 xl:p-2 ${
-                              message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
-                            }`}>
-                              {message.content === 'Thinking...' ? (
-                                message.content
-                              ) : (
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
-                                    h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
-                                    h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4" {...props} />,
-                                    p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props} />,
-                                    strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
-                                    ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
-                                    ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
-                                    li: ({node, ...props}) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
-                                    hr: ({node, ...props}) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
-                                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
-                                    table: ({node, ...props}) => (
-                                      <div className="overflow-x-auto my-4">
-                                        <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg" {...props} />
-                                      </div>
-                                    ),
-                                    thead: ({node, ...props}) => <thead className="bg-gray-50 dark:bg-gray-900/40" {...props} />,
-                                    tbody: ({node, ...props}) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700" {...props} />,
-                                    tr: ({node, ...props}) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-900/30" {...props} />,
-                                    th: ({node, ...props}) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap" {...props} />,
-                                    td: ({node, ...props}) => <td className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 align-top whitespace-nowrap" {...props} />,
-                                    a: ({node, href, ...props}) => (
-                                      href ? (
-                                        <a
-                                          href={href}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-blue-600 dark:text-blue-400 underline underline-offset-2 break-words"
-                                          {...props}
-                                        />
-                                      ) : (
-                                        <span className="font-mono text-sm text-gray-700 dark:text-gray-300" {...props} />
-                                      )
-                                    ),
-                                    img: ({node, ...props}: any) => (
-                                      <figure className="my-5">
-                                        <img 
-                                          {...props}
-                                          src={normalizeReportMediaSrc(props.src) || props.src}
-                                          className="w-full max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white"
-                                          alt={props.alt || 'Report image'}
-                                          loading="lazy"
-                                          onClick={() => {
-                                            const s = normalizeReportMediaSrc(props.src) || props.src;
-                                            if (s) window.open(s, '_blank', 'noopener,noreferrer');
-                                          }}
-                                          style={{ cursor: 'zoom-in' }}
-                                        />
-                                        {props.alt ? (
-                                          <figcaption className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                            {props.alt}
-                                          </figcaption>
-                                        ) : null}
-                                      </figure>
-                                    ),
-                                    code: ({node, inline, ...props}: any) => 
-                                      inline ? (
-                                        <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200" {...props} />
-                                      ) : (
-                                        <code className="block bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto my-4" {...props} />
-                                      ),
-                                  }}
+                          {/* Conditional Content */}
+                          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                            {chatMode === 'insights' ? (
+                              <>
+                                {/* Chat Header with New Chat Button */}
+                                <div className="flex items-center justify-between p-4 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
+                                  <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">
+                                    {currentChatSession ? 'Chat Session' : 'New Chat'}
+                                  </h3>
+                                  <button
+                                    onClick={startNewChat}
+                                    className="px-3 py-1.5 text-sm bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors"
+                                  >
+                                    ✨ New Chat
+                                  </button>
+                                </div>
+
+                                {/* Chat Messages */}
+                                <div
+                                  ref={chatMessagesRef}
+                                  className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
                                 >
-                              {message.content}
-                                </ReactMarkdown>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div key={index} className="flex gap-3 justify-end xl:gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
-                              {message.content}
-                            </div>
-                          </div>
-                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
-                            {userInitials}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-
-                  {/* Chat Input */}
-                  <div className="p-4 xl:p-6 border-t dark:border-[#161C1A] flex-shrink-0">
-                    <form 
-                      className="flex gap-2 xl:gap-3"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (checkQuestionLimit()) {
-                          handleSendMessage(inputValue);
-                          setInputValue('');
-                          setQuestionsAsked(prev => prev + 1);
-                        }
-                      }}
-                    >
-                      <input 
-                        type="text" 
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Ask Me Anything..."
-                        className="flex-1 px-3 xl:px-4 py-2 xl:py-3 text-sm xl:text-base border border-gray-300 dark:border-gray-500 rounded-lg bg-white dark:bg-[#1E1F21] dark:text-[#E0E6E4] dark:placeholder-[#8B8E90] shadow-sm focus:outline-none focus:ring-0"
-                      />
-                      <button 
-                        type="button" 
-                        className={`p-1 xl:p-2 rounded transition-colors ${
-                          isListening 
-                            ? 'bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800' 
-                            : 'hover:bg-gray-100 dark:hover:bg-[#161C1A]'
-                        }`}
-                        title={isListening ? "Listening... Click to stop" : "Click to speak"}
-                        onClick={startListening}
-                        disabled={isListening}
-                      >
-                        <img 
-                          src="/audio.jpg" 
-                          alt="Voice" 
-                          className={`w-9 xl:w-10 h-9 xl:h-10 object-cover rounded ${
-                            isListening ? 'animate-pulse' : ''
-                          }`} 
-                        />
-                      </button>
-                      
-                      {/* File Upload Button */}
-                      <button 
-                        type="button" 
-                        className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100 dark:hover:bg-[#161C1A]"
-                        title="Upload files"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <span className="text-2xl font-bold text-[#144D37] dark:text-[#144D37]">+</span>
-                      </button>
-                      
-                      {/* Hidden File Input */}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={handleFileUpload}
-                        accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
-                      />
-                      <button 
-                        type="submit" 
-                        className="p-2 xl:p-3 bg-[#144D37] text-white rounded hover:bg-[#0F3A28] disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        disabled={!inputValue.trim() || isChatLoading}
-                      >
-                        <span className="text-lg">{isChatLoading ? '⏳' : '➤'}</span>
-                      </button>
-                    </form>
-                    
-                    {/* Chat Disclaimer - beneath the input area */}
-                    <div className="mt-3 text-xs text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#161C1A] p-2 rounded text-center">
-                      💡 AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
-                    </div>
-                    
-                    {/* Uploaded Files Display */}
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-3 p-3 bg-gray-50 dark:bg-[#161C1A] rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">Uploaded Files:</span>
-                          <button
-                            onClick={() => setUploadedFiles([])}
-                            className="text-xs text-red-600 hover:text-red-800"
-                          >
-                            Clear All
-                          </button>
-                  </div>
-                        <div className="space-y-2">
-                          {uploadedFiles.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-[#161C1A] rounded border dark:border-[#161C1A]">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-blue-600 dark:text-blue-400">📎</span>
-                                <span className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-48">{file.name}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
-                </div>
-                              <button
-                                onClick={() => removeFile(index)}
-                                className="text-red-500 hover:text-red-700 text-sm"
-                              >
-                                ×
-                              </button>
-              </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* Report Generation Form - At Top */}
-                      <div className="px-4 xl:px-6 pt-2 pb-4 xl:pb-6 border-b dark:border-gray-700 flex-shrink-0">
-                        <ReportGenerationForm 
-                          key={reportFormKey}
-                          onGenerate={handleReportGenerate} 
-                          isLoading={isGeneratingReport}
-                          showInstructions={true}
-                          showFormFields={true}
-                        />
-                      </div>
-
-                      {/* Report Generation Chat Messages - In Middle */}
-                      <div 
-                        ref={chatMessagesRef}
-                        className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
-                      >
-                        <div ref={reportExportRef} className="space-y-3 sm:space-y-4">
-                          {reportMessages.map((message, index) => 
-                            message.role === 'assistant' ? (
-                              <div key={index} className="flex gap-3 xl:gap-4">
-                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
-                                AI
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4 xl:p-6 ${
-                                  message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
-                                }`}>
-                                  {message.content === 'Thinking...' ? (
-                                    message.content
-                                  ) : (
-                                    <ReactMarkdown
-                                      remarkPlugins={[remarkGfm]}
-                                      components={{
-                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
-                                        h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
-                                        h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4" {...props} />,
-                                        p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props} />,
-                                        strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
-                                        ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
-                                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
-                                        li: ({node, ...props}) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
-                                        hr: ({node, ...props}) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
-                                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
-                                        table: ({node, ...props}) => (
-                                          <div className="overflow-x-auto my-4">
-                                            <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg" {...props} />
+                                  {messages.map((message, index) =>
+                                    message.role === 'assistant' ? (
+                                      <div key={index} className="flex gap-3 xl:gap-4">
+                                        <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
+                                          AI
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-2 xl:p-2 ${message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
+                                            }`}>
+                                            {message.content === 'Thinking...' ? (
+                                              message.content
+                                            ) : (
+                                              <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                  h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
+                                                  h2: ({ node, ...props }) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
+                                                  h3: ({ node, ...props }) => <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4" {...props} />,
+                                                  p: ({ node, ...props }) => <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props} />,
+                                                  strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
+                                                  ul: ({ node, ...props }) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                                  ol: ({ node, ...props }) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                                  li: ({ node, ...props }) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
+                                                  hr: ({ node, ...props }) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
+                                                  blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
+                                                  table: ({ node, ...props }) => (
+                                                    <div className="overflow-x-auto my-4">
+                                                      <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg" {...props} />
+                                                    </div>
+                                                  ),
+                                                  thead: ({ node, ...props }) => <thead className="bg-gray-50 dark:bg-gray-900/40" {...props} />,
+                                                  tbody: ({ node, ...props }) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700" {...props} />,
+                                                  tr: ({ node, ...props }) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-900/30" {...props} />,
+                                                  th: ({ node, ...props }) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap" {...props} />,
+                                                  td: ({ node, ...props }) => <td className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 align-top whitespace-nowrap" {...props} />,
+                                                  a: ({ node, href, ...props }) => (
+                                                    href ? (
+                                                      <a
+                                                        href={href}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-blue-600 dark:text-blue-400 underline underline-offset-2 break-words"
+                                                        {...props}
+                                                      />
+                                                    ) : (
+                                                      <span className="font-mono text-sm text-gray-700 dark:text-gray-300" {...props} />
+                                                    )
+                                                  ),
+                                                  img: ({ node, ...props }: any) => (
+                                                    <figure className="my-5">
+                                                      <img
+                                                        {...props}
+                                                        src={normalizeReportMediaSrc(props.src) || props.src}
+                                                        className="w-full max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white"
+                                                        alt={props.alt || 'Report image'}
+                                                        loading="lazy"
+                                                        onClick={() => {
+                                                          const s = normalizeReportMediaSrc(props.src) || props.src;
+                                                          if (s) window.open(s, '_blank', 'noopener,noreferrer');
+                                                        }}
+                                                        style={{ cursor: 'zoom-in' }}
+                                                      />
+                                                      {props.alt ? (
+                                                        <figcaption className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                                          {props.alt}
+                                                        </figcaption>
+                                                      ) : null}
+                                                    </figure>
+                                                  ),
+                                                  code: ({ node, inline, ...props }: any) =>
+                                                    inline ? (
+                                                      <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200" {...props} />
+                                                    ) : (
+                                                      <code className="block bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto my-4" {...props} />
+                                                    ),
+                                                }}
+                                              >
+                                                {message.content}
+                                              </ReactMarkdown>
+                                            )}
                                           </div>
-                                        ),
-                                        thead: ({node, ...props}) => <thead className="bg-gray-50 dark:bg-gray-900/40" {...props} />,
-                                        tbody: ({node, ...props}) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700" {...props} />,
-                                        tr: ({node, ...props}) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-900/30" {...props} />,
-                                        th: ({node, ...props}) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap" {...props} />,
-                                        td: ({node, ...props}) => <td className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 align-top whitespace-nowrap" {...props} />,
-                                        a: ({node, href, ...props}) => (
-                                          href ? (
-                                            <a
-                                              href={href}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="text-blue-600 dark:text-blue-400 underline underline-offset-2 break-words"
-                                              {...props}
-                                            />
-                                          ) : (
-                                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300" {...props} />
-                                          )
-                                        ),
-                                        img: ({node, ...props}: any) => (
-                                          <figure className="my-5">
-                                            <img 
-                                              {...props}
-                                              src={normalizeReportMediaSrc(props.src) || props.src}
-                                              className="w-full max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white"
-                                              alt={props.alt || 'Report image'}
-                                              loading="lazy"
-                                              onClick={() => {
-                                                const s = normalizeReportMediaSrc(props.src) || props.src;
-                                                if (s) window.open(s, '_blank', 'noopener,noreferrer');
-                                              }}
-                                              style={{ cursor: 'zoom-in' }}
-                                            />
-                                            {props.alt ? (
-                                              <figcaption className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                                {props.alt}
-                                              </figcaption>
-                                            ) : null}
-                                          </figure>
-                                        ),
-                                        code: ({node, inline, ...props}: any) => 
-                                          inline ? (
-                                            <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200" {...props} />
-                                          ) : (
-                                            <code className="block bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto my-4" {...props} />
-                                          ),
-                                      }}
-                                    >
-                                      {expandFigurePlaceholders(message.content)}
-                                    </ReactMarkdown>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div key={index} className="flex gap-3 justify-end xl:gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
+                                            {message.content}
+                                          </div>
+                                        </div>
+                                        <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
+                                          {userInitials}
+                                        </div>
+                                      </div>
+                                    )
                                   )}
                                 </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div key={index} className="flex gap-3 justify-end xl:gap-4">
-                              <div className="flex-1">
-                                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
-                                  {message.content}
+
+                                {/* Chat Input */}
+                                <div className="p-4 xl:p-6 border-t dark:border-[#161C1A] flex-shrink-0">
+                                  <form
+                                    className="flex gap-2 xl:gap-3"
+                                    onSubmit={(e) => {
+                                      e.preventDefault();
+                                      if (checkQuestionLimit()) {
+                                        handleSendMessage(inputValue);
+                                        setInputValue('');
+                                        setQuestionsAsked(prev => prev + 1);
+                                      }
+                                    }}
+                                  >
+                                    <input
+                                      type="text"
+                                      value={inputValue}
+                                      onChange={(e) => setInputValue(e.target.value)}
+                                      placeholder="Ask Me Anything..."
+                                      className="flex-1 px-3 xl:px-4 py-2 xl:py-3 text-sm xl:text-base border border-gray-300 dark:border-gray-500 rounded-lg bg-white dark:bg-[#1E1F21] dark:text-[#E0E6E4] dark:placeholder-[#8B8E90] shadow-sm focus:outline-none focus:ring-0"
+                                    />
+                                    <button
+                                      type="button"
+                                      className={`p-1 xl:p-2 rounded transition-colors ${isListening
+                                        ? 'bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800'
+                                        : 'hover:bg-gray-100 dark:hover:bg-[#161C1A]'
+                                        }`}
+                                      title={isListening ? "Listening... Click to stop" : "Click to speak"}
+                                      onClick={startListening}
+                                      disabled={isListening}
+                                    >
+                                      <img
+                                        src="/audio.jpg"
+                                        alt="Voice"
+                                        className={`w-9 xl:w-10 h-9 xl:h-10 object-cover rounded ${isListening ? 'animate-pulse' : ''
+                                          }`}
+                                      />
+                                    </button>
+
+                                    {/* File Upload Button */}
+                                    <button
+                                      type="button"
+                                      className="p-1 xl:p-2 rounded transition-colors hover:bg-gray-100 dark:hover:bg-[#161C1A]"
+                                      title="Upload files"
+                                      onClick={() => fileInputRef.current?.click()}
+                                    >
+                                      <span className="text-2xl font-bold text-[#144D37] dark:text-[#144D37]">+</span>
+                                    </button>
+
+                                    {/* Hidden File Input */}
+                                    <input
+                                      ref={fileInputRef}
+                                      type="file"
+                                      multiple
+                                      className="hidden"
+                                      onChange={handleFileUpload}
+                                      accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
+                                    />
+                                    <button
+                                      type="submit"
+                                      className="p-2 xl:p-3 bg-[#144D37] text-white rounded hover:bg-[#0F3A28] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                      disabled={!inputValue.trim() || isChatLoading}
+                                    >
+                                      <span className="text-lg">{isChatLoading ? '⏳' : '➤'}</span>
+                                    </button>
+                                  </form>
+
+                                  {/* Chat Disclaimer - beneath the input area */}
+                                  <div className="mt-3 text-xs text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#161C1A] p-2 rounded text-center">
+                                    💡 AI responses may be inaccurate. We will continue to fine tune to improve the accuracy.
+                                  </div>
+
+                                  {/* Uploaded Files Display */}
+                                  {uploadedFiles.length > 0 && (
+                                    <div className="mt-3 p-3 bg-gray-50 dark:bg-[#161C1A] rounded-lg">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">Uploaded Files:</span>
+                                        <button
+                                          onClick={() => setUploadedFiles([])}
+                                          className="text-xs text-red-600 hover:text-red-800"
+                                        >
+                                          Clear All
+                                        </button>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {uploadedFiles.map((file, index) => (
+                                          <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-[#161C1A] rounded border dark:border-[#161C1A]">
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-blue-600 dark:text-blue-400">📎</span>
+                                              <span className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-48">{file.name}</span>
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
+                                            </div>
+                                            <button
+                                              onClick={() => removeFile(index)}
+                                              className="text-red-500 hover:text-red-700 text-sm"
+                                            >
+                                              ×
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                              <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
-                                {userInitials}
-                              </div>
-                            </div>
-                          )
-                          )}
+                              </>
+                            ) : (
+                              <>
+                                {/* Report Generation Form - At Top */}
+                                <div className="px-4 xl:px-6 pt-2 pb-4 xl:pb-6 border-b dark:border-gray-700 flex-shrink-0">
+                                  <ReportGenerationForm
+                                    key={reportFormKey}
+                                    onGenerate={handleReportGenerate}
+                                    isLoading={isGeneratingReport}
+                                    showInstructions={true}
+                                    showFormFields={true}
+                                  />
+                                </div>
+
+                                {/* Report Generation Chat Messages - In Middle */}
+                                <div
+                                  ref={chatMessagesRef}
+                                  className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
+                                >
+                                  <div ref={reportExportRef} className="space-y-3 sm:space-y-4">
+                                    {reportMessages.map((message, index) =>
+                                      message.role === 'assistant' ? (
+                                        <div key={index} className="flex gap-3 xl:gap-4">
+                                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
+                                            AI
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4 xl:p-6 ${message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
+                                              }`}>
+                                              {message.content === 'Thinking...' ? (
+                                                message.content
+                                              ) : (
+                                                <ReactMarkdown
+                                                  remarkPlugins={[remarkGfm]}
+                                                  components={{
+                                                    h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-0" {...props} />,
+                                                    h2: ({ node, ...props }) => <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props} />,
+                                                    h3: ({ node, ...props }) => <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4" {...props} />,
+                                                    p: ({ node, ...props }) => <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props} />,
+                                                    strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
+                                                    ul: ({ node, ...props }) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                                    ol: ({ node, ...props }) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" {...props} />,
+                                                    li: ({ node, ...props }) => <li className="text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />,
+                                                    hr: ({ node, ...props }) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
+                                                    blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 my-4" {...props} />,
+                                                    table: ({ node, ...props }) => (
+                                                      <div className="overflow-x-auto my-4">
+                                                        <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg" {...props} />
+                                                      </div>
+                                                    ),
+                                                    thead: ({ node, ...props }) => <thead className="bg-gray-50 dark:bg-gray-900/40" {...props} />,
+                                                    tbody: ({ node, ...props }) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700" {...props} />,
+                                                    tr: ({ node, ...props }) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-900/30" {...props} />,
+                                                    th: ({ node, ...props }) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap" {...props} />,
+                                                    td: ({ node, ...props }) => <td className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 align-top whitespace-nowrap" {...props} />,
+                                                    a: ({ node, href, ...props }) => (
+                                                      href ? (
+                                                        <a
+                                                          href={href}
+                                                          target="_blank"
+                                                          rel="noreferrer"
+                                                          className="text-blue-600 dark:text-blue-400 underline underline-offset-2 break-words"
+                                                          {...props}
+                                                        />
+                                                      ) : (
+                                                        <span className="font-mono text-sm text-gray-700 dark:text-gray-300" {...props} />
+                                                      )
+                                                    ),
+                                                    img: ({ node, ...props }: any) => (
+                                                      <figure className="my-5">
+                                                        <img
+                                                          {...props}
+                                                          src={normalizeReportMediaSrc(props.src) || props.src}
+                                                          className="w-full max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white"
+                                                          alt={props.alt || 'Report image'}
+                                                          loading="lazy"
+                                                          onClick={() => {
+                                                            const s = normalizeReportMediaSrc(props.src) || props.src;
+                                                            if (s) window.open(s, '_blank', 'noopener,noreferrer');
+                                                          }}
+                                                          style={{ cursor: 'zoom-in' }}
+                                                        />
+                                                        {props.alt ? (
+                                                          <figcaption className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                                            {props.alt}
+                                                          </figcaption>
+                                                        ) : null}
+                                                      </figure>
+                                                    ),
+                                                    code: ({ node, inline, ...props }: any) =>
+                                                      inline ? (
+                                                        <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200" {...props} />
+                                                      ) : (
+                                                        <code className="block bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto my-4" {...props} />
+                                                      ),
+                                                  }}
+                                                >
+                                                  {expandFigurePlaceholders(message.content)}
+                                                </ReactMarkdown>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div key={index} className="flex gap-3 justify-end xl:gap-4">
+                                          <div className="flex-1">
+                                            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
+                                              {message.content}
+                                            </div>
+                                          </div>
+                                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
+                                            {userInitials}
+                                          </div>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-              </>
-            )}
-        
-          </div>
-        </div>
-        
-        {/* Minimized Chatbot Indicator - Only show when content is enlarged and ValuationPage is not open */}
-        {isChatbotMinimized && !showValuationModal && (
-          <div className="fixed bottom-4 right-4 z-40">
-            <button
-              onClick={() => setIsChatbotMinimized(false)}
-              className="bg-[#144D37] text-white px-4 py-2 rounded-lg shadow-lg hover:bg-[#0F3A28] transition-colors flex items-center gap-2"
-              title="Show chatbot"
-            >
-              <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
-                <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              <span className="text-sm">Show Insights</span>
-            </button>
-          </div>
-        )}
-      </div>
+                </>
+              )}
 
-      {/* Pricing Modal */}
-      {showPricingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Choose Your Plan</h2>
+            </div>
+          </div >
+
+          {/* Minimized Chatbot Indicator - Only show when content is enlarged and ValuationPage is not open */}
+          {
+            isChatbotMinimized && !showValuationModal && (
+              <div className="fixed bottom-4 right-4 z-40">
                 <button
-                  onClick={() => setShowPricingModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setIsChatbotMinimized(false)}
+                  className="bg-[#144D37] text-white px-4 py-2 rounded-lg shadow-lg hover:bg-[#0F3A28] transition-colors flex items-center gap-2"
+                  title="Show chatbot"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+                    <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
+                  <span className="text-sm">Show Insights</span>
                 </button>
               </div>
+            )
+          }
+        </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {subscriptionPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`relative p-6 border rounded-lg ${
-                      plan.popular 
-                        ? 'border-[#1B5A7D] ring-2 ring-[#1B5A7D]' 
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-[#1B5A7D] text-white px-3 py-1 rounded-full text-sm font-medium">
-                          Most Popular
-                        </span>
+        {/* Pricing Modal */}
+        {
+          showPricingModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">Choose Your Plan</h2>
+                    <button
+                      onClick={() => setShowPricingModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {subscriptionPlans.map((plan) => (
+                      <div
+                        key={plan.id}
+                        className={`relative p-6 border rounded-lg ${plan.popular
+                          ? 'border-[#1B5A7D] ring-2 ring-[#1B5A7D]'
+                          : 'border-gray-200'
+                          }`}
+                      >
+                        {plan.popular && (
+                          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                            <span className="bg-[#1B5A7D] text-white px-3 py-1 rounded-full text-sm font-medium">
+                              Most Popular
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="text-center">
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
+                          <div className="mb-4">
+                            <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
+                            <span className="text-gray-600 ml-1">{plan.period}</span>
+                          </div>
+
+                          <ul className="space-y-3 mb-6 text-left">
+                            {plan.features.map((feature, index) => (
+                              <li key={index} className="flex items-center">
+                                <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                {feature}
+                              </li>
+                            ))}
+                          </ul>
+
+                          <button
+                            onClick={() => handleUpgrade(plan.id)}
+                            className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${plan.popular
+                              ? 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
+                              : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                              }`}
+                          >
+                            {plan.id === 'free' ? 'Current Plan' : 'Upgrade'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Usage Info */}
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Current Usage</h4>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">
+                        Questions used: {questionsAsked} / {userSubscription.questionsLimit}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        Plan: {userSubscription.plan.charAt(0).toUpperCase() + userSubscription.plan.slice(1)}
+                      </span>
+                    </div>
+                    {userSubscription.plan === 'free' && (
+                      <div className="mt-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-[#1B5A7D] h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(questionsAsked / userSubscription.questionsLimit) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
                     )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
 
-                    <div className="text-center">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
-                      <div className="mb-4">
-                        <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
-                        <span className="text-gray-600 ml-1">{plan.period}</span>
+        {/* Contact Modal */}
+        {
+          showContactModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">Contact Us</h2>
+                    <button
+                      onClick={() => setShowContactModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Contact Information */}
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Get in Touch</h3>
+                    <div className="space-y-2 text-gray-700">
+                      <div className="flex items-center">
+                        <span className="mr-2">📧</span>
+                        <a href="mailto:info@valueaccel.com" className="text-blue-600 hover:underline">
+                          info@valueaccel.com
+                        </a>
                       </div>
-                      
-                      <ul className="space-y-3 mb-6 text-left">
-                        {plan.features.map((feature, index) => (
-                          <li key={index} className="flex items-center">
-                            <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="flex items-center">
+                        <span className="mr-2">📞</span>
+                        <a href="tel:6305967395" className="text-blue-600 hover:underline">
+                          630 596 7395
+                        </a>
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Contact Form */}
+                  <form onSubmit={handleContactSubmit} className="space-y-4" ref={contactFormRef}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          id="name"
+                          name="name"
+                          required
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email Address *
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          required
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                          placeholder="Enter your email address"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+                          Company
+                        </label>
+                        <input
+                          type="text"
+                          id="company"
+                          name="company"
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                          placeholder="Enter your company name"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                          placeholder="Enter your phone number"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                        Message *
+                      </label>
+                      <textarea
+                        id="message"
+                        name="message"
+                        required
+                        rows={4}
+                        className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
+                        placeholder="Tell us how we can help you..."
+                      ></textarea>
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
                       <button
-                        onClick={() => handleUpgrade(plan.id)}
-                        className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                          plan.popular
-                            ? 'bg-[#1B5A7D] text-white hover:bg-[#164964]'
-                            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                        }`}
+                        type="button"
+                        onClick={() => setShowContactModal(false)}
+                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                       >
-                        {plan.id === 'free' ? 'Current Plan' : 'Upgrade'}
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-6 py-2 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors"
+                      >
+                        Send Message
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Usage Info */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Current Usage</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
-                    Questions used: {questionsAsked} / {userSubscription.questionsLimit}
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    Plan: {userSubscription.plan.charAt(0).toUpperCase() + userSubscription.plan.slice(1)}
-                  </span>
+                  </form>
                 </div>
-                {userSubscription.plan === 'free' && (
-                  <div className="mt-2">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-[#1B5A7D] h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(questionsAsked / userSubscription.questionsLimit) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        }
 
-      {/* Contact Modal */}
-      {showContactModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Contact Us</h2>
-                <button
-                  onClick={() => setShowContactModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Contact Information */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Get in Touch</h3>
-                <div className="space-y-2 text-gray-700">
-                  <div className="flex items-center">
-                    <span className="mr-2">📧</span>
-                    <a href="mailto:info@valueaccel.com" className="text-blue-600 hover:underline">
-                    info@valueaccel.com
-                    </a>
+        {/* Insights Generator Modal */}
+        {
+          showInsightsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                <div className="p-3 sm:p-4">
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={() => setShowInsightsModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="flex items-center">
-                    <span className="mr-2">📞</span>
-                    <a href="tel:6305967395" className="text-blue-600 hover:underline">
-                      630 596 7395
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Form */}
-              <form onSubmit={handleContactSubmit} className="space-y-4" ref={contactFormRef}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      required
-                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
-                      placeholder="Enter your full name"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      required
-                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
-                      placeholder="Enter your email address"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
-                      Company
-                    </label>
-                    <input
-                      type="text"
-                      id="company"
-                      name="company"
-                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
-                      placeholder="Enter your company name"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
-                      placeholder="Enter your phone number"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                    Message *
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    required
-                    rows={4}
-                    className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B5A7D] focus:border-transparent"
-                    placeholder="Tell us how we can help you..."
-                  ></textarea>
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowContactModal(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors"
-                  >
-                    Send Message
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Insights Generator Modal */}
-      {showInsightsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-3 sm:p-4">
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => setShowInsightsModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <InsightsGenerators onContactClick={() => {
-                setShowInsightsModal(false);
-                setShowContactModal(true);
-              }} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Approach Modal */}
-      {showApproachModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
-            <Approach onClose={() => setShowApproachModal(false)} />
-          </div>
-        </div>
-      )}
-
-      {/* Why Us Modal */}
-      {showWhyUsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex-1 text-center">
-                  <h1 className="text-3xl font-bold text-[#1B5A7D] mb-2">WHY PARTNER WITH US?</h1>
-                  <p className="text-lg text-gray-600">Our unique op-model enabled us to deliver services at high impact & low cost</p>
-                </div>
-                <button
-                  onClick={() => setShowWhyUsModal(false)}
-                  className="text-gray-400 hover:text-gray-600 ml-4"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-                {/* Feature 1 */}
-                <div className="text-center">
-                  <div className="relative mb-6">
-                    <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-4xl font-bold text-white">1</span>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">Pre-built Digital/AI Accelerators & Platforms</h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    Our (and our delivery partners') platforms and pre-built tools accelerate the value delivery by <strong className="text-[#1B5A7D]">up to 50%</strong>, for select use cases and transformation efforts.
-                  </p>
-                </div>
-
-                {/* Feature 2 */}
-                <div className="text-center">
-                  <div className="relative mb-6">
-                    <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-4xl font-bold text-white">2</span>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">Our low-cost Service / Operating Model</h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    Very minimal overhead cost compared to large consulting companies. <strong className="text-[#1B5A7D]">Up to 50% lower overall cost</strong> due to our optimal staffing model.
-                  </p>
-                </div>
-
-                {/* Feature 3 */}
-                <div className="text-center">
-                  <div className="relative mb-6">
-                    <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-4xl font-bold text-white">3</span>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">One team of Strategists, Experts & Developers</h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    Our team comprised of <strong className="text-[#1B5A7D]">strategists, Digital/AI developers, domain experts,</strong> and <strong className="text-[#1B5A7D]">partners/alliances</strong> with specialized platforms and accelerators.
-                  </p>
-                </div>
-              </div>
-
-              {/* Contact Button */}
-              <div className="flex justify-center mt-12">
-                <button
-                  onClick={() => {
-                    setShowWhyUsModal(false);
+                  <InsightsGenerators onContactClick={() => {
+                    setShowInsightsModal(false);
                     setShowContactModal(true);
-                  }}
-                  className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
-                >
-                  Contact Us
-                </button>
+                  }} />
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        }
 
-      {/* Value Services Modal */}
-      {showValueServicesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-[#1B5A7D] flex-1 text-center">Our Value Identification To Realization Services</h1>
-                <button
-                  onClick={() => setShowValueServicesModal(false)}
-                  className="text-gray-400 hover:text-gray-600 ml-4"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+        {/* Approach Modal */}
+        {
+          showApproachModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
+                <Approach onClose={() => setShowApproachModal(false)} />
               </div>
+            </div>
+          )
+        }
 
-              {/* Progress Bar */}
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-600">FROM: Value Identification ...</span>
-                  <span className="text-sm font-medium text-gray-600">TO: Value Realization</span>
-                </div>
-                <div className="relative">
-                  <div className="w-full h-3 bg-gray-200 rounded-full">
-                    <div className="h-full bg-gradient-to-r from-[#1B5A7D] to-[#164964] rounded-full relative">
-                      <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 border-l-8 border-l-[#164964] border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+        {/* Why Us Modal */}
+        {
+          showWhyUsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-8">
+                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex-1 text-center">
+                      <h1 className="text-3xl font-bold text-[#1B5A7D] mb-2">WHY PARTNER WITH US?</h1>
+                      <p className="text-lg text-gray-600">Our unique op-model enabled us to deliver services at high impact & low cost</p>
                     </div>
+                    <button
+                      onClick={() => setShowWhyUsModal(false)}
+                      className="text-gray-400 hover:text-gray-600 ml-4"
+                    >
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                    {/* Feature 1 */}
+                    <div className="text-center">
+                      <div className="relative mb-6">
+                        <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
+                          <span className="text-4xl font-bold text-white">1</span>
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">Pre-built Digital/AI Accelerators & Platforms</h3>
+                      <p className="text-gray-700 leading-relaxed">
+                        Our (and our delivery partners') platforms and pre-built tools accelerate the value delivery by <strong className="text-[#1B5A7D]">up to 50%</strong>, for select use cases and transformation efforts.
+                      </p>
+                    </div>
+
+                    {/* Feature 2 */}
+                    <div className="text-center">
+                      <div className="relative mb-6">
+                        <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
+                          <span className="text-4xl font-bold text-white">2</span>
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">Our low-cost Service / Operating Model</h3>
+                      <p className="text-gray-700 leading-relaxed">
+                        Very minimal overhead cost compared to large consulting companies. <strong className="text-[#1B5A7D]">Up to 50% lower overall cost</strong> due to our optimal staffing model.
+                      </p>
+                    </div>
+
+                    {/* Feature 3 */}
+                    <div className="text-center">
+                      <div className="relative mb-6">
+                        <div className="w-32 h-32 bg-[#1B5A7D] rounded-full flex items-center justify-center mx-auto mb-4">
+                          <span className="text-4xl font-bold text-white">3</span>
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-[#1B5A7D] mb-4">One team of Strategists, Experts & Developers</h3>
+                      <p className="text-gray-700 leading-relaxed">
+                        Our team comprised of <strong className="text-[#1B5A7D]">strategists, Digital/AI developers, domain experts,</strong> and <strong className="text-[#1B5A7D]">partners/alliances</strong> with specialized platforms and accelerators.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Contact Button */}
+                  <div className="flex justify-center mt-12">
+                    <button
+                      onClick={() => {
+                        setShowWhyUsModal(false);
+                        setShowContactModal(true);
+                      }}
+                      className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium"
+                    >
+                      Contact Us
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
+          )
+        }
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-                {/* Column 1 - Value Identification */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
-                  <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
-                    Value Identification <br/>& Current State Assessment
-                  </h2>
-                  <ul className="space-y-3 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      On-demand insights, strategy development & domain expertise
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Value chain mapping and use case identification (including Digital/AI)
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Current state assessment / readiness (data, IT/ OT/ET)
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Use case ROIC, prioritization, and digital transformation roadmap
-                    </li>
-                  </ul>
-                </div>
+        {/* Value Services Modal */}
+        {
+          showValueServicesModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                <div className="p-8">
+                  <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-[#1B5A7D] flex-1 text-center">Our Value Identification To Realization Services</h1>
+                    <button
+                      onClick={() => setShowValueServicesModal(false)}
+                      className="text-gray-400 hover:text-gray-600 ml-4"
+                    >
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
 
-                {/* Column 2 - Data Platforms */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
-                  <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
-                    Data Platforms & <br/>AIoT/IT/ET Infrastructure Implementation
-                  </h2>
-                  <ul className="space-y-3 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Data integration across sources and systems
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Data curation & building centralized data products and platforms
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Accelerated AIoT/IT/ET implementation by leveraging technology including accelerators and pre-built solutions
-                    </li>
-                  </ul>
-                </div>
+                  {/* Progress Bar */}
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm font-medium text-gray-600">FROM: Value Identification ...</span>
+                      <span className="text-sm font-medium text-gray-600">TO: Value Realization</span>
+                    </div>
+                    <div className="relative">
+                      <div className="w-full h-3 bg-gray-200 rounded-full">
+                        <div className="h-full bg-gradient-to-r from-[#1B5A7D] to-[#164964] rounded-full relative">
+                          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-0 h-0 border-l-8 border-l-[#164964] border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Column 3 - Value Realization */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6 border border-purple-200">
-                  <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
-                    Select Use Case <br/>Implementation & Value Realization
-                  </h2>
-                  <ul className="space-y-3 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Select use/value case and digital/AI solution end-to-end implementation
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Accelerated efforts by leverage AI agents and domain experts
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-[#1B5A7D] mr-2">•</span>
-                      Institutionalization and new ways of working by addressing people, process changes
-                    </li>
-                  </ul>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                    {/* Column 1 - Value Identification */}
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+                      <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
+                        Value Identification <br />& Current State Assessment
+                      </h2>
+                      <ul className="space-y-3 text-gray-700">
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          On-demand insights, strategy development & domain expertise
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Value chain mapping and use case identification (including Digital/AI)
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Current state assessment / readiness (data, IT/ OT/ET)
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Use case ROIC, prioritization, and digital transformation roadmap
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Column 2 - Data Platforms */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
+                      <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
+                        Data Platforms & <br />AIoT/IT/ET Infrastructure Implementation
+                      </h2>
+                      <ul className="space-y-3 text-gray-700">
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Data integration across sources and systems
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Data curation & building centralized data products and platforms
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Accelerated AIoT/IT/ET implementation by leveraging technology including accelerators and pre-built solutions
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Column 3 - Value Realization */}
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6 border border-purple-200">
+                      <h2 className="text-xl font-bold text-[#1B5A7D] mb-4 text-center">
+                        Select Use Case <br />Implementation & Value Realization
+                      </h2>
+                      <ul className="space-y-3 text-gray-700">
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Select use/value case and digital/AI solution end-to-end implementation
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Accelerated efforts by leverage AI agents and domain experts
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-[#1B5A7D] mr-2">•</span>
+                          Institutionalization and new ways of working by addressing people, process changes
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Contact Button */}
+                  <div className="flex justify-center mt-12">
+                    <button
+                      onClick={() => {
+                        setShowValueServicesModal(false);
+                        setShowContactModal(true);
+                      }}
+                      className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium flex items-center gap-2"
+                    >
+                      <span>Contact Us</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
+            </div>
+          )
+        }
 
-              {/* Contact Button */}
-              <div className="flex justify-center mt-12">
-                <button
-                  onClick={() => {
-                    setShowValueServicesModal(false);
+        {/* AIOT Platform & Solutions Modal */}
+        {
+          showAIOTModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                <div className="p-3 sm:p-4">
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={() => setShowAIOTModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <AIOTPlatformSolutions onContactClick={() => {
+                    setShowAIOTModal(false);
                     setShowContactModal(true);
-                  }}
-                  className="px-8 py-3 bg-[#1B5A7D] text-white rounded-lg hover:bg-[#164964] transition-colors font-medium flex items-center gap-2"
-                >
-                  <span>Contact Us</span>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </button>
+                  }} />
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        }
 
-      {/* AIOT Platform & Solutions Modal */}
-      {showAIOTModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-3 sm:p-4">
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => setShowAIOTModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+        {/* Operations Virtualization & Optimization Modal */}
+        {
+          showOperationsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                <div className="p-3 sm:p-4">
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={() => setShowOperationsModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <OperationsVirtualization onContactClick={() => {
+                    setShowOperationsModal(false);
+                    setShowContactModal(true);
+                  }} />
+                </div>
               </div>
-              <AIOTPlatformSolutions onContactClick={() => {
-                setShowAIOTModal(false);
-                setShowContactModal(true);
-              }} />
             </div>
-          </div>
-        </div>
-      )}
+          )
+        }
 
-      {/* Operations Virtualization & Optimization Modal */}
-      {showOperationsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-3 sm:p-4">
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => setShowOperationsModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <OperationsVirtualization onContactClick={() => {
-                setShowOperationsModal(false);
-                setShowContactModal(true);
-              }} />
-            </div>
-          </div>
-        </div>
-      )}
-
-    </div>
+      </div>
     </>
   );
 }

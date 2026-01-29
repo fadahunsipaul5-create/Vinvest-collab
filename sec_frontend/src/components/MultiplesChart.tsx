@@ -408,11 +408,11 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
   }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears, realMarketCaps]);
 
   return (
-    <div className={`bg-white dark:bg-[#161C1A] rounded-lg border dark:border-[#161C1A] shadow-sm p-3 sm:p-4 ${className}`}>
+    <div className={`bg-white dark:bg-[#161C1A] rounded-lg dark:border-[#161C1A] p-3 sm:p-4 ${className}`}>
       {/* Header and controls */}
       <div className="flex flex-col gap-3 sm:gap-4">
         <div className="flex items-center justify-between">
-          <div className="text-base sm:text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">Multiples</div>
+          <div className="text-base sm:text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]"></div>
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setViewMode('holistic')}

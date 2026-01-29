@@ -47,7 +47,7 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
       fetch(`${baseUrl}/api/sec/special_metrics/intrinsic_to_mc/`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ ticker: ticker }),
       })
@@ -92,24 +92,24 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
         // Handle Intrinsic to MC response
         let intrinsicToMcVal = null;
         if (intrinsicToMcResponse.ok) {
-            const intrinsicToMcData = await intrinsicToMcResponse.json();
-            if (intrinsicToMcData && intrinsicToMcData.intrinsic_to_mc !== undefined && intrinsicToMcData.intrinsic_to_mc !== null) {
-                const val = Number(intrinsicToMcData.intrinsic_to_mc);
-                if (!isNaN(val) && isFinite(val)) {
-                    intrinsicToMcVal = val;
-                }
+          const intrinsicToMcData = await intrinsicToMcResponse.json();
+          if (intrinsicToMcData && intrinsicToMcData.intrinsic_to_mc !== undefined && intrinsicToMcData.intrinsic_to_mc !== null) {
+            const val = Number(intrinsicToMcData.intrinsic_to_mc);
+            if (!isNaN(val) && isFinite(val)) {
+              intrinsicToMcVal = val;
             }
+          }
         } else if (intrinsicToMcResponse.status === 404) {
-            // Handle 404 error response format per API docs: { "detail": { "message": "...", "reasons": {...} } }
-            try {
-                const errorData = await intrinsicToMcResponse.json();
-                if (errorData?.detail?.message) {
-                    console.warn(`[Intrinsic to MC] ${errorData.detail.message}`, errorData.detail.reasons || {});
-                }
-            } catch (e) {
-                console.warn(`[Intrinsic to MC] No data available for ${ticker} (404)`);
+          // Handle 404 error response format per API docs: { "detail": { "message": "...", "reasons": {...} } }
+          try {
+            const errorData = await intrinsicToMcResponse.json();
+            if (errorData?.detail?.message) {
+              console.warn(`[Intrinsic to MC] ${errorData.detail.message}`, errorData.detail.reasons || {});
             }
-            // Fallback: will calculate ratio from equityValue/marketCap if available
+          } catch (e) {
+            console.warn(`[Intrinsic to MC] No data available for ${ticker} (404)`);
+          }
+          // Fallback: will calculate ratio from equityValue/marketCap if available
         }
 
         setEquityValue(equityVal);
@@ -129,16 +129,16 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
   }, [ticker]);
 
   // Chart data with real EquityValue or default
-  const intrinsicValue = equityValue !== null ? equityValue : 0; 
+  const intrinsicValue = equityValue !== null ? equityValue : 0;
   const marketCapValue = marketCap !== null ? marketCap : 0;
-  
+
   // Calculate or use fetched Intrinsic to MC ratio
   // If we have direct API data, use it. Otherwise, calculate on frontend if possible.
   let ratio = 0;
   if (intrinsicToMc !== null) {
-      ratio = intrinsicToMc;
+    ratio = intrinsicToMc;
   } else if (intrinsicValue !== 0 && marketCapValue !== 0) {
-      ratio = intrinsicValue / marketCapValue;
+    ratio = intrinsicValue / marketCapValue;
   }
 
   // Only render chart if at least one value is non-zero (or both loaded)
@@ -146,20 +146,16 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
   const hasData = intrinsicValue !== 0 || marketCapValue !== 0;
 
   if (!ticker) {
-    return (
-      <div className={`w-full h-full ${className} flex items-center justify-center`}>
-        <div className="text-gray-400 text-sm">Select a company to view valuation</div>
-      </div>
-    );
+    return null;
   }
 
   const chartData = [
-    { 
+    {
       name: 'Intrinsic',
       value: intrinsicValue,
       fill: '#1B5A7D'
     },
-    { 
+    {
       name: 'Market cap',
       value: marketCapValue,
       fill: '#4A90E2'
@@ -174,19 +170,19 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
           Financial valuation components breakdown
         </div>
       </div>
-      
+
       {isLoading && (
         <div className="h-[300px] flex items-center justify-center">
           <div className="text-sm text-gray-500 dark:text-[#889691]">Loading valuation data...</div>
         </div>
       )}
-      
+
       {error && !isLoading && (
         <div className="h-[300px] flex items-center justify-center">
           <div className="text-sm text-red-500 dark:text-red-400">Error loading data: {error}</div>
         </div>
       )}
-      
+
       {!isLoading && !error && hasData && (
         <div className="h-[300px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
@@ -202,19 +198,19 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
               barSize={60}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis 
-                dataKey="name" 
+              <XAxis
+                dataKey="name"
                 tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis 
+              <YAxis
                 tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `$${value}B`}
               />
-              <Tooltip 
+              <Tooltip
                 formatter={(value: number) => {
                   if (value === Infinity || value === -Infinity) {
                     return ['∞', 'Value'];
@@ -247,13 +243,13 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
           </div>
         </div>
       )}
-      
+
       {!isLoading && !error && !hasData && (
         <div className="h-[300px] flex items-center justify-center">
-            <div className="text-sm text-gray-500 dark:text-[#889691]">No data available for this company</div>
+          <div className="text-sm text-gray-500 dark:text-[#889691]">No data available for this company</div>
         </div>
       )}
-      
+
     </div>
   );
 };
