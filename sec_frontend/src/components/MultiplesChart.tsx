@@ -65,26 +65,31 @@ interface MultiplesSelectorsProps {
   denominator: string;
   onNumeratorChange: (value: string) => void;
   onDenominatorChange: (value: string) => void;
+  rightOfNumerator?: React.ReactNode;
 }
 
 const MultiplesSelectors: React.FC<MultiplesSelectorsProps> = ({ 
   numerator, 
   denominator, 
   onNumeratorChange, 
-  onDenominatorChange 
+  onDenominatorChange,
+  rightOfNumerator 
 }) => {
   return (
     <div className="space-y-2 sm:space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691] w-24 sm:w-24">Numerator</div>
-        <select
-          value={numerator}
-          onChange={(e) => onNumeratorChange(e.target.value)}
-          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
-        >
-          <option value="EV foundational">EV foundational</option>
-          <option value="Market Cap">Market Cap</option>
-        </select>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691] w-24 sm:w-24">Numerator</div>
+          <select
+            value={numerator}
+            onChange={(e) => onNumeratorChange(e.target.value)}
+            className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
+          >
+            <option value="EV foundational">EV foundational</option>
+            <option value="Market Cap">Market Cap</option>
+          </select>
+        </div>
+        {rightOfNumerator}
       </div>
       <div className="flex items-center gap-2">
         <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691] w-24 sm:w-24">Denominator</div>
@@ -411,38 +416,36 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
     <div className={`bg-white dark:bg-[#161C1A] rounded-lg dark:border-[#161C1A] p-3 sm:p-4 ${className}`}>
       {/* Header and controls */}
       <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex items-center justify-between">
-          <div className="text-base sm:text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]"></div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setViewMode('holistic')}
-              className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
-                viewMode === 'holistic' 
-                  ? 'bg-[#144D37] text-white border-[#144D37]' 
-                  : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
-              }`}
-            >
-              Holistic
-            </button>
-            <button 
-              onClick={() => setViewMode('simple')}
-              className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
-                viewMode === 'simple' 
-                  ? 'bg-[#144D37] text-white border-[#144D37]' 
-                  : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
-              }`}
-            >
-              Simple
-            </button>
-          </div>
-        </div>
-
-        {/* Numerator / Denominator rows (per sketch) */}
+        {/* Numerator / Denominator rows; Holistic/Simple in line with numerator */}
         <MultiplesSelectors 
           numerator={numerator}
           denominator={denominator}
           onNumeratorChange={setNumerator}
           onDenominatorChange={setDenominator}
+          rightOfNumerator={
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setViewMode('holistic')}
+                className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
+                  viewMode === 'holistic' 
+                    ? 'bg-[#144D37] text-white border-[#144D37]' 
+                    : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
+                }`}
+              >
+                Peer Ranks
+              </button>
+              <button 
+                onClick={() => setViewMode('simple')}
+                className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
+                  viewMode === 'simple' 
+                    ? 'bg-[#144D37] text-white border-[#144D37]' 
+                    : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
+                }`}
+              >
+                Value Quadrants
+              </button>
+            </div>
+          }
         />
 
         {/* Company Multi-Select Search - Hidden for presentation */}

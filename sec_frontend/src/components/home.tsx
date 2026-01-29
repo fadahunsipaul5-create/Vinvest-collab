@@ -3427,7 +3427,7 @@ const Dashboard: React.FC = () => {
 
                         {/* Compare with company - ONLY show when Performance tab + Across Peers. Single-select; value in input. */}
                         {activePerformanceTab === 'performance' && activeChart === 'peers' && (
-                          <div className="-mt-1 mb-3 xm:-mt-1.5 xm:mb-4 xs:-mt-2 xs:mb-4 sm:-mt-2 sm:mb-4 md:-mt-2.5 md:mb-5">
+                          <div className="">
                             <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1.5">Compare with</label>
                             <div className="relative max-w-md" ref={peerCompareDropdownRef}>
                               <input
@@ -3546,6 +3546,22 @@ const Dashboard: React.FC = () => {
                                     Industry
                                   </button>
                                 </div>
+
+                                {/* Multiples / Valuation content - right below the 5 tabs */}
+                                {activeChart === 'valuation' && (
+                                  <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
+                                    <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
+                                      {searchValue && (
+                                        <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
+                                          <ValueBuildupChart initialCompany={searchValue} />
+                                        </div>
+                                      )}
+                                      <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
+                                        <MultiplesChart initialCompany={searchValue} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Period buttons - conditionally scrollable */}
                                 {activeChart === 'industry' ? (
@@ -4492,19 +4508,7 @@ const Dashboard: React.FC = () => {
 
                               </div>
                             )
-                          ) : activeChart === 'valuation' ? (
-                            // Valuation Charts - Conditional Layout
-                            <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
-                              {searchValue && (
-                                <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                                  <ValueBuildupChart initialCompany={searchValue} />
-                                </div>
-                              )}
-                              <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                                <MultiplesChart initialCompany={searchValue} />
-                              </div>
-                            </div>
-                          ) : activeChart === 'industry' ? (
+                          ) : activeChart === 'valuation' ? null : activeChart === 'industry' ? (
                             // Industry Chart
                             industryLoading ? (
                               <div className="flex items-center justify-center h-full">
