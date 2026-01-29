@@ -1530,7 +1530,7 @@ const Dashboard: React.FC = () => {
 
   const [userName, setUserName] = useState('Guest User');
   const [userInitials, setUserInitials] = useState('GU');
-  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation' | 'multiples'>('metrics');
+  const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation' | 'multiples' | 'intrinsics'>('metrics');
   const [searchValue, setSearchValue] = useState('');
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
   // const [companyInput, setCompanyInput] = useState('');
@@ -3511,9 +3511,8 @@ const Dashboard: React.FC = () => {
                                 {/* Across tabs - NO scrolling, stays fixed */}
                                 <div className="flex gap-1 xm:gap-1.5 xs:gap-2 sm:gap-2 md:gap-2.5 lg:gap-2.5 xl:gap-3">
                                   <button
-                                  // onClick={() => setActiveChart('')}
-                                  // className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === '' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'
-                                  //   }`}
+                                    onClick={() => setActiveChart('intrinsics')}
+                                    className={`px-2 py-1 xm:px-2.5 xm:py-1 xs:px-2.5 xs:py-1 sm:px-3 sm:py-1 md:px-3 md:py-1 lg:px-3 lg:py-1 xl:px-3 xl:py-1 text-xs xm:text-xs xs:text-xs sm:text-sm md:text-sm lg:text-sm xl:text-sm rounded transition-colors ${activeChart === 'intrinsics' ? 'bg-[#E5F0F6] dark:bg-[#144D37]/30 text-[#1B5A7D] dark:text-[#144D37]' : 'text-gray-600 dark:text-[#889691] hover:text-gray-900 dark:hover:text-[#E0E6E4]'}`}
                                   >
                                     Intrinsics
                                   </button>
@@ -3547,18 +3546,26 @@ const Dashboard: React.FC = () => {
                                   </button>
                                 </div>
 
-                                {/* Multiples / Valuation content - right below the 5 tabs */}
+                                {/* Intrinsics: bar graph (ValueBuildupChart) - right below the 5 tabs */}
+                                {activeChart === 'intrinsics' && (
+                                  <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
+                                    {searchValue ? (
+                                      <div className="w-full">
+                                        <ValueBuildupChart initialCompany={searchValue} />
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-center py-12 text-gray-500 dark:text-[#889691] text-sm">
+                                        Select a company to view the intrinsic value bar graph.
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Multiples only - right below the 5 tabs (no Intrinsic/ValueBuildup here) */}
                                 {activeChart === 'valuation' && (
                                   <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
-                                    <div className={`flex flex-col gap-4 w-full ${isChatbotMinimized ? 'md:flex-row' : ''}`}>
-                                      {searchValue && (
-                                        <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                                          <ValueBuildupChart initialCompany={searchValue} />
-                                        </div>
-                                      )}
-                                      <div className={`w-full ${isChatbotMinimized ? 'md:w-1/2' : ''}`}>
-                                        <MultiplesChart initialCompany={searchValue} />
-                                      </div>
+                                    <div className="w-full">
+                                      <MultiplesChart initialCompany={searchValue} />
                                     </div>
                                   </div>
                                 )}
@@ -3632,7 +3639,7 @@ const Dashboard: React.FC = () => {
                                       </button>
                                     </div>
                                   </div>
-                                ) : activeChart === 'valuation' ? null : (
+                                ) : (activeChart === 'valuation' || activeChart === 'intrinsics') ? null : (
                                   <div className="flex gap-1 xm:gap-1 xs:gap-1 sm:gap-1.5 md:gap-1.5 lg:gap-2 xl:gap-2">
                                     <button
                                       onClick={() => setSelectedPeriod('Annual')}
@@ -3670,7 +3677,7 @@ const Dashboard: React.FC = () => {
 
                         {/* Chart Content */}
                         <div className="mt-4 xl:mt-6">
-                          {activePerformanceTab === 'performance' && activeChart !== 'valuation' && (
+                          {activePerformanceTab === 'performance' && activeChart !== 'valuation' && activeChart !== 'intrinsics' && (
                             <div className={activeChart === 'industry' ? "flex flex-col lg:flex-row gap-4 mb-4" : "grid grid-cols-1 gap-2 mb-4"}>
                               {activeChart === 'industry' && (
                                 <div className="flex-1">
@@ -4508,7 +4515,7 @@ const Dashboard: React.FC = () => {
 
                               </div>
                             )
-                          ) : activeChart === 'valuation' ? null : activeChart === 'industry' ? (
+                          ) : (activeChart === 'valuation' || activeChart === 'intrinsics') ? null : activeChart === 'industry' ? (
                             // Industry Chart
                             industryLoading ? (
                               <div className="flex items-center justify-center h-full">

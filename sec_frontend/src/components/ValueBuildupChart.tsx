@@ -165,7 +165,6 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
   return (
     <div className={`w-full h-full ${className}`}>
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4] mb-2">Value Build-up</h3>
         <div className="text-sm text-gray-600 dark:text-[#889691]">
           Financial valuation components breakdown
         </div>
