@@ -3378,7 +3378,7 @@ const Dashboard: React.FC = () => {
                           : 'bg-gray-100 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-200 dark:hover:bg-[#161C1A]'
                       }`}
                     >
-                      Performance
+                      Value Analyzer
                     </button>
                     <button
                       onClick={() => {
