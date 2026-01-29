@@ -1532,6 +1532,7 @@ const Dashboard: React.FC = () => {
   const [userInitials, setUserInitials] = useState('GU');
   const [activeChart, setActiveChart] = useState<'metrics' | 'peers' | 'industry' | 'valuation' | 'multiples' | 'intrinsics'>('metrics');
   const [searchValue, setSearchValue] = useState('');
+  const [intrinsicValueForFooter, setIntrinsicValueForFooter] = useState<number | null>(null); // From ValueBuildupChart for Intrinsics footer
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyTicker[]>([]);
   // const [companyInput, setCompanyInput] = useState('');
   const [availableCompanies, setAvailableCompanies] = useState<CompanyTicker[]>([]);
@@ -3550,9 +3551,31 @@ const Dashboard: React.FC = () => {
                                 {activeChart === 'intrinsics' && (
                                   <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4">
                                     {searchValue ? (
-                                      <div className="w-full">
-                                        <ValueBuildupChart initialCompany={searchValue} />
-                                      </div>
+                                      <>
+                                        <div className="w-full">
+                                          <ValueBuildupChart
+                                            initialCompany={searchValue}
+                                            onIntrinsicValueLoaded={setIntrinsicValueForFooter}
+                                            onBarClick={() => setShowValuationModal(true)}
+                                          />
+                                        </div>
+                                        <footer className="mt-4 pt-3 border-t border-gray-200 dark:border-[#161C1A] text-xs sm:text-sm text-gray-600 dark:text-[#889691]">
+                                          <p className="font-medium text-gray-700 dark:text-[#E0E6E4]">
+                                            Intrinsic Value: {intrinsicValueForFooter != null ? `$${intrinsicValueForFooter.toFixed(2)}B` : '<x>'}
+                                          </p>
+                                          <p className="mt-1">
+                                            <span className="text-red-600 dark:text-red-400">*</span>Our math is baseline,{' '}
+                                            <button
+                                              type="button"
+                                              onClick={() => setShowValuationModal(true)}
+                                              className="text-[#1B5A7D] dark:text-[#144D37] font-medium underline hover:no-underline focus:outline-none"
+                                            >
+                                              click here
+                                            </button>
+                                            {' '}to stress-test it in the valuation lab and forge your own true value!
+                                          </p>
+                                        </footer>
+                                      </>
                                     ) : (
                                       <div className="flex items-center justify-center py-12 text-gray-500 dark:text-[#889691] text-sm">
                                         Select a company to view the intrinsic value bar graph.

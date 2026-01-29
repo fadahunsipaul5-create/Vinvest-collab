@@ -5,9 +5,11 @@ import baseUrl from './api';
 interface ValueBuildupChartProps {
   className?: string;
   initialCompany?: string; // Ticker from parent component (e.g., "WMT" or "WMT: Walmart Inc.")
+  onIntrinsicValueLoaded?: (valueInBillions: number | null) => void; // Optional callback for footer display
+  onBarClick?: () => void; // Optional: e.g. open Valuation Lab when a bar is clicked
 }
 
-const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", initialCompany }) => {
+const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", initialCompany, onIntrinsicValueLoaded, onBarClick }) => {
   const [equityValue, setEquityValue] = useState<number | null>(null);
   const [marketCap, setMarketCap] = useState<number | null>(null);
   const [intrinsicToMc, setIntrinsicToMc] = useState<number | null>(null);
@@ -125,8 +127,9 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
         setEquityValue(null);
         setMarketCap(null);
         setIntrinsicToMc(null);
+        onIntrinsicValueLoaded?.(null);
       });
-  }, [ticker]);
+  }, [ticker, onIntrinsicValueLoaded]);
 
   // Chart data with real EquityValue or default
   const intrinsicValue = equityValue !== null ? equityValue : 0;
@@ -140,6 +143,23 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
   } else if (intrinsicValue !== 0 && marketCapValue !== 0) {
     ratio = intrinsicValue / marketCapValue;
   }
+
+  // Margin of safety: (1 - marketCap/intrinsic) * 100 when intrinsic > 0
+  const marginOfSafetyPct =
+    intrinsicValue > 0 && marketCapValue > 0
+      ? (1 - marketCapValue / intrinsicValue) * 100
+      : null;
+
+  // Insight text by MoS range (for hover and second line)
+  const getMarginOfSafetyInsight = (pct: number | null): string => {
+    if (pct == null) return '';
+    if (pct >= 15 && pct <= 100) return 'Opportunity: Market is underpricing its true Value';
+    if (pct >= -15 && pct <= 15) return 'Fair Value: Price and Value are in sync';
+    if (pct >= -100 && pct <= -15) return 'Premium: Market is Paying a "Hype Tax"';
+    if (pct > 100) return 'Opportunity: Market is underpricing its true Value';
+    return 'Premium: Market is Paying a "Hype Tax"';
+  };
+  const marginOfSafetyInsight = getMarginOfSafetyInsight(marginOfSafetyPct);
 
   // Only render chart if at least one value is non-zero (or both loaded)
   // If no company selected (ticker is null), we return null early above, but double check data here.
@@ -164,11 +184,7 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
 
   return (
     <div className={`w-full h-full ${className}`}>
-      <div className="mb-4">
-        <div className="text-sm text-gray-600 dark:text-[#889691]">
-          Financial valuation components breakdown
-        </div>
-      </div>
+      
 
       {isLoading && (
         <div className="h-[300px] flex items-center justify-center">
@@ -195,6 +211,8 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
               }}
               barCategoryGap="20%"
               barSize={60}
+              onClick={onBarClick ? () => onBarClick() : undefined}
+              style={onBarClick ? { cursor: 'pointer' } : undefined}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
               <XAxis
@@ -224,21 +242,28 @@ const ValueBuildupChart: React.FC<ValueBuildupChartProps> = ({ className = "", i
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                 }}
               />
-              <Bar dataKey="value">
+              <Bar
+                dataKey="value"
+                onClick={onBarClick ? () => onBarClick() : undefined}
+                cursor={onBarClick ? 'pointer' : undefined}
+              >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          {/* 0.5x annotation */}
-          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center gap-2">
-            <div className="flex items-center">
-              <div className="w-8 h-px bg-gray-400 dark:bg-gray-500"></div>
-              <div className="w-px h-4 bg-gray-400 dark:bg-gray-500"></div>
-              <div className="w-8 h-px bg-gray-400 dark:bg-gray-500"></div>
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4]">{ratio.toFixed(2)}x</span>
+          {/* Margin of safety & insight - hover on first line shows insight; rest is non-interactive so bar hover works */}
+          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-0.5 pointer-events-none">
+            <span
+              className="text-sm font-medium text-gray-700 dark:text-[#E0E6E4] pointer-events-auto cursor-help"
+              title={marginOfSafetyInsight || undefined}
+            >
+              Margin of safety is {marginOfSafetyPct != null ? `${marginOfSafetyPct.toFixed(1)}%` : '<X%>'}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-[#889691]">
+              &lt;Insight statement&gt;
+            </span>
           </div>
         </div>
       )}
