@@ -21,6 +21,8 @@ interface TopPicksProps {
   companies: CompanyTicker[]; // Still kept for other uses if needed, but TopPicks will fetch its own now
   industries: any[]; // Kept for prop compatibility but we'll fetch our own
   sectors: string[]; // Kept for prop compatibility
+  onTickerClick?: (ticker: string) => void; // Callback when ticker is clicked
+  selectedTicker?: string; // Ticker selected from the top search input
 }
 
 interface RankingResult {
@@ -62,29 +64,247 @@ interface TopPickData {
   };
 }
 
-// Elite Ticker Analysis interfaces (currently unused while table is hidden)
-// interface EliteTickerData {
-//   ticker: string;
-//   vEliteStatus: {
-//     type: 'elite' | 'gatekeeper' | 'fail';
-//     value: number | string; // For elite: rank number, for gatekeeper: "GATEKEEPER", for fail: "FAIL"
-//   };
-//   vRating: number;      // 0-100
-//   vQuality: number;     // 0-100
-//   vValue: number;       // 0-100
-//   vSafety: number;      // 0-100
-//   vMomentum: number;    // 0-100
-// }
+// Elite Ticker Analysis interfaces
+interface EliteTickerData {
+  ticker: string;
+  vEliteStatus: {
+    type: 'elite' | 'gatekeeper' | 'fail';
+    value: number | string; // For elite: rank number, for gatekeeper: "GATEKEEPER", for fail: "FAIL"
+  };
+  vRating: number;      // 0-100
+  vQuality: number;     // 0-100
+  vValue: number;       // 0-100
+  vSafety: number;      // 0-100
+  vMomentum: number;    // 0-100
+}
 
-// Circular Progress / VEliteStatus / InfoTooltip components
-// NOTE: These are currently unused because the Elite Ticker table is hidden for presentation.
-// Keeping the implementations commented out for future reuse.
-//
-// const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, size = 60 }) => { ... }
-// const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> = ({ status }) => { ... }
-// const InfoTooltip: React.FC<{ tooltipText: string; children?: React.ReactNode }> = ({ tooltipText, children }) => { ... }
+// Circular Progress Component for V-Rating metrics with Tooltip
+const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: boolean; metricType?: 'rating' | 'quality' | 'value' | 'safety' | 'momentum' }> = ({ value, size = 60, showTooltip = false, metricType = 'rating' }) => {
+  const [showRatingTooltip, setShowRatingTooltip] = React.useState(false);
+  const radius = (size - 8) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const normalizedValue = Math.min(Math.max(value, 0), 100);
+  const offset = circumference - (normalizedValue / 100) * circumference;
+  
+  // Color based on value: green for high (>=80), yellow for medium (50-79), red for low (<50)
+  const getColor = () => {
+    if (normalizedValue >= 80) return '#22c55e'; // green-500
+    if (normalizedValue >= 50) return '#eab308'; // yellow-500
+    return '#ef4444'; // red-500
+  };
 
-const TopPicks: React.FC<TopPicksProps> = () => {
+  // Get tooltip text based on metric type and value
+  const getTooltipText = () => {
+    if (metricType === 'quality') {
+      // V-Quality tooltips: 90+, 50-89, <50
+      if (normalizedValue >= 90) {
+        return 'An "Unassailable Moat." High ROIC (e.g., 25%+) suggests the company generates immense value from its assets.';
+      } else if (normalizedValue >= 50) {
+        return 'A solid, productive business but faces moderate competition or cyclicality.';
+      } else {
+        return 'A "Commoditized" business. Low margins and poor return on invested capital.';
+      }
+    } else if (metricType === 'value') {
+      // V-Value tooltips: 80+, 30-79, <30
+      if (normalizedValue >= 80) {
+        return 'A "Deep Logic Gap." You are buying $1 worth of assets/earnings for significantly less (e.g., a 30%+ discount).';
+      } else if (normalizedValue >= 30) {
+        return 'Fairly valued. You are paying what the business is actually worth.';
+      } else {
+        return 'A "Quality Premium." The market has bid the price up; you are overpaying for growth.';
+      }
+    } else if (metricType === 'safety') {
+      // V-Safety tooltips: 90+, 50-89, <50
+      if (normalizedValue >= 90) {
+        return 'A "Financial Fortress." Virtually zero risk of bankruptcy; massive cash reserves.';
+      } else if (normalizedValue >= 50) {
+        return 'The "Grey Zone." Safe in normal markets, but could be stressed in a severe recession.';
+      } else {
+        return 'The "Distress Zone." High leverage and fragile cash flows.';
+      }
+    } else if (metricType === 'momentum') {
+      // V-Momentum tooltips: 70+, 40-69, <40
+      if (normalizedValue >= 70) {
+        return '"Trend Confirmation." The market has begun to recognize the value; price is moving higher with volume.';
+      } else if (normalizedValue >= 40) {
+        return 'Sideways/Consolidation. The business is performing, but the stock is "resting."';
+      } else {
+        return 'Bearish trend or "Exhaustion." High RSI (>75) can also lower this score to warn of a "Top."';
+      }
+    } else {
+      // V-Rating tooltips: 80+, 50-79, <50
+      if (normalizedValue >= 80) {
+        return 'A "Rationalist Strike." The company has passed all Gatekeepers and offers elite quality at a fair price.';
+      } else if (normalizedValue >= 50) {
+        return 'A "Quality Compounder" or a "Fair Value" play. Safe, but perhaps overvalued or lacking momentum.';
+      } else {
+        return 'A structural failure in one or more pillars. High risk of capital destruction.';
+      }
+    }
+  };
+
+  const color = getColor();
+  const tooltipText = showTooltip ? getTooltipText() : '';
+
+  return (
+    <div 
+      className="relative inline-flex items-center justify-center" 
+      style={{ width: size, height: size }}
+      onMouseEnter={() => showTooltip && setShowRatingTooltip(true)}
+      onMouseLeave={() => setShowRatingTooltip(false)}
+    >
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+      >
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#e5e7eb"
+          strokeWidth="4"
+          fill="none"
+        />
+        {/* Progress circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth="4"
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-300"
+        />
+      </svg>
+      {/* Value text */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+          {Math.round(normalizedValue)}
+        </span>
+      </div>
+      {showRatingTooltip && tooltipText && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 p-3 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-50 whitespace-normal">
+          {tooltipText}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// V-Elite Status Badge Component
+const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> = ({ status }) => {
+  if (status.type === 'elite') {
+    return (
+      <div className="inline-flex items-center justify-center">
+        <img 
+          src="/gold.png" 
+          alt="V-Elite Gold Badge" 
+          className="w-20 h-[90px] object-contain drop-shadow-sm"
+        />
+      </div>
+    );
+  } else if (status.type === 'gatekeeper') {
+    return (
+      <div className="inline-flex items-center justify-center">
+        <img 
+          src="/silver.png" 
+          alt="V-Elite Silver Badge" 
+          className="w-20 h-[90px] object-contain drop-shadow-sm"
+        />
+      </div>
+    );
+  } else {
+    // Fail status
+    return (
+      <div className="inline-flex items-center justify-center">
+        <img 
+          src="/red.png" 
+          alt="GATEKEEPER FAIL Badge" 
+          className="w-20 h-[90px] object-contain drop-shadow-sm"
+        />
+      </div>
+    );
+  }
+};
+
+// Custom Tooltip Component for V-Ratings Chart
+const CustomVRatingsTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    return (
+      <div className={`rounded-lg border shadow-lg p-3 ${
+        isDark 
+          ? 'bg-[#1C2220] border-[#2A3230] text-[#E0E6E4]' 
+          : 'bg-white border-gray-200 text-gray-900'
+      }`}>
+        <p className={`font-semibold mb-2 text-sm ${
+          isDark ? 'text-[#E0E6E4]' : 'text-gray-900'
+        }`}>
+          {label === 'Today' ? 'Today' : new Date(label).toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          })}
+        </p>
+        <div className="space-y-1">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-xs">
+              <div 
+                className="w-3 h-3 rounded-full border-2 border-white"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className={isDark ? 'text-[#889691]' : 'text-gray-600'}>
+                {entry.name}:
+              </span>
+              <span className={`font-semibold ${
+                isDark ? 'text-[#E0E6E4]' : 'text-gray-900'
+              }`}>
+                {Math.round(entry.value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Info Tooltip Component
+const InfoTooltip: React.FC<{ tooltipText: string; children?: React.ReactNode }> = ({ tooltipText, children }) => {
+  const [showTooltip, setShowTooltip] = React.useState(false);
+
+  return (
+    <div 
+      className="relative inline-flex items-center"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      {children}
+      <svg 
+        className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-help ml-1" 
+        fill="currentColor" 
+        viewBox="0 0 20 20"
+      >
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+      </svg>
+      {showTooltip && (
+        <div className="absolute right-0 top-6 w-64 p-3 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-20 whitespace-normal">
+          {tooltipText}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) => {
   // Filter states
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
   const [selectedSector, setSelectedSector] = useState<string>('');
@@ -104,15 +324,17 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   const [showSectorDropdown, setShowSectorDropdown] = useState<boolean>(false);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState<boolean>(false);
   
+  // AI Filter state for Scan tab
+  const [aiFilter, setAiFilter] = useState<string>('');
+  
   // Refs for dropdowns
   const industryDropdownRef = useRef<HTMLDivElement>(null);
   const sectorDropdownRef = useRef<HTMLDivElement>(null);
   const companyDropdownRef = useRef<HTMLDivElement>(null);
   
   const [picksData, setPicksData] = useState<TopPickData[]>([]);
-  // We only need the setters; ignore the state values to avoid unused-variable errors
-  const [, setRankingStats] = useState<{ sent: number; ranked: number; rejected: number } | null>(null);
-  const [, setRankingLoading] = useState(false);
+  const [rankingStats, setRankingStats] = useState<{ sent: number; ranked: number; rejected: number } | null>(null);
+  const [rankingLoading, setRankingLoading] = useState(false);
   
   // New state for mode selection
   const [activeMode, setActiveMode] = useState<'today' | 'historical'>('today');
@@ -120,10 +342,13 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   const [rankingTypes, setRankingTypes] = useState<{id: string, label: string}[]>([]);
   const [selectedRankingType, setSelectedRankingType] = useState<string>('overall'); // Default to overall
 
-  // Historical Chart Data State
-  const [historicalChartData, setHistoricalChartData] = useState<any[]>([]);
-  const [historicalChartLoading, setHistoricalChartLoading] = useState(false);
-  const [historicalChartError, setHistoricalChartError] = useState<string | null>(null);
+  // Historical V-Ratings Chart Data State
+  const [historicalVRatingsData, setHistoricalVRatingsData] = useState<any[]>([]);
+  const [historicalVRatingsLoading, setHistoricalVRatingsLoading] = useState(false);
+  const [historicalVRatingsError, setHistoricalVRatingsError] = useState<string | null>(null);
+
+  // Pagination state - cumulative loading
+  const [itemsToShow, setItemsToShow] = useState<number>(10);
 
   // Fetch Ranking Types on Mount
   useEffect(() => {
@@ -142,68 +367,151 @@ const TopPicks: React.FC<TopPicksProps> = () => {
       .catch(err => console.error("Failed to fetch ranking types:", err));
   }, []);
 
-  // Fetch Historical Ranking Chart Data
+  // Fetch Historical V-Ratings Chart Data
   useEffect(() => {
-    if (activeMode === 'historical' && selectedCompany) {
-        setHistoricalChartLoading(true);
-        setHistoricalChartError(null);
-        // Fetch history for the selected company and ranking type
-        // Use 'ALL' period for full history
-        const url = `${baseUrl}/api/sec/central/rankings/historical?tickers=${encodeURIComponent(selectedCompany)}&rankingType=${encodeURIComponent(selectedRankingType)}&period=ALL`;
+    const tickerToFetch = selectedTicker || selectedCompany;
+    if (activeMode === 'historical' && tickerToFetch) {
+        setHistoricalVRatingsLoading(true);
+        setHistoricalVRatingsError(null);
         
-        console.log('Fetching historical ranking:', url);
-    
-    (async () => {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          let detail = '';
+        // Fetch historical ranking data for all ranking types to calculate V-ratings
+        const rankingTypesToFetch = ['overall', 'roic', 'earnings', 'intrinsic'];
+        
+        (async () => {
           try {
-            const errJson = await res.json();
-            detail = errJson?.detail ? String(errJson.detail) : '';
-          } catch {
-            // ignore json parse errors
+            // Fetch all ranking types in parallel
+            const promises = rankingTypesToFetch.map(type => 
+              fetch(`${baseUrl}/api/sec/central/rankings/historical?tickers=${encodeURIComponent(tickerToFetch)}&rankingType=${encodeURIComponent(type)}&period=ALL`)
+                .then(res => {
+                  if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+                  return res.json();
+                })
+            );
+            
+            const results = await Promise.all(promises);
+            
+            // Process the data to create V-rating chart data
+            const processedData: { [date: string]: { date: string; vRating: number; vQuality: number; vValue: number; vSafety: number; vMomentum: number } } = {};
+            
+            // Process overall ranking for V-Rating
+            if (results[0] && results[0].history) {
+              results[0].history.forEach((item: any) => {
+                const date = item.date;
+                const overallRank = item[tickerToFetch];
+                if (overallRank !== null && overallRank !== undefined) {
+                  if (!processedData[date]) {
+                    processedData[date] = {
+                      date,
+                      vRating: 0,
+                      vQuality: 0,
+                      vValue: 0,
+                      vSafety: 0,
+                      vMomentum: 0
+                    };
+                  }
+                  // Convert rank to V-Rating (inverse, scaled to 0-100)
+                  processedData[date].vRating = Math.max(0, Math.min(100, 100 - (overallRank - 1) * 2));
+                  processedData[date].vSafety = Math.max(0, Math.min(100, 100 - overallRank * 0.5));
+                }
+              });
+            }
+            
+            // Process ROIC ranking for V-Quality
+            if (results[1] && results[1].history) {
+              results[1].history.forEach((item: any) => {
+                const date = item.date;
+                const roicRank = item[tickerToFetch];
+                if (roicRank !== null && roicRank !== undefined) {
+                  if (!processedData[date]) {
+                    processedData[date] = {
+                      date,
+                      vRating: 0,
+                      vQuality: 0,
+                      vValue: 0,
+                      vSafety: 0,
+                      vMomentum: 0
+                    };
+                  }
+                  // Convert ROIC rank to V-Quality (simplified conversion)
+                  processedData[date].vQuality = Math.max(0, Math.min(100, 100 - roicRank * 2));
+                }
+              });
+            }
+            
+            // Process earnings ranking for V-Momentum
+            if (results[2] && results[2].history) {
+              results[2].history.forEach((item: any) => {
+                const date = item.date;
+                const earningsRank = item[tickerToFetch];
+                if (earningsRank !== null && earningsRank !== undefined) {
+                  if (!processedData[date]) {
+                    processedData[date] = {
+                      date,
+                      vRating: 0,
+                      vQuality: 0,
+                      vValue: 0,
+                      vSafety: 0,
+                      vMomentum: 0
+                    };
+                  }
+                  // Convert earnings rank to V-Momentum
+                  processedData[date].vMomentum = Math.max(0, Math.min(100, 100 - earningsRank * 2));
+                }
+              });
+            }
+            
+            // Process intrinsic ranking for V-Value
+            if (results[3] && results[3].history) {
+              results[3].history.forEach((item: any) => {
+                const date = item.date;
+                const intrinsicRank = item[tickerToFetch];
+                if (intrinsicRank !== null && intrinsicRank !== undefined) {
+                  if (!processedData[date]) {
+                    processedData[date] = {
+                      date,
+                      vRating: 0,
+                      vQuality: 0,
+                      vValue: 0,
+                      vSafety: 0,
+                      vMomentum: 0
+                    };
+                  }
+                  // Convert intrinsic rank to V-Value
+                  processedData[date].vValue = Math.max(0, Math.min(100, 100 - intrinsicRank * 2));
+                }
+              });
+            }
+            
+            // Convert to array and sort by date, filter from January 25th onwards, add "Today" label to the latest
+            const startDate = new Date('2026-01-25'); // Start from January 25th, 2026
+            startDate.setHours(0, 0, 0, 0); // Set to start of day
+            
+            const chartDataArray = Object.values(processedData)
+              .filter(item => {
+                const itemDate = new Date(item.date);
+                itemDate.setHours(0, 0, 0, 0);
+                return itemDate >= startDate;
+              })
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+              .map((item, index, arr) => ({
+                ...item,
+                dateLabel: index === arr.length - 1 ? 'Today' : item.date
+              }));
+            
+            setHistoricalVRatingsData(chartDataArray);
+          } catch (err: any) {
+            console.error("Failed to fetch historical V-ratings data:", err);
+            setHistoricalVRatingsError(err?.message ? String(err.message) : 'Failed to fetch historical V-ratings data.');
+            setHistoricalVRatingsData([]);
+          } finally {
+            setHistoricalVRatingsLoading(false);
           }
-          throw new Error(detail || `HTTP error! Status: ${res.status}`);
-        }
-
-        const data = await res.json();
-        console.log('Historical ranking data received:', data);
-
-        // API response format check
-        if (data && data.history && Array.isArray(data.history)) {
-          // Format: { history: [{ date: "2025-12-13", "AAPL": 5 }, ...] }
-          // We need to transform this to chart format: [{ date: "...", rank: 5 }]
-          const tickerKey = selectedCompany; // The key in the object is the ticker
-
-          const chartData = data.history
-            .map((item: any) => ({
-              date: item.date,
-              rank: item[tickerKey] // Extract rank using the ticker as key
-            }))
-            .filter((item: any) => item.rank !== null && item.rank !== undefined); // Filter out nulls
-
-          setHistoricalChartData(chartData);
-        } else if (data && data.length > 0 && data[0].rankings) {
-          // Fallback for previous expected format: [{ ticker: "AAPL", rankings: [...] }]
-          setHistoricalChartData(data[0].rankings);
-        } else {
-          console.log('Unexpected data format or empty:', data);
-          setHistoricalChartData([]);
-        }
-      } catch (err: any) {
-        console.error("Failed to fetch historical ranking chart data:", err);
-        setHistoricalChartError(err?.message ? String(err.message) : 'Failed to fetch historical ranking data.');
-        setHistoricalChartData([]);
-      } finally {
-        setHistoricalChartLoading(false);
-      }
-    })();
+        })();
     } else {
-        setHistoricalChartData([]);
-        setHistoricalChartError(null);
+        setHistoricalVRatingsData([]);
+        setHistoricalVRatingsError(null);
     }
-  }, [activeMode, selectedCompany, selectedRankingType]);
+  }, [activeMode, selectedTicker, selectedCompany]);
 
   // Fetch Sectors on Mount
   useEffect(() => {
@@ -578,37 +886,87 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   // But let's verify data first.
 
 
-  // Filter Data - RESTORED (currently unused while Elite table is hidden)
-  // const filteredData = useMemo(() => {
-  //   console.log('[TopPicks] Filtering data:', {
-  //     picksDataCount: picksData.length,
-  //     selectedIndustry,
-  //     selectedSector,
-  //     selectedCompany
-  //   });
-  //   
-  //   let data = picksData.filter(item => {
-  //     const matchIndustry = selectedIndustry ? item.industry === selectedIndustry : true;
-  //     const matchSector = selectedSector ? item.sector === selectedSector : true;
-  //     const matchCompany = selectedCompany ? item.ticker === selectedCompany : true;
-  //     return matchIndustry && matchSector && matchCompany;
-  //   });
-  //
-  //   console.log('[TopPicks] After filtering:', data.length, 'items');
-  //
-  //   // Default sort by overall rank for Today's Pick
-  //   data = data.sort((a, b) => {
-  //     const ar = a.ranks.overall || Number.POSITIVE_INFINITY;
-  //     const br = b.ranks.overall || Number.POSITIVE_INFINITY;
-  //     return ar - br;
-  //   });
-  //   
-  //   return data;
-  // }, [picksData, selectedIndustry, selectedSector, selectedCompany]);
+  // Filter Data - RESTORED
+  const filteredData = useMemo(() => {
+    console.log('[TopPicks] Filtering data:', {
+      picksDataCount: picksData.length,
+      selectedIndustry,
+      selectedSector,
+      selectedCompany
+    });
+    
+    let data = picksData.filter(item => {
+      const matchIndustry = selectedIndustry ? item.industry === selectedIndustry : true;
+      const matchSector = selectedSector ? item.sector === selectedSector : true;
+      const matchCompany = selectedCompany ? item.ticker === selectedCompany : true;
+      return matchIndustry && matchSector && matchCompany;
+    });
 
-  // Convert TopPickData to EliteTickerData (currently unused while table is hidden)
-  // const convertToEliteTickerData = (item: TopPickData): EliteTickerData => { ... }
-  // const eliteTickerData = useMemo(() => filteredData.map(convertToEliteTickerData), [filteredData]);
+    console.log('[TopPicks] After filtering:', data.length, 'items');
+
+    // Default sort by overall rank for Today's Pick
+    data = data.sort((a, b) => {
+      const ar = a.ranks.overall || Number.POSITIVE_INFINITY;
+      const br = b.ranks.overall || Number.POSITIVE_INFINITY;
+      return ar - br;
+    });
+    
+    return data;
+  }, [picksData, selectedIndustry, selectedSector, selectedCompany]);
+
+  // Convert TopPickData to EliteTickerData
+  const convertToEliteTickerData = (item: TopPickData): EliteTickerData => {
+    // Calculate V-Rating metrics from existing data
+    // For now, using overall_score and other metrics to derive values
+    // In production, these should come from the API
+    const overallScore = item.ranks.overall || 100;
+    const vRating = Math.max(0, Math.min(100, 100 - (overallScore - 1) * 2)); // Inverse of rank, scaled to 0-100
+    
+    // Derive other metrics from existing data (mock for now - should come from API)
+    const vQuality = Math.max(0, Math.min(100, (item.roic5YAvg || 0) * 10)); // Scale ROIC to 0-100
+    const vValue = Math.max(0, Math.min(100, (item.intrinsicToMarketCap || 0) * 50)); // Scale intrinsic/mc ratio
+    const vSafety = Math.max(0, Math.min(100, 100 - (item.ranks.overall || 100) * 0.5)); // Inverse of overall rank
+    const vMomentum = Math.max(0, Math.min(100, (item.earningsYield || 0) * 20)); // Scale earnings yield
+    
+    // Determine V-Elite Status based on overall rank
+    let vEliteStatus: EliteTickerData['vEliteStatus'];
+    if (item.ranks.overall <= 10) {
+      vEliteStatus = { type: 'elite', value: item.ranks.overall };
+    } else if (item.ranks.overall <= 15) {
+      vEliteStatus = { type: 'gatekeeper', value: item.ranks.overall };
+    } else {
+      vEliteStatus = { type: 'fail', value: 'FAIL' };
+    }
+    
+    return {
+      ticker: item.ticker,
+      vEliteStatus,
+      vRating,
+      vQuality,
+      vValue,
+      vSafety,
+      vMomentum
+    };
+  };
+
+  // Convert filtered data to Elite Ticker format
+  const eliteTickerData = useMemo(() => {
+    return filteredData.map(convertToEliteTickerData);
+  }, [filteredData]);
+
+  // Paginated data - cumulative loading (show first N items)
+  const paginatedEliteTickerData = useMemo(() => {
+    return eliteTickerData.slice(0, itemsToShow);
+  }, [eliteTickerData, itemsToShow]);
+
+  // Calculate pagination info
+  const hasMoreItems = eliteTickerData.length > itemsToShow;
+  const hasPreviousItems = itemsToShow > 10;
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setItemsToShow(10);
+  }, [selectedIndustry, selectedSector, selectedCompany, activeMode]);
 
   // Update available options for filters based on API data
   const availableSectors = useMemo(() => fetchedSectors.map(s => s.sectorName).sort(), [fetchedSectors]);
@@ -720,12 +1078,12 @@ const TopPicks: React.FC<TopPicksProps> = () => {
   };
 
   return (
-    <div className="relative z-0">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-4">VInvest Rating - Elite Ticker Analysis</h2>
+    <div className="relative z-0 px-2 sm:px-4 xl:px-6 pb-2 sm:pb-4 xl:pb-6 pt-0 mt-0">
+      <div className="mb-0 mt-0">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-[#E0E6E4] mb-0 mt-0">VInvest Rating - Elite Ticker Analysis</h2>
         
         {/* Mode Selection Buttons */}
-        <div className="flex space-x-2 mb-6 border-b border-gray-200 dark:border-[#161C1A]">
+        <div className="flex space-x-2 mb-5 border-b border-gray-200 dark:border-[#161C1A]">
           <button
             onClick={() => {
                 setActiveMode('today');
@@ -736,7 +1094,7 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
             }`}
           >
-            Today's Pick
+            Scan
           </button>
           <button
             onClick={() => setActiveMode('historical')}
@@ -746,370 +1104,351 @@ const TopPicks: React.FC<TopPicksProps> = () => {
                 : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
             }`}
           >
-            Historical Ranking
+            Track
           </button>
         </div>
         
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          
-          {/* Historical Mode Filters: Ranking Type & Company Only */}
-          {activeMode === 'historical' && (
-            <>
-             {/* Ranking Type Filter */}
-             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Ranking Type</label>
-                <div className="relative">
-                  <select
-                    value={selectedRankingType}
-                    onChange={(e) => setSelectedRankingType(e.target.value)}
-                    className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37] appearance-none"
-                  >
-                    {rankingTypes.length > 0 ? (
-                        rankingTypes.map(type => (
-                            <option key={type.id} value={type.id}>{type.label}</option>
-                        ))
-                    ) : (
-                    <option value="overall">Overall Rank</option>
-                    )}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-[#889691]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-             </div>
-            </>
-          )}
-
-          {/* Today's Pick Filters: Industry & Sector */}
-          {/* User requirement: "When the Historical Picks is clicked on, show 2 filters ie, company/companies and Ranking type." */}
-          {/* This implies Industry/Sector are NOT shown in Historical mode, or at least not the primary ones. */}
-          {/* However, the Company filter is shared or specific? */}
-          
+        <div className="flex items-center gap-2">
+          {/* AI Filter Input - Only for Scan tab */}
           {activeMode === 'today' && (
-          <>
-          {/* Sector Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Sector</label>
-            <div className="relative" ref={sectorDropdownRef}>
-              <input
-                type="text"
-                placeholder="Select Sector"
-                value={selectedSector ? selectedSector : sectorSearch}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSectorSearch(value);
-                  if (value) {
-                    setSelectedSector('');
-                  }
-                  setShowSectorDropdown(true);
-                }}
-                onFocus={() => {
-                  if (selectedSector) {
-                    setSectorSearch(selectedSector);
-                    setSelectedSector('');
-                  }
-                  setShowSectorDropdown(true);
-                }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
-              />
-              {(selectedSector || sectorSearch) && (
-                <button
-                  onClick={() => {
-                    setSelectedSector('');
-                    setSectorSearch('');
-                    setShowSectorDropdown(false);
-                  }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={aiFilter}
+                  onChange={(e) => setAiFilter(e.target.value)}
+                  placeholder="AI Filter"
+                  className="w-full font-medium text-sm px-3 py-1.5 pr-8 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
+                />
+                {aiFilter && (
+                  <button
+                    onClick={() => setAiFilter('')}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-[#E0E6E4] p-0.5"
+                    aria-label="Clear filter"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
               </div>
-              
-              {showSectorDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                  {filteredSectors.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No sectors found</div>
-                  ) : (
-                    <>
-                      {filteredSectors.map(sec => (
-                        <div
-                          key={sec}
-                          onClick={() => handleSectorChange(sec)}
-                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
-                            selectedSector === sec ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
-                          }`}
-                        >
-                          {sec}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
-          </div>
-
-          {/* Industry Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Industry</label>
-            <div className="relative" ref={industryDropdownRef}>
-
-              <input
-                type="text"
-                placeholder="Select Industry"
-                value={selectedIndustry ? selectedIndustry : industrySearch}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setIndustrySearch(value);
-                  if (value) {
-                    setSelectedIndustry('');
-                  }
-                  setShowIndustryDropdown(true);
-                }}
-                onFocus={() => {
-                  if (selectedIndustry) {
-                    setIndustrySearch(selectedIndustry);
-                    setSelectedIndustry('');
-                  }
-                  setShowIndustryDropdown(true);
-                }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
-              />
-              {(selectedIndustry || industrySearch) && (
-                <button
-                  onClick={() => {
-                    setSelectedIndustry('');
-                    setIndustrySearch('');
-                    setShowIndustryDropdown(false);
-                  }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              
-              {showIndustryDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                  {filteredIndustries.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No industries found</div>
-                  ) : (
-                    <>
-                      {filteredIndustries.map(ind => (
-                        <div
-                          key={ind}
-                          onClick={() => handleIndustryChange(ind)}
-                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
-                            selectedIndustry === ind ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
-                          }`}
-                        >
-                          {ind}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          </>
           )}
-
-          {/* Company Filter - Available in both modes now */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Company</label>
-            <div className="relative" ref={companyDropdownRef}>
-              <input
-                type="text"
-                placeholder="Select Company"
-                value={selectedCompany ? (() => {
-                  const company = filteredCompanies.find(c => c.ticker === selectedCompany);
-                  return company ? `${company.name} (${company.ticker})` : '';
-                })() : companySearch}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setCompanySearch(value);
-                  if (value) {
-                    setSelectedCompany('');
-                  }
-                  setShowCompanyDropdown(true);
-                }}
-                onFocus={() => {
-                  if (selectedCompany) {
-                    const company = filteredCompanies.find(c => c.ticker === selectedCompany);
-                    setCompanySearch(company ? `${company.name} (${company.ticker})` : '');
-                    setSelectedCompany('');
-                  }
-                  setShowCompanyDropdown(true);
-                }}
-                className="w-full font-medium text-sm px-3 py-1 pr-8 border border-gray-200 dark:border-[#161C1A] rounded bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] placeholder-gray-400 dark:placeholder-[#889691] focus:outline-none focus:border-[#144D37] focus:ring-1 focus:ring-[#144D37]"
-              />
-              {(selectedCompany || companySearch) && (
-                <button
-                  onClick={() => {
-                    setSelectedCompany('');
-                    setCompanySearch('');
-                    setShowCompanyDropdown(false);
-                  }}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#889691] hover:text-gray-600 dark:hover:text-[#E0E6E4]"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              
-              {showCompanyDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-200 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-auto">
-                  {filteredCompaniesForSearch.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-[#889691]">No companies found</div>
-                  ) : (
-                    <>
-                      {filteredCompaniesForSearch.map(comp => (
-                        <div
-                          key={comp.ticker}
-                          onClick={() => handleCompanyChange(comp.ticker)}
-                          className={`px-3 py-1 text-sm text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220] cursor-pointer ${
-                            selectedCompany === comp.ticker ? 'bg-blue-50 dark:bg-[#144D37]/30' : ''
-                          }`}
-                        >
-                          {comp.name} ({comp.ticker})
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
         {/* Main Content Area: Table or Chart */}
-        {activeMode === 'historical' && selectedCompany ? (
-            // Historical Chart View
-            <div className="h-[400px] w-full mt-4">
-                {historicalChartLoading ? (
-                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">Loading chart data...</div>
-                ) : historicalChartError ? (
-                    <div className="flex items-center justify-center h-full text-red-600 dark:text-red-400 text-center px-4">
-                        {historicalChartError}
-                    </div>
-                ) : historicalChartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={historicalChartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis 
-                                dataKey="date" 
-                                tickFormatter={(val) => {
-                                    const d = new Date(val);
-                                    return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-                                }}
-                                minTickGap={30}
-                            />
-                            <YAxis 
-                                reversed={true} // Lower rank is better
-                                label={{ value: 'Rank', angle: -90, position: 'insideLeft' }} 
-                                domain={[1, 'auto']}
-                            /> 
-                            <Tooltip 
-                                labelFormatter={(val) => new Date(val).toLocaleDateString()}
-                                formatter={(val: number) => [`Rank ${val}`, 'Rank']}
-                            />
-                            <Legend />
-                            <Line 
-                                type="monotone" 
-                                dataKey="rank" 
-                                stroke="#144D37" 
-                                strokeWidth={2}
-                                name={`${selectedCompany} - ${rankingTypes.find(t => t.id === selectedRankingType)?.label || 'Rank'}`}
-                                dot={false}
-                                activeDot={{ r: 6 }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                ) : (
+        {activeMode === 'historical' ? (
+            // V-Ratings Historical Chart View for Track tab
+            (() => {
+              // Get the ticker from selectedTicker prop or selectedCompany state
+              const tickerToShow = selectedTicker || selectedCompany;
+              
+              return (
+                <div className="h-[400px] w-full mt-4">
+                  {!tickerToShow ? (
                     <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
-                        No historical ranking data available for {selectedCompany} ({selectedRankingType}).
+                      Please select a ticker from the table or search bar to view V-Ratings chart.
                     </div>
-                )}
-            </div>
+                  ) : historicalVRatingsLoading ? (
+                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
+                      Loading historical V-Ratings data...
+                    </div>
+                  ) : historicalVRatingsError ? (
+                    <div className="flex items-center justify-center h-full text-red-600 dark:text-red-400 text-center px-4">
+                      {historicalVRatingsError}
+                    </div>
+                  ) : historicalVRatingsData.length > 0 ? (
+                    <div className="w-full h-full bg-white dark:bg-[#1C2220] rounded-lg p-4 border border-gray-200 dark:border-[#161C1A]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart 
+                          data={historicalVRatingsData}
+                          margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+                        >
+                          <CartesianGrid 
+                            strokeDasharray="3 3" 
+                            vertical={false} 
+                            stroke="#E5E7EB" 
+                            strokeOpacity={0.5}
+                            className="dark:stroke-[#2A3230]"
+                          />
+                          <XAxis 
+                            dataKey="date" 
+                            tickFormatter={(val) => {
+                              // Show "Today" for the last point, otherwise show date
+                              const item = historicalVRatingsData.find(d => d.date === val);
+                              return item?.dateLabel === 'Today' ? 'Today' : new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                            }}
+                            minTickGap={30}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                            className="dark:text-[#889691]"
+                            style={{ fill: '#6B7280' }}
+                          />
+                          <YAxis 
+                            label={{ 
+                              value: 'Rating', 
+                              angle: -90, 
+                              position: 'insideLeft',
+                              style: { textAnchor: 'middle', fill: '#6B7280', fontSize: 12, fontWeight: 600 }
+                            }} 
+                            domain={[0, 100]}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                            className="dark:text-[#889691]"
+                            style={{ fill: '#6B7280' }}
+                            tickCount={6}
+                          /> 
+                          <Tooltip 
+                            content={<CustomVRatingsTooltip />}
+                            cursor={{ stroke: '#D1D5DB', strokeWidth: 1, strokeDasharray: '5 5' }}
+                          />
+                          <Legend 
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="line"
+                            iconSize={16}
+                            formatter={(value) => {
+                              const isDark = document.documentElement.classList.contains('dark');
+                              return (
+                                <span style={{ 
+                                  fontSize: '12px', 
+                                  fontWeight: 500, 
+                                  color: isDark ? '#889691' : '#374151' 
+                                }}>
+                                  {value}
+                                </span>
+                              );
+                            }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vRating" 
+                            stroke="#144D37" 
+                            strokeWidth={3}
+                            name="V-Rating"
+                            dot={{ r: 5, fill: '#144D37', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 7, fill: '#144D37', strokeWidth: 2, stroke: '#fff' }}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vQuality" 
+                            stroke="#10B981" 
+                            strokeWidth={3}
+                            name="V-Quality"
+                            dot={{ r: 5, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 7, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vValue" 
+                            stroke="#3B82F6" 
+                            strokeWidth={3}
+                            name="V-Value"
+                            dot={{ r: 5, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 7, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff' }}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vSafety" 
+                            stroke="#F59E0B" 
+                            strokeWidth={3}
+                            name="V-Safety"
+                            dot={{ r: 5, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 7, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vMomentum" 
+                            stroke="#EF4444" 
+                            strokeWidth={3}
+                            name="V-Momentum"
+                            dot={{ r: 5, fill: '#EF4444', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 7, fill: '#EF4444', strokeWidth: 2, stroke: '#fff' }}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
+                      No historical V-Rating data available for {tickerToShow}.
+                    </div>
+                  )}
+                </div>
+              );
+            })()
         ) : (
-            // Elite Ticker Analysis Table View (Today's Pick Only) - temporarily hidden for presentation
-            // Keeping the implementation below for future use.
-            // {/* 
-            // <div className="overflow-auto max-h-[70vh] border border-gray-200 dark:border-[#161C1A] rounded-lg custom-scrollbar bg-white dark:bg-[#161C1A]">
-            //   ... elite ticker table implementation ...
-            // </div>
-            // */}
-            <div className="mt-6 text-sm text-gray-500 dark:text-[#889691] italic">
-              Elite ticker table hidden for this presentation.
+            // Elite Ticker Analysis Table View (Today's Pick Only)
+      <div className="overflow-auto max-h-[75vh] lg:max-h-[calc(100vh-200px)] border border-gray-200 dark:border-[#161C1A] rounded-lg custom-scrollbar bg-white dark:bg-[#161C1A] mt-3">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-[#161C1A]">
+          <thead className="bg-blue-50 dark:bg-[#1C2220] sticky top-0 z-10 shadow-sm">
+            <tr>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                Ticker
+              </th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                V-Elite Status
+              </th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                <InfoTooltip tooltipText="A weighted aggregate of all four pillars. It represents the &quot;Total Truth&quot; of the investment's current state.">
+                  <span>V-Rating</span>
+                </InfoTooltip>
+              </th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                <InfoTooltip tooltipText="Measures capital efficiency (ROIC), revenue stability, and gross margins.">
+                  <span>V-Quality</span>
+                </InfoTooltip>
+              </th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                <InfoTooltip tooltipText="Measures the delta between the company's intrinsic &quot;Rational Value&quot; and its current market price.">
+                  <span>V-Value</span>
+                </InfoTooltip>
+              </th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                <InfoTooltip tooltipText="A composite of the Altman Z-Score (solvency), Piotroski F-Score (health), and Debt-to-EBITDA.">
+                  <span>V-Safety</span>
+                </InfoTooltip>
+              </th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                <InfoTooltip tooltipText="Tracks price velocity relative to the 200-day Moving Average and the 14-day RSI exhaustion levels.">
+                  <span>V-Momentum</span>
+                </InfoTooltip>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-[#161C1A] divide-y divide-gray-200 dark:divide-[#161C1A]">
+            {rankingLoading ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="h-4 w-4 rounded-full border-2 border-gray-300 dark:border-[#2A332F] border-t-[#144D37] animate-spin" />
+                    <span>Generating ranking table…</span>
+                  </div>
+                </td>
+              </tr>
+            ) : eliteTickerData.length > 0 ? (
+              paginatedEliteTickerData.map((item) => (
+                <tr 
+                  key={item.ticker} 
+                  className="hover:bg-gray-50 dark:hover:bg-[#1C2220] transition-colors cursor-pointer"
+                  onClick={() => {
+                    setSelectedCompany(item.ticker);
+                    onTickerClick && onTickerClick(item.ticker);
+                  }}
+                >
+                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      ${item.ticker}$
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="flex items-center justify-center">
+                      <VEliteStatusBadge status={item.vEliteStatus} />
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="flex items-center justify-center">
+                      <CircularProgress value={item.vRating} size={60} showTooltip={true} />
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="flex items-center justify-center">
+                      <CircularProgress value={item.vQuality} size={60} showTooltip={true} metricType="quality" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="flex items-center justify-center">
+                      <CircularProgress value={item.vValue} size={60} showTooltip={true} metricType="value" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="flex items-center justify-center">
+                      <CircularProgress value={item.vSafety} size={60} showTooltip={true} metricType="safety" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <div className="flex items-center justify-center">
+                      <CircularProgress value={item.vMomentum} size={60} showTooltip={true} metricType="momentum" />
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-[#889691]">
+                  {rankingStats && rankingStats.sent > 0 && rankingStats.ranked === 0
+                    ? `No ranked companies returned by the API for this filter (rejected ${rankingStats.rejected}/${rankingStats.sent}).`
+                    : 'No companies found matching the selected filters.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        
+        {/* Pagination Controls - Range + arrow icons */}
+        {eliteTickerData.length > 0 && (hasPreviousItems || hasMoreItems) && (
+          <div className="py-4 flex items-center justify-center gap-4 bg-white dark:bg-[#161C1A] border-t border-gray-200 dark:border-[#161C1A]">
+            <span className="text-sm text-gray-500 dark:text-[#889691]">
+              1-{paginatedEliteTickerData.length} of {eliteTickerData.length.toLocaleString()}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setItemsToShow(prev => Math.max(10, prev - 10))}
+                disabled={!hasPreviousItems}
+                aria-label="Load previous 10"
+                className={`p-2 rounded-lg transition-colors ${
+                  hasPreviousItems
+                    ? 'text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#2A332F]'
+                    : 'text-gray-300 dark:text-[#2A3230] cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setItemsToShow(prev => prev + 10)}
+                disabled={!hasMoreItems}
+                aria-label="Load next 10"
+                className={`p-2 rounded-lg transition-colors ${
+                  hasMoreItems
+                    ? 'text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#2A332F]'
+                    : 'text-gray-300 dark:text-[#2A3230] cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
+          </div>
         )}
-      
-      <div className="mt-4 text-xs text-gray-500 dark:text-[#889691] bg-gray-50 dark:bg-[#1C2220] p-3 rounded">
-        <p className="font-semibold mb-1 text-gray-700 dark:text-[#E0E6E4]">Methodology:</p>
-        <ul className="list-disc pl-4 space-y-1">
-          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">Overall Rank:</strong> Calculated by summing the ranks of ROIC, Earnings Yield, and Intrinsic/Market Cap (Lowest sum = Rank 1).</li>
-          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">ROIC 5Y Avg:</strong> 5-year average Return on Invested Capital.</li>
-          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">Earnings Yield:</strong> (Net Income 5Y Avg / Shares Outstanding) / Stock Price.</li>
-          <li><strong className="text-gray-700 dark:text-[#E0E6E4]">Intrinsic to Market Cap:</strong> Intrinsic Value / Current Market Cap.</li>
-          <li>Values are updated daily from API.</li>
-        </ul>
       </div>
-    </div>
-  );
+        )}
+  </div>
+);
 };
 
 export default TopPicks;

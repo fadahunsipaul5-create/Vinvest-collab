@@ -2733,7 +2733,7 @@ const Dashboard: React.FC = () => {
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   onFocus={() => setShowCompanyDropdown(true)}
-                  placeholder="Search company..."
+                  placeholder="Company"
                   className="w-64 xl:w-80 font-medium text-sm px-3 py-1.5 pr-8 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                 />
                 {searchValue && (
@@ -3293,7 +3293,7 @@ const Dashboard: React.FC = () => {
         {/* Main Grid */}
         <div className="p-1.5 xm:p-2 xs:p-2.5 sm:p-3 md:p-4 lg:px-0 lg:pt-6 lg:pb-0 xl:px-0 xl:pt-8 xl:pb-0 mt-[40px] xm:mt-[45px] xs:mt-[50px] sm:mt-[60px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 xm:gap-3 xs:gap-3 sm:gap-4 md:gap-5 lg:gap-0 xl:gap-0 items-stretch">
-            {showValuationModal ? (
+            {showValuationModal ? ( 
               <div className="lg:col-span-12">
                 <ValuationPage
                   onClose={() => {
@@ -3319,15 +3319,19 @@ const Dashboard: React.FC = () => {
                   onOpenApproach={() => setShowApproachModal(true)}
                   onOpenValueServices={() => setShowValueServicesModal(true)}
                   onOpenWhyUs={() => setShowWhyUsModal(true)}
+                  onRowClick={(ticker) => {
+                    setActivePerformanceTab('top-picks');
+                    setIsPerformanceMinimized(false);
+                  }}
                 />
 
                 {/* Chart Section - full width on mobile */}
                 {!isPerformanceMinimized && (
                   <div className={`${isChatbotMinimized ? 'lg:col-span-10' : 'lg:col-span-6'} transition-all duration-300 flex flex-col lg:max-h-[100vh]`}>
-                  <div className="bg-white dark:bg-[#161C1A] rounded-lg p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 shadow-sm flex-1 flex flex-col overflow-hidden min-h-0" ref={performanceCardRef} id="bp-print-area">
+                  <div className={`bg-white dark:bg-[#161C1A] rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden min-h-0 ${activePerformanceTab === 'top-picks' ? 'p-0' : 'p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-4'}`} ref={performanceCardRef} id="bp-print-area">
 
                 {/* Business Performance Tabs */}
-                <div className="flex justify-between items-center gap-1 mb-2 xm:mb-3 xs:mb-3 sm:mb-4 relative z-10">
+                <div className={`flex justify-between items-center gap-1 relative z-10 ${activePerformanceTab === 'top-picks' ? 'px-2 xm:px-3 xs:px-3.5 sm:px-4 md:px-5 lg:px-5 xl:px-6 pt-2 xm:pt-3 xs:pt-3.5 sm:pt-4 md:pt-5 lg:pt-5 xl:pt-6 pb-0 mb-0' : ''} ${activePerformanceTab === 'top-picks' ? 'border-b-0' : ''}`}>
                   <div className="flex gap-1">
                     <button
                       onClick={() => {
@@ -3992,12 +3996,14 @@ const Dashboard: React.FC = () => {
             )}
           </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4 bp-scroll">
+                <div className={`flex-1 min-h-0 overflow-y-auto bp-scroll ${activePerformanceTab === 'top-picks' ? 'p-0 -mt-2 pt-0' : 'p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4'}`}>
           {activePerformanceTab === 'top-picks' ? (
             <TopPicks 
               companies={availableCompanies}
               industries={[...HARDCODED_INDUSTRIES, ...availableIndustries]}
               sectors={availableSectors}
+              onTickerClick={(ticker) => setSearchValue(ticker)}
+              selectedTicker={searchValue ? searchValue.split(':')[0].trim().toUpperCase() : ''}
             />
           ) : activeChart === 'metrics' ? (
                     // Metrics Chart
@@ -4594,7 +4600,7 @@ const Dashboard: React.FC = () => {
             {/* Insights Generation - full width on mobile */}
             {!isChatbotMinimized && (
               <div className={`${isPerformanceMinimized ? 'lg:col-span-10' : 'lg:col-span-4'} transition-all duration-300 flex flex-col`}>
-                <div className="mt-2 xm:mt-2.5 xs:mt-3 sm:mt-3 md:mt-3.5 lg:mt-4 flex-1 flex flex-col lg:max-h-[100vh]">
+                <div className="flex-1 flex flex-col lg:max-h-[100vh]">
                   <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden min-h-0">
                   <div className="p-2 xm:p-3 xs:p-3.5 sm:p-4 md:p-5 lg:p-5 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
                     <div className="flex justify-between items-center gap-1.5 xm:gap-2 xs:gap-2 sm:gap-2">

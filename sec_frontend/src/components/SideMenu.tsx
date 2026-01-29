@@ -10,6 +10,7 @@ interface SideMenuProps {
   onOpenApproach: () => void;
   onOpenValueServices: () => void;
   onOpenWhyUs: () => void;
+  onRowClick?: (ticker: string) => void;
 }
 
 interface RankingResult {
@@ -31,7 +32,7 @@ interface RankedCompany {
 
 // Circular Progress Component for V-Rating
 const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, size = 60 }) => {
-  const radius = (size - 8) / 2;
+  const radius = (size - 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const normalizedValue = Math.min(Math.max(value, 0), 100);
   const offset = circumference - (normalizedValue / 100) * circumference;
@@ -58,7 +59,7 @@ const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, s
           cy={size / 2}
           r={radius}
           stroke="#e5e7eb"
-          strokeWidth="4"
+          strokeWidth="3"
           fill="none"
         />
         {/* Progress circle */}
@@ -67,7 +68,7 @@ const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, s
           cy={size / 2}
           r={radius}
           stroke={color}
-          strokeWidth="4"
+          strokeWidth="3"
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -77,7 +78,7 @@ const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, s
       </svg>
       {/* Value text */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <span className="text-[10px] font-semibold text-gray-900 dark:text-white">
           {Math.round(normalizedValue)}
         </span>
       </div>
@@ -85,11 +86,13 @@ const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, s
   );
 };
 
-const SideMenu: React.FC<SideMenuProps> = (_props) => {
+const SideMenu: React.FC<SideMenuProps> = ({ onRowClick }) => {
   const [rankings, setRankings] = useState<RankedCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  // Pagination state - cumulative loading
+  const [itemsToShow, setItemsToShow] = useState<number>(10);
 
   useEffect(() => {
     const fetchRankings = async () => {
@@ -130,8 +133,8 @@ const SideMenu: React.FC<SideMenuProps> = (_props) => {
     <div className="hidden lg:flex lg:col-span-2 flex-col h-full max-h-[100vh] w-full min-w-0">
       <div className="bg-white dark:bg-[#161C1A] rounded-lg p-0 shadow-sm h-full w-full min-w-0 flex flex-col overflow-hidden text-gray-900 dark:text-white border dark:border-[#161C1A]">
         <div className="h-full w-full min-w-0 flex flex-col">
-            <div className="p-3 pb-2 flex-shrink-0">
-              <h2 className="text-sm font-semibold bg-[#144D37] text-white inline-block px-3 py-1 rounded-full text-center w-full">
+            <div className="p-2 pb-1.5 flex-shrink-0">
+              <h2 className="text-xs font-semibold bg-[#144D37] text-white inline-block px-2 py-0.5 rounded-full text-center w-full">
                 VInvest Rating
               </h2>
             </div>
@@ -151,10 +154,10 @@ const SideMenu: React.FC<SideMenuProps> = (_props) => {
                                 <table className="min-w-full w-full border-collapse">
                                     <thead className="sticky top-0 bg-white dark:bg-[#161C1A] z-10">
                                         <tr className="border-b border-gray-200 dark:border-gray-700">
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-[#1C2220]">
+                                            <th className="text-center py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-[#1C2220]">
                                                 Ticker
                                             </th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-[#1C2220] relative">
+                                            <th className="text-center py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-[#1C2220] relative">
                                                 <div className="flex items-center justify-center gap-1">
                                                   <span>V-Rating</span>
                                                   <div 
@@ -180,16 +183,20 @@ const SideMenu: React.FC<SideMenuProps> = (_props) => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                        {rankings.map((company) => (
-                                            <tr key={company.ticker} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                                <td className="py-3 px-4 text-center">
-                                                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        {rankings.slice(0, itemsToShow).map((company) => (
+                                            <tr 
+                                              key={company.ticker} 
+                                              className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+                                              onClick={() => onRowClick?.(company.ticker)}
+                                            >
+                                                <td className="py-2 px-2 text-center">
+                                                    <div className="text-[10px] font-semibold text-gray-900 dark:text-white">
                                                         ${company.ticker}$
                                                     </div>
                                                 </td>
-                                                <td className="py-3 px-4 text-center">
+                                                <td className="py-2 px-2 text-center">
                                                     <div className="flex items-center justify-center">
-                                                        <CircularProgress value={company.vRating} size={60} />
+                                                        <CircularProgress value={company.vRating} size={35} />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -201,6 +208,51 @@ const SideMenu: React.FC<SideMenuProps> = (_props) => {
                             <div className="text-gray-500 text-xs p-4">No rankings available</div>
                         )}
                     </div>
+                    
+                    {/* Pagination Controls - Range + arrow icons */}
+                    {(() => {
+                      const hasMoreItems = rankings.length > itemsToShow;
+                      const hasPreviousItems = itemsToShow > 10;
+                      const displayedCount = Math.min(itemsToShow, rankings.length);
+                      
+                      return rankings.length > 0 && (hasPreviousItems || hasMoreItems) && (
+                        <div className="p-3 pt-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-center gap-2">
+                          <span className="text-[10px] text-gray-500 dark:text-[#889691]">
+                            1-{displayedCount} of {rankings.length.toLocaleString()}
+                          </span>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              onClick={() => setItemsToShow(prev => Math.max(10, prev - 10))}
+                              disabled={!hasPreviousItems}
+                              aria-label="Load previous 10"
+                              className={`p-1.5 rounded transition-colors ${
+                                hasPreviousItems
+                                  ? 'text-gray-600 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#2A332F]'
+                                  : 'text-gray-300 dark:text-[#2A3230] cursor-not-allowed'
+                              }`}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setItemsToShow(prev => prev + 10)}
+                              disabled={!hasMoreItems}
+                              aria-label="Load next 10"
+                              className={`p-1.5 rounded transition-colors ${
+                                hasMoreItems
+                                  ? 'text-gray-600 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#2A332F]'
+                                  : 'text-gray-300 dark:text-[#2A3230] cursor-not-allowed'
+                              }`}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                  </div>
             </div>
         </div>
