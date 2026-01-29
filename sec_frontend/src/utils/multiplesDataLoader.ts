@@ -33,6 +33,100 @@ export interface MultiplesData {
 
 const PERIODS = ['1Y', '2Y', '3Y', '4Y', '5Y', '10Y', '15Y'];
 
+type MultiplesTableMetricResponse = {
+  Type?: string;
+  Value?: number | string | null;
+  value?: number | string | null;
+  error?: string;
+  details?: string;
+};
+
+const MULTIPLES_TABLE_DENOMINATOR_METRICS: Array<{
+  metricName: string;
+  key: keyof MultiplesData['denominators'][string];
+}> = [
+  { metricName: 'GrossMargin', key: 'grossMargin' },
+  { metricName: 'OperatingIncome', key: 'operatingIncome' },
+  { metricName: 'PretaxIncome', key: 'pretaxIncome' },
+  { metricName: 'NetIncome', key: 'netIncome' },
+  { metricName: 'Revenue', key: 'revenue' },
+  { metricName: 'EBITAAdjusted', key: 'ebitaAdjusted' },
+  { metricName: 'EBITDAAdjusted', key: 'ebitdaAdjusted' },
+  { metricName: 'NetOperatingProfitAfterTaxes', key: 'netOperatingProfitAfterTaxes' }
+];
+
+async function fetchMultiplesTableMetric(ticker: string, metric_name: string): Promise<number | string | null> {
+  const url = `${baseUrl}/api/sec/special_metrics/multiples_table_metric/`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticker, metric_name })
+  });
+
+  if (!res.ok) return null;
+  const data = (await res.json()) as MultiplesTableMetricResponse;
+  const value = data?.Value ?? data?.value ?? null;
+  return value;
+}
+
+/**
+ * Fallback loader: if `/api/multiples/<ticker>/` has no DB data (404),
+ * build a MultiplesData payload by calling the external Neo4j-backed
+ * `multiples_table_metric` endpoint for the key fields we need.
+ */
+async function loadCompanyDataFromMultiplesTable(tickerRaw: string): Promise<MultiplesData> {
+  const ticker = String(tickerRaw || '').trim().toUpperCase();
+
+  const empty = getEmptyData(ticker);
+
+  // Numerators
+  const numeratorNames = [
+    { metric: 'EnterpriseValue_Fundamental', assign: (v: any) => (empty.numerators.enterpriseValue_Fundamental = v ?? '') },
+    { metric: 'MarketCap_Fundamental', assign: (v: any) => (empty.numerators.marketCap_Fundamental = v ?? '') },
+    { metric: 'EnterpriseValue_Current', assign: (v: any) => (empty.numerators.enterpriseValue_Current = v ?? '') },
+    { metric: 'MarketCap_Current', assign: (v: any) => (empty.numerators.marketCap_Current = v ?? '') }
+  ];
+
+  // Period-based metrics
+  const tasks: Array<Promise<void>> = [];
+
+  for (const n of numeratorNames) {
+    tasks.push(
+      fetchMultiplesTableMetric(ticker, n.metric).then((v) => {
+        n.assign(v);
+      })
+    );
+  }
+
+  for (const period of PERIODS) {
+    // Revenue Growth (Y-axis)
+    tasks.push(
+      fetchMultiplesTableMetric(ticker, `RevenueGrowth_Last${period}_CAGR`).then((v) => {
+        if (v !== null && v !== undefined) empty.revenueGrowth[period] = v as any;
+      })
+    );
+
+    // ROIC (X-axis) – excluding goodwill
+    tasks.push(
+      fetchMultiplesTableMetric(ticker, `ROICExcludingGoodwill_Last${period}_AVG`).then((v) => {
+        if (v !== null && v !== undefined) empty.roicMetrics[period].excludingGoodwill = v as any;
+      })
+    );
+
+    // Denominators for all supported metrics (so Peer Ranks + bubble size can compute)
+    for (const m of MULTIPLES_TABLE_DENOMINATOR_METRICS) {
+      tasks.push(
+        fetchMultiplesTableMetric(ticker, `${m.metricName}_Last${period}_AVG`).then((v) => {
+          if (v !== null && v !== undefined) (empty.denominators[period] as any)[m.key] = v;
+        })
+      );
+    }
+  }
+
+  await Promise.all(tasks);
+  return empty;
+}
+
 // Load data for a single company from database API
 async function loadCompanyData(ticker: string): Promise<MultiplesData> {
   // Fetch from Django REST API
@@ -41,10 +135,11 @@ async function loadCompanyData(ticker: string): Promise<MultiplesData> {
   try {
     const response = await fetch(apiUrl);
     if (!response.ok) {
-      // If 404, company doesn't have multiples data yet - return empty data
+      // If 404, company doesn't have multiples data in DB yet.
+      // Fallback to the external multiples table metrics so bubbles can render.
       if (response.status === 404) {
         console.warn(`Multiples data not found for ${ticker}`);
-        return getEmptyData(ticker);
+        return await loadCompanyDataFromMultiplesTable(ticker);
       }
       console.warn(`Failed to load data for ${ticker}: ${response.status}`);
       return getEmptyData(ticker);
