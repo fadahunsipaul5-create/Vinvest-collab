@@ -6,12 +6,12 @@ import {
   Scatter,
   XAxis,
   YAxis,
+  ZAxis,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   Label,
   LabelList,
-  Cell,
   ReferenceArea
 } from 'recharts';
 import { loadMultiplesDataForTickers, calculateMultiple, getNumericValue, MultiplesData } from '../utils/multiplesDataLoader';
@@ -44,17 +44,22 @@ const DENOMINATOR_OPTIONS = [
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const toWhole = (v: any): number | null => {
+      const n = typeof v === 'number' ? v : Number(v);
+      if (!isFinite(n)) return null;
+      return Math.round(n);
+    };
     return (
       <div className="bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-[#161C1A] rounded p-2 shadow-lg text-gray-900 dark:text-[#E0E6E4]">
         <p className="font-semibold">{data.ticker}</p>
         {data.revenueGrowth !== undefined && (
-          <p className="text-xs">Revenue Growth: {typeof data.revenueGrowth === 'number' ? data.revenueGrowth.toFixed(2) : data.revenueGrowth}%</p>
+          <p className="text-xs">Revenue Growth: {toWhole(data.revenueGrowth) ?? data.revenueGrowth}%</p>
         )}
         {data.roic !== undefined && (
-          <p className="text-xs">ROIC: {typeof data.roic === 'number' ? data.roic.toFixed(2) : data.roic}%</p>
+          <p className="text-xs">ROIC: {toWhole(data.roic) ?? data.roic}%</p>
         )}
         {data.multiple !== undefined && (
-          <p className="text-xs">Multiple: {typeof data.multiple === 'number' ? data.multiple.toFixed(2) : data.multiple}x</p>
+          <p className="text-xs">Multiple: {toWhole(data.multiple) ?? data.multiple}x</p>
         )}
       </div>
     );
@@ -65,65 +70,38 @@ const CustomTooltip = ({ active, payload }: any) => {
 interface MultiplesSelectorsProps {
   numerator: string;
   denominator: string;
-  viewMode: 'valueQuadrants' | 'peerRanks';
   onNumeratorChange: (value: string) => void;
   onDenominatorChange: (value: string) => void;
-  onViewModeChange: (mode: 'valueQuadrants' | 'peerRanks') => void;
 }
 
 const MultiplesSelectors: React.FC<MultiplesSelectorsProps> = ({
   numerator,
   denominator,
-  viewMode,
   onNumeratorChange,
-  onDenominatorChange,
-  onViewModeChange
+  onDenominatorChange
 }) => {
   return (
     <div className="flex flex-nowrap items-center gap-3 sm:gap-4">
-      <div className="flex items-center gap-2">
-        <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691]">Numerator</div>
-        <select
-          value={numerator}
-          onChange={(e) => onNumeratorChange(e.target.value)}
-          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
-        >
-          <option value="EV foundational">EV foundational</option>
-          <option value="Market Cap">Market Cap</option>
-        </select>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="text-xs sm:text-sm text-gray-600 dark:text-[#889691]">Denominator</div>
-        <select
-          value={denominator}
-          onChange={(e) => onDenominatorChange(e.target.value)}
-          className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
-        >
-          {DENOMINATOR_OPTIONS.map(opt => (
-            <option key={opt} value={opt}>{opt === 'NOPAT' ? 'NOPAT' : opt}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onViewModeChange('valueQuadrants')}
-          className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors whitespace-nowrap ${viewMode === 'valueQuadrants'
-            ? 'bg-[#144D37] text-white border-[#144D37]'
-            : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
-            }`}
-        >
-          Value Quadrants
-        </button>
-        <button
-          onClick={() => onViewModeChange('peerRanks')}
-          className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors whitespace-nowrap ${viewMode === 'peerRanks'
-            ? 'bg-[#144D37] text-white border-[#144D37]'
-            : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
-            }`}
-        >
-          Peer Ranks
-        </button>
-      </div>
+      <select
+        value={numerator}
+        onChange={(e) => onNumeratorChange(e.target.value)}
+        className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
+      >
+        <option value="" disabled>Numerator</option>
+        <option value="EV foundational">EV foundational</option>
+        <option value="Market Cap">Market Cap</option>
+      </select>
+      <span className="text-lg sm:text-xl text-gray-500 dark:text-[#889691] font-medium select-none" aria-hidden>÷</span>
+      <select
+        value={denominator}
+        onChange={(e) => onDenominatorChange(e.target.value)}
+        className="px-3 py-1 text-xs sm:text-sm rounded border border-gray-300 dark:border-[#161C1A] bg-white dark:bg-[#161C1A] text-gray-700 dark:text-[#E0E6E4] focus:outline-none focus:ring-1 focus:ring-[#1B5A7D]"
+      >
+        <option value="" disabled>Denominator</option>
+        {DENOMINATOR_OPTIONS.map(opt => (
+          <option key={opt} value={opt}>{opt === 'NOPAT' ? 'NOPAT' : opt}</option>
+        ))}
+      </select>
     </div>
   );
 };
@@ -143,9 +121,9 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
   const [showYearDropdown, setShowYearDropdown] = useState(false);
   const yearDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Numerator and denominator selection
-  const [numerator, setNumerator] = useState('EV foundational');
-  const [denominator, setDenominator] = useState('NOPAT');
+  // Numerator and denominator selection ('' shows placeholder inside dropdown)
+  const [numerator, setNumerator] = useState('');
+  const [denominator, setDenominator] = useState('');
 
   // Loaded multiples data
   const [multiplesData, setMultiplesData] = useState<{ [ticker: string]: MultiplesData } | null>(null);
@@ -315,6 +293,10 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
   // Data key: loader stores by UPPERCASE ticker; look up case-insensitively
   const getDataByTicker = (ticker: string) => multiplesData?.[ticker.toUpperCase()] ?? multiplesData?.[ticker];
 
+  // Effective values when placeholder is shown (empty string)
+  const effectiveNumerator = numerator || 'EV foundational';
+  const effectiveDenominator = denominator || 'NOPAT';
+
   // Calculate data for simple chart with useMemo
   const simpleData = useMemo(() => {
     if (!multiplesData) return [];
@@ -326,24 +308,24 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
       if (!data) return { ticker: company.ticker, value: 0 };
 
       // Get numerator
-      let numValue = numerator === 'EV foundational'
+      let numValue = effectiveNumerator === 'EV foundational'
         ? data.numerators.enterpriseValue_Fundamental
         : data.numerators.marketCap_Fundamental;
 
       // Override with real market cap if available and selected
-      if (numerator === 'Market Cap' && realMarketCaps[company.ticker]) {
+      if (effectiveNumerator === 'Market Cap' && realMarketCaps[company.ticker]) {
         numValue = realMarketCaps[company.ticker];
       }
 
       // Get denominator
-      const denKey = getDenominatorKey(denominator);
+      const denKey = getDenominatorKey(effectiveDenominator);
       const denValue = (data.denominators[selectedYears] as any)?.[denKey];
 
       // Debug logging for verification
       console.log(`[${company.ticker}] Simple Chart Calculation:`, {
-        numerator,
+        numerator: effectiveNumerator,
         numValue,
-        denominator,
+        denominator: effectiveDenominator,
         denKey,
         selectedYears,
         denValue,
@@ -367,7 +349,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         value: Math.round(multiple * 100) / 100
       };
     });
-  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears, realMarketCaps]);
+  }, [multiplesData, selectedCompanies, effectiveNumerator, effectiveDenominator, selectedYears, realMarketCaps]);
 
   // Calculate data for holistic chart with useMemo
   const holisticData = useMemo(() => {
@@ -385,16 +367,16 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         const roic = getNumericValue(data.roicMetrics[selectedYears]?.excludingGoodwill);
 
         // Calculate multiple
-        let numValue = numerator === 'EV foundational'
+        let numValue = effectiveNumerator === 'EV foundational'
           ? data.numerators.enterpriseValue_Fundamental
           : data.numerators.marketCap_Fundamental;
 
         // Override with real market cap if available and selected
-        if (numerator === 'Market Cap' && realMarketCaps[company.ticker]) {
+        if (effectiveNumerator === 'Market Cap' && realMarketCaps[company.ticker]) {
           numValue = realMarketCaps[company.ticker];
         }
 
-        const denKey = getDenominatorKey(denominator);
+        const denKey = getDenominatorKey(effectiveDenominator);
         const denValue = (data.denominators[selectedYears] as any)?.[denKey];
         const multiple = calculateMultiple(numValue, denValue);
 
@@ -434,7 +416,15 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
         };
       })
       .filter(item => item !== null); // Remove invalid data points
-  }, [multiplesData, selectedCompanies, numerator, denominator, selectedYears, realMarketCaps]);
+  }, [multiplesData, selectedCompanies, effectiveNumerator, effectiveDenominator, selectedYears, realMarketCaps]);
+
+  // Bubble sizing: scale by % within selected set (min -> max)
+  const bubbleScale = useMemo(() => {
+    if (holisticData.length === 0) return { min: 0, max: 0 };
+    const vals = holisticData.map(d => d.multiple).filter(v => typeof v === 'number' && isFinite(v)) as number[];
+    if (vals.length === 0) return { min: 0, max: 0 };
+    return { min: Math.min(...vals), max: Math.max(...vals) };
+  }, [holisticData]);
 
   // Calculate bounds for quadrants
   const bounds = useMemo(() => {
@@ -460,15 +450,39 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
     <div className={`bg-white dark:bg-[#161C1A] rounded-lg dark:border-[#161C1A] p-3 sm:p-4 ${className}`}>
       {/* Header and controls: Numerator, Denominator, Value Quadrants, Peer Ranks on one line */}
       <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex flex-nowrap items-center gap-3 sm:gap-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <MultiplesSelectors
-            numerator={numerator}
-            denominator={denominator}
-            viewMode={viewMode}
-            onNumeratorChange={setNumerator}
-            onDenominatorChange={setDenominator}
-            onViewModeChange={setViewMode}
-          />
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Single-line horizontal scroll (ash scrollbar) */}
+          <div className="w-full overflow-x-auto">
+            <div className="flex flex-nowrap items-center gap-3 sm:gap-4 min-w-max">
+              <MultiplesSelectors
+                numerator={numerator}
+                denominator={denominator}
+                onNumeratorChange={setNumerator}
+                onDenominatorChange={setDenominator}
+              />
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setViewMode('valueQuadrants')}
+                  className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors whitespace-nowrap ${viewMode === 'valueQuadrants'
+                    ? 'bg-[#144D37] text-white border-[#144D37]'
+                    : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
+                    }`}
+                >
+                  Value Quadrants
+                </button>
+                <button
+                  onClick={() => setViewMode('peerRanks')}
+                  className={`px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors whitespace-nowrap ${viewMode === 'peerRanks'
+                    ? 'bg-[#144D37] text-white border-[#144D37]'
+                    : 'border-gray-300 dark:border-[#161C1A] bg-gray-50 dark:bg-[#1C2220] text-gray-700 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#161C1A]'
+                    }`}
+                >
+                  Peer Ranks
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Company Multi-Select Search – elevated so dropdown appears above chart */}
@@ -508,7 +522,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                 value={companyInput}
                 onChange={(e) => setCompanyInput(e.target.value)}
                 onFocus={() => setShowCompanyDropdown(true)}
-                placeholder="Search companies... (select to show bubbles on graph)"
+                placeholder="Search companies or peers..."
                 className="flex-1 min-w-[100px] outline-none text-xs sm:text-sm bg-transparent dark:text-[#E0E6E4] dark:placeholder-[#889691]"
               />
             </div>
@@ -551,7 +565,7 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
       </div>
 
       {/* Chart: Value Quadrants (Revenue Growth vs ROIC) or Peer Ranks – always visible */}
-      <div className="mt-4 h-[380px] sm:h-[460px] relative">
+      <div className="mt-10 h-[380px] sm:h-[460px] relative">
         {isLoading && selectedCompanies.length > 0 ? (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-[#161C1A]/80 z-10 text-gray-500 dark:text-[#889691]">
             Loading data...
@@ -616,17 +630,25 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
 
                 {/* Quadrant Labels – visible prompts (Revenue Growth vs ROIC) */}
                 <ReferenceArea x1={bounds.xMin} x2={bounds.xMid} y1={bounds.yMid} y2={bounds.yMax} fill="transparent">
-                  <Label value="The Growth Chasers" position="center" style={{ fill: '#92400e', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
+                  <Label value="The Growth Chasers" position="insideTopLeft" offset={12} style={{ fill: '#92400e', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
                 </ReferenceArea>
                 <ReferenceArea x1={bounds.xMid} x2={bounds.xMax} y1={bounds.yMid} y2={bounds.yMax} fill="transparent">
-                  <Label value="The Elite Compounders" position="center" style={{ fill: '#166534', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
+                  <Label value="The Elite Compounders" position="insideTopRight" offset={12} style={{ fill: '#166534', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
                 </ReferenceArea>
                 <ReferenceArea x1={bounds.xMin} x2={bounds.xMid} y1={bounds.yMin} y2={bounds.yMid} fill="transparent">
-                  <Label value="The Value Traps" position="center" style={{ fill: '#991b1b', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
+                  <Label value="The Value Traps" position="insideBottomLeft" offset={12} style={{ fill: '#991b1b', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
                 </ReferenceArea>
                 <ReferenceArea x1={bounds.xMid} x2={bounds.xMax} y1={bounds.yMin} y2={bounds.yMid} fill="transparent">
-                  <Label value="The Moat Kings" position="center" style={{ fill: '#1e40af', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
+                  <Label value="The Moat Kings" position="insideBottomRight" offset={12} style={{ fill: '#1e40af', opacity: 0.85, fontSize: '13px', fontWeight: 'bold' }} />
                 </ReferenceArea>
+
+                {/* Bubble sizing by multiple (larger multiple = bigger bubble) */}
+                <ZAxis
+                  type="number"
+                  dataKey="multiple"
+                  domain={[bubbleScale.min, bubbleScale.max]}
+                  range={[16, 60]}
+                />
 
                 <Tooltip content={CustomTooltip} />
                 {/* Bubbles: size = value of multiple (higher value = bigger bubble); dots very visible; light labels */}
@@ -637,15 +659,6 @@ const MultiplesChart: React.FC<MultiplesChartProps> = ({ className = '', initial
                     offset={6}
                     style={{ fontSize: 10, fill: '#64748b', opacity: 0.9 }}
                   />
-                  {holisticData.map((entry, index) => {
-                    const maxMultiple = Math.max(...holisticData.map(d => d.multiple), 1);
-                    const minR = 14;
-                    const maxR = 48;
-                    const size = holisticData.length === 1
-                      ? 24
-                      : minR + (entry.multiple / maxMultiple) * (maxR - minR);
-                    return <Cell key={`cell-${index}`} r={Math.max(minR, Math.min(maxR, size))} />;
-                  })}
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
