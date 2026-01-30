@@ -101,7 +101,7 @@ const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: b
         </span>
       </div>
       {showRatingTooltip && tooltipText && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 p-3 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-50 whitespace-normal pointer-events-none">
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 max-w-[11rem] w-48 p-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-50 whitespace-normal break-words pointer-events-none">
           {tooltipText}
         </div>
       )}

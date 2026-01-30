@@ -79,9 +79,10 @@ interface EliteTickerData {
 }
 
 // Circular Progress Component for V-Rating metrics with Tooltip
-const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: boolean; metricType?: 'rating' | 'quality' | 'value' | 'safety' | 'momentum' }> = ({ value, size = 60, showTooltip = false, metricType = 'rating' }) => {
+const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: boolean; metricType?: 'rating' | 'quality' | 'value' | 'safety' | 'momentum' }> = ({ value, size = 44, showTooltip = false, metricType = 'rating' }) => {
   const [showRatingTooltip, setShowRatingTooltip] = React.useState(false);
-  const radius = (size - 8) / 2;
+  const strokeWidth = size <= 48 ? 3 : 4;
+  const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const normalizedValue = Math.min(Math.max(value, 0), 100);
   const offset = circumference - (normalizedValue / 100) * circumference;
@@ -164,7 +165,7 @@ const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: b
           cy={size / 2}
           r={radius}
           stroke="#e5e7eb"
-          strokeWidth="4"
+          strokeWidth={strokeWidth}
           fill="none"
         />
         {/* Progress circle */}
@@ -173,7 +174,7 @@ const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: b
           cy={size / 2}
           r={radius}
           stroke={color}
-          strokeWidth="4"
+          strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -183,12 +184,12 @@ const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: b
       </svg>
       {/* Value text */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <span className={`font-semibold text-gray-900 dark:text-white ${size <= 48 ? 'text-[10px]' : 'text-sm'}`}>
           {Math.round(normalizedValue)}
         </span>
       </div>
       {showRatingTooltip && tooltipText && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 p-3 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-50 whitespace-normal">
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 max-w-[11rem] w-48 p-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-50 whitespace-normal break-words">
           {tooltipText}
         </div>
       )}
@@ -196,7 +197,7 @@ const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: b
   );
 };
 
-// V-Elite Status Badge Component
+// V-Elite Status Badge Component (compact for Value Screener table)
 const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> = ({ status }) => {
   if (status.type === 'elite') {
     return (
@@ -204,7 +205,7 @@ const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> =
         <img 
           src="/gold.png" 
           alt="V-Elite Gold Badge" 
-          className="w-20 h-[90px] object-contain drop-shadow-sm"
+          className="w-10 h-[45px] sm:w-12 sm:h-[54px] object-contain drop-shadow-sm"
         />
       </div>
     );
@@ -214,7 +215,7 @@ const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> =
         <img 
           src="/silver.png" 
           alt="V-Elite Silver Badge" 
-          className="w-20 h-[90px] object-contain drop-shadow-sm"
+          className="w-10 h-[45px] sm:w-12 sm:h-[54px] object-contain drop-shadow-sm"
         />
       </div>
     );
@@ -225,7 +226,7 @@ const VEliteStatusBadge: React.FC<{ status: EliteTickerData['vEliteStatus'] }> =
         <img 
           src="/red.png" 
           alt="GATEKEEPER FAIL Badge" 
-          className="w-20 h-[90px] object-contain drop-shadow-sm"
+          className="w-10 h-[45px] sm:w-12 sm:h-[54px] object-contain drop-shadow-sm"
         />
       </div>
     );
@@ -289,7 +290,7 @@ const InfoTooltip: React.FC<{ tooltipText: string; children?: React.ReactNode }>
     >
       {children}
       <svg 
-        className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-help ml-1" 
+        className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-500 dark:text-gray-400 cursor-help ml-0.5" 
         fill="currentColor" 
         viewBox="0 0 20 20"
       >
@@ -376,9 +377,9 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
         
         // Fetch historical ranking data for all ranking types to calculate V-ratings
         const rankingTypesToFetch = ['overall', 'roic', 'earnings', 'intrinsic'];
-        
-        (async () => {
-          try {
+    
+    (async () => {
+      try {
             // Fetch all ranking types in parallel
             const promises = rankingTypesToFetch.map(type => 
               fetch(`${baseUrl}/api/sec/central/rankings/historical?tickers=${encodeURIComponent(tickerToFetch)}&rankingType=${encodeURIComponent(type)}&period=ALL`)
@@ -499,14 +500,14 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
               }));
             
             setHistoricalVRatingsData(chartDataArray);
-          } catch (err: any) {
+      } catch (err: any) {
             console.error("Failed to fetch historical V-ratings data:", err);
             setHistoricalVRatingsError(err?.message ? String(err.message) : 'Failed to fetch historical V-ratings data.');
             setHistoricalVRatingsData([]);
-          } finally {
+      } finally {
             setHistoricalVRatingsLoading(false);
-          }
-        })();
+      }
+    })();
     } else {
         setHistoricalVRatingsData([]);
         setHistoricalVRatingsError(null);
@@ -1114,39 +1115,39 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
           {activeMode === 'today' && (
             <div className="flex-1">
               <div className="relative">
-                <input
-                  type="text"
+              <input
+                type="text"
                   value={aiFilter}
                   onChange={(e) => setAiFilter(e.target.value)}
                   placeholder="AI Filter"
                   className="w-full font-medium text-sm px-3 py-1.5 pr-8 border border-gray-200 dark:border-[#161C1A] rounded focus:outline-none focus:border-[#1B5A7D] focus:ring-1 focus:ring-[#1B5A7D] bg-white dark:bg-[#1C2220] dark:text-[#E0E6E4] dark:placeholder-[#889691]"
                 />
                 {aiFilter && (
-                  <button
+                <button
                     onClick={() => setAiFilter('')}
                     className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-[#E0E6E4] p-0.5"
                     aria-label="Clear filter"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                )}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
               </div>
+                        </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
         {/* Main Content Area: Table or Chart */}
         {activeMode === 'historical' ? (
@@ -1160,18 +1161,18 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
                   {!tickerToShow ? (
                     <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
                       Please select a ticker from the table or search bar to view V-Ratings chart.
-                    </div>
+              </div>
                   ) : historicalVRatingsLoading ? (
                     <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
                       Loading historical V-Ratings data...
-                    </div>
+                        </div>
                   ) : historicalVRatingsError ? (
                     <div className="flex items-center justify-center h-full text-red-600 dark:text-red-400 text-center px-4">
                       {historicalVRatingsError}
                     </div>
                   ) : historicalVRatingsData.length > 0 ? (
                     <div className="w-full h-full bg-white dark:bg-[#1C2220] rounded-lg p-4 border border-gray-200 dark:border-[#161C1A]">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%">
                         <LineChart 
                           data={historicalVRatingsData}
                           margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
@@ -1183,21 +1184,21 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
                             strokeOpacity={0.5}
                             className="dark:stroke-[#2A3230]"
                           />
-                          <XAxis 
-                            dataKey="date" 
-                            tickFormatter={(val) => {
+                            <XAxis 
+                                dataKey="date" 
+                                tickFormatter={(val) => {
                               // Show "Today" for the last point, otherwise show date
                               const item = historicalVRatingsData.find(d => d.date === val);
                               return item?.dateLabel === 'Today' ? 'Today' : new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                            }}
-                            minTickGap={30}
+                                }}
+                                minTickGap={30}
                             axisLine={false}
                             tickLine={false}
                             tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
                             className="dark:text-[#889691]"
                             style={{ fill: '#6B7280' }}
-                          />
-                          <YAxis 
+                            />
+                            <YAxis 
                             label={{ 
                               value: 'Rating', 
                               angle: -90, 
@@ -1211,8 +1212,8 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
                             className="dark:text-[#889691]"
                             style={{ fill: '#6B7280' }}
                             tickCount={6}
-                          /> 
-                          <Tooltip 
+                            /> 
+                            <Tooltip 
                             content={<CustomVRatingsTooltip />}
                             cursor={{ stroke: '#D1D5DB', strokeWidth: 1, strokeDasharray: '5 5' }}
                           />
@@ -1233,10 +1234,10 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
                               );
                             }}
                           />
-                          <Line 
-                            type="monotone" 
+                            <Line 
+                                type="monotone" 
                             dataKey="vRating" 
-                            stroke="#144D37" 
+                                stroke="#144D37" 
                             strokeWidth={3}
                             name="V-Rating"
                             dot={{ r: 5, fill: '#144D37', strokeWidth: 2, stroke: '#fff' }}
@@ -1287,16 +1288,16 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
                             activeDot={{ r: 7, fill: '#EF4444', strokeWidth: 2, stroke: '#fff' }}
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                          />
+                            />
                         </LineChart>
-                      </ResponsiveContainer>
+                    </ResponsiveContainer>
                     </div>
-                  ) : (
+                ) : (
                     <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#889691]">
                       No historical V-Rating data available for {tickerToShow}.
                     </div>
-                  )}
-                </div>
+                )}
+            </div>
               );
             })()
         ) : (
@@ -1305,33 +1306,33 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
         <table className="min-w-full divide-y divide-gray-200 dark:divide-[#161C1A]">
           <thead className="bg-blue-50 dark:bg-[#1C2220] sticky top-0 z-10 shadow-sm">
             <tr>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
                 Ticker
               </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
-                V-Elite Status
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+                V-Elite
               </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
                 <InfoTooltip tooltipText="A weighted aggregate of all four pillars. It represents the &quot;Total Truth&quot; of the investment's current state.">
                   <span>V-Rating</span>
                 </InfoTooltip>
               </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
                 <InfoTooltip tooltipText="Measures capital efficiency (ROIC), revenue stability, and gross margins.">
                   <span>V-Quality</span>
                 </InfoTooltip>
               </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
                 <InfoTooltip tooltipText="Measures the delta between the company's intrinsic &quot;Rational Value&quot; and its current market price.">
                   <span>V-Value</span>
                 </InfoTooltip>
               </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap border-r border-gray-200 dark:border-[#161C1A]">
                 <InfoTooltip tooltipText="A composite of the Altman Z-Score (solvency), Piotroski F-Score (health), and Debt-to-EBITDA.">
                   <span>V-Safety</span>
                 </InfoTooltip>
               </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">
+              <th scope="col" className="px-1.5 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">
                 <InfoTooltip tooltipText="Tracks price velocity relative to the 200-day Moving Average and the 14-day RSI exhaustion levels.">
                   <span>V-Momentum</span>
                 </InfoTooltip>
@@ -1358,39 +1359,39 @@ const TopPicks: React.FC<TopPicksProps> = ({ onTickerClick, selectedTicker }) =>
                     onTickerClick && onTickerClick(item.ticker);
                   }}
                 >
-                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <td className="px-1.5 py-2 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                    <div className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white">
                       ${item.ticker}$
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                  <td className="px-1.5 py-2 text-center border-r border-gray-200 dark:border-[#161C1A]">
                     <div className="flex items-center justify-center">
                       <VEliteStatusBadge status={item.vEliteStatus} />
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                  <td className="px-1.5 py-2 text-center border-r border-gray-200 dark:border-[#161C1A]">
                     <div className="flex items-center justify-center">
-                      <CircularProgress value={item.vRating} size={60} showTooltip={true} />
+                      <CircularProgress value={item.vRating} size={44} showTooltip={true} />
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                  <td className="px-1.5 py-2 text-center border-r border-gray-200 dark:border-[#161C1A]">
                     <div className="flex items-center justify-center">
-                      <CircularProgress value={item.vQuality} size={60} showTooltip={true} metricType="quality" />
+                      <CircularProgress value={item.vQuality} size={44} showTooltip={true} metricType="quality" />
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                  <td className="px-1.5 py-2 text-center border-r border-gray-200 dark:border-[#161C1A]">
                     <div className="flex items-center justify-center">
-                      <CircularProgress value={item.vValue} size={60} showTooltip={true} metricType="value" />
+                      <CircularProgress value={item.vValue} size={44} showTooltip={true} metricType="value" />
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-200 dark:border-[#161C1A]">
+                  <td className="px-1.5 py-2 text-center border-r border-gray-200 dark:border-[#161C1A]">
                     <div className="flex items-center justify-center">
-                      <CircularProgress value={item.vSafety} size={60} showTooltip={true} metricType="safety" />
+                      <CircularProgress value={item.vSafety} size={44} showTooltip={true} metricType="safety" />
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center">
+                  <td className="px-1.5 py-2 text-center">
                     <div className="flex items-center justify-center">
-                      <CircularProgress value={item.vMomentum} size={60} showTooltip={true} metricType="momentum" />
+                      <CircularProgress value={item.vMomentum} size={44} showTooltip={true} metricType="momentum" />
                     </div>
                   </td>
                 </tr>
