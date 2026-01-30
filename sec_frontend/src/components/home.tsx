@@ -242,6 +242,8 @@ const Dashboard: React.FC = () => {
   const [showAIOTModal, setShowAIOTModal] = useState(false);
   const [showOperationsModal, setShowOperationsModal] = useState(false);
   const [chatMode, setChatMode] = useState<'insights' | 'report'>('insights');
+  const [showReportGenModal, setShowReportGenModal] = useState(false);
+  const [reportGenModalTab, setReportGenModalTab] = useState<'company' | 'industry' | 'custom'>('company');
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(false);
@@ -4707,7 +4709,7 @@ const Dashboard: React.FC = () => {
                           : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
                       }`}
                     >
-                      Insights Generation
+                      Insights
                     </button>
                     <button
                       onClick={() => setChatMode('report')}
@@ -4717,7 +4719,7 @@ const Dashboard: React.FC = () => {
                           : 'text-gray-500 dark:text-[#889691] hover:text-gray-700 dark:hover:text-[#E0E6E4]'
                       }`}
                     >
-                      Report Generation
+                      Report
                     </button>
                   </div>
 
@@ -4725,19 +4727,6 @@ const Dashboard: React.FC = () => {
                           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                             {chatMode === 'insights' ? (
                               <>
-                                {/* Chat Header with New Chat Button */}
-                                <div className="flex items-center justify-between p-4 xl:p-6 border-b dark:border-[#161C1A] flex-shrink-0">
-                                  <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">
-                                    {currentChatSession ? 'Chat Session' : 'New Chat'}
-                                  </h3>
-                                  <button
-                                    onClick={startNewChat}
-                                    className="px-3 py-1.5 text-sm bg-[#144D37] text-white rounded-lg hover:bg-[#0F3A28] transition-colors"
-                                  >
-                                    ✨ New Chat
-                                  </button>
-                                </div>
-
                                 {/* Chat Messages */}
                                 <div
                                   ref={chatMessagesRef}
@@ -4947,30 +4936,81 @@ const Dashboard: React.FC = () => {
                               </>
                             ) : (
                               <>
-                                {/* Report Generation Form - At Top */}
+                                {/* Report Generations - Tabs: Company, Industry, Custom; clicking opens modal */}
                                 <div className="px-4 xl:px-6 pt-2 pb-4 xl:pb-6 border-b dark:border-gray-700 flex-shrink-0">
-                                  <ReportGenerationForm
-                                    key={reportFormKey}
-                                    onGenerate={handleReportGenerate}
-                                    isLoading={isGeneratingReport}
-                                    showInstructions={true}
-                                    showFormFields={true}
-                                  />
+                                  <div className="flex gap-2 border-b border-gray-200 dark:border-[#161C1A]">
+                                    <button
+                                      onClick={() => { setShowReportGenModal(true); setReportGenModalTab('company'); }}
+                                      title="Click a tab above to open report options."
+                                      className="pb-2 px-3 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 dark:text-[#889691] hover:text-gray-800 dark:hover:text-[#E0E6E4] transition-colors"
+                                    >
+                                      Company
+                                    </button>
+                                    <button
+                                      onClick={() => { setShowReportGenModal(true); setReportGenModalTab('industry'); }}
+                                      title="Click a tab above to open report options."
+                                      className="pb-2 px-3 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 dark:text-[#889691] hover:text-gray-800 dark:hover:text-[#E0E6E4] transition-colors"
+                                    >
+                                      Industry
+                                    </button>
+                                    <button
+                                      onClick={() => { setShowReportGenModal(true); setReportGenModalTab('custom'); }}
+                                      title="Click a tab above to open report options."
+                                      className="pb-2 px-3 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 dark:text-[#889691] hover:text-gray-800 dark:hover:text-[#E0E6E4] transition-colors"
+                                    >
+                                      Custom
+                                    </button>
+                                  </div>
                                 </div>
 
-                                {/* Report Generation Chat Messages - In Middle */}
+                                {/* Report Generation Modal - opens when Company/Industry/Custom tab is clicked */}
+                                {showReportGenModal && (
+                                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowReportGenModal(false)}>
+                                    <div className="bg-white dark:bg-[#161C1A] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#161C1A]">
+                                        <h3 className="text-lg font-semibold text-gray-800 dark:text-[#E0E6E4]">
+                                          {reportGenModalTab === 'company' ? 'Company Generations' : reportGenModalTab === 'industry' ? 'Industry Generations' : 'Custom Generations'}
+                                        </h3>
+                                        <button
+                                          onClick={() => setShowReportGenModal(false)}
+                                          className="p-1.5 rounded text-gray-500 hover:text-gray-700 dark:text-[#889691] dark:hover:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
+                                          aria-label="Close"
+                                        >
+                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                      </div>
+                                      <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                                        <ReportGenerationForm
+                                          key={`${reportFormKey}-${reportGenModalTab}`}
+                                          onGenerate={(data) => { handleReportGenerate(data); setShowReportGenModal(false); }}
+                                          isLoading={isGeneratingReport}
+                                          showInstructions={true}
+                                          showFormFields={true}
+                                          defaultReportType={reportGenModalTab === 'company' ? 'company_performance_and_investment_thesis' : reportGenModalTab === 'industry' ? 'industry_deep_drive' : 'custom_instructions'}
+                                          modalMode={true}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Report Generation Chat Messages - In Middle; when generating, show only disclaimer filling the area */}
                                 <div
                                   ref={chatMessagesRef}
-                                  className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 space-y-3 sm:space-y-4"
+                                  className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 xl:p-6 flex flex-col"
                                 >
+                                  {isGeneratingReport ? (
+                                    <div className="flex-1 min-h-full flex items-center justify-center">
+                                      <p className="text-center text-gray-600 dark:text-[#889691] italic text-sm sm:text-base animate-pulse">
+                                        Report is generating, it might take up to 30-60 seconds.
+                                      </p>
+                                    </div>
+                                  ) : (
                                   <div ref={reportExportRef} className="space-y-3 sm:space-y-4">
-                                    {reportMessages.map((message, index) =>
-                                      message.role === 'assistant' ? (
-                                        <div key={index} className="flex gap-3 xl:gap-4">
-                                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-[#144D37] rounded-full flex items-center justify-center text-white text-sm xl:text-base flex-shrink-0">
-                                            AI
-                                          </div>
-                                          <div className="flex-1 min-w-0">
+                                    {reportMessages
+                                      .filter((msg) => msg.role === 'assistant')
+                                      .map((message, index) => (
+                                        <div key={index} className="min-w-0">
                                             <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4 xl:p-6 ${message.content === 'Thinking...' ? 'animate-pulse italic text-gray-600 dark:text-gray-400' : ''
                                               }`}>
                                               {message.content === 'Thinking...' ? (
@@ -5045,22 +5085,10 @@ const Dashboard: React.FC = () => {
                                                 </ReactMarkdown>
                                               )}
                                             </div>
-                                          </div>
                                         </div>
-                                      ) : (
-                                        <div key={index} className="flex gap-3 justify-end xl:gap-4">
-                                          <div className="flex-1">
-                                            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 xl:p-4 text-sm xl:text-base ml-auto max-w-[80%] text-gray-900 dark:text-gray-200">
-                                              {message.content}
-                                            </div>
-                                          </div>
-                                          <div className="w-8 xl:w-10 h-8 xl:h-10 bg-gray-200 dark:bg-[#161C1A] rounded-full flex items-center justify-center text-sm xl:text-base flex-shrink-0 text-gray-700 dark:text-[#E0E6E4]">
-                                            {userInitials}
-                                          </div>
-                                        </div>
-                                      )
-                                    )}
+                                      ))}
                                   </div>
+                                  )}
                                 </div>
                               </>
                             )}

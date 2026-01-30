@@ -30,24 +30,42 @@ interface RankedCompany {
   vRating: number; // V-Rating score (0-100)
 }
 
-// Circular Progress Component for V-Rating
-const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, size = 60 }) => {
+// Circular Progress Component for V-Rating (matches TopPicks: color + value-based tooltip)
+const CircularProgress: React.FC<{ value: number; size?: number; showTooltip?: boolean }> = ({ value, size = 60, showTooltip = true }) => {
+  const [showRatingTooltip, setShowRatingTooltip] = useState(false);
   const radius = (size - 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const normalizedValue = Math.min(Math.max(value, 0), 100);
   const offset = circumference - (normalizedValue / 100) * circumference;
-  
-  // Color based on value: green for high (>=70), yellow for medium (40-69), red for low (<40)
+
+  // Color based on value: green (>=80), yellow (50-79), red (<50) - same as TopPicks V-Rating
   const getColor = () => {
-    if (normalizedValue >= 70) return '#22c55e'; // green-500
-    if (normalizedValue >= 40) return '#eab308'; // yellow-500
+    if (normalizedValue >= 80) return '#22c55e'; // green-500
+    if (normalizedValue >= 50) return '#eab308'; // yellow-500
     return '#ef4444'; // red-500
   };
 
+  // V-Rating tooltip text by value range (same as TopPicks)
+  const getTooltipText = () => {
+    if (normalizedValue >= 80) {
+      return 'A "Rationalist Strike." The company has passed all Gatekeepers and offers elite quality at a fair price.';
+    }
+    if (normalizedValue >= 50) {
+      return 'A "Quality Compounder" or a "Fair Value" play. Safe, but perhaps overvalued or lacking momentum.';
+    }
+    return 'A structural failure in one or more pillars. High risk of capital destruction.';
+  };
+
   const color = getColor();
+  const tooltipText = showTooltip ? getTooltipText() : '';
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+    <div
+      className="relative inline-flex items-center justify-center cursor-help"
+      style={{ width: size, height: size }}
+      onMouseEnter={() => showTooltip && setShowRatingTooltip(true)}
+      onMouseLeave={() => setShowRatingTooltip(false)}
+    >
       <svg
         width={size}
         height={size}
@@ -82,6 +100,11 @@ const CircularProgress: React.FC<{ value: number; size?: number }> = ({ value, s
           {Math.round(normalizedValue)}
         </span>
       </div>
+      {showRatingTooltip && tooltipText && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 p-3 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-50 whitespace-normal pointer-events-none">
+          {tooltipText}
+        </div>
+      )}
     </div>
   );
 };
