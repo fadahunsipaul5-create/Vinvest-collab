@@ -29,11 +29,20 @@ interface ReportGenerationFormProps {
   isLoading?: boolean;
   showInstructions?: boolean;
   showFormFields?: boolean;
+  defaultReportType?: 'company_performance_and_investment_thesis' | 'industry_deep_drive' | 'custom_instructions';
+  /** When true, only show fields for current type: Company (company + instructions), Industry (industry + instructions), Custom (instructions only) */
+  modalMode?: boolean;
 }
 
-const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate, isLoading = false, showInstructions = true, showFormFields = true }) => {
-  // Form state
-  const [reportType, setReportType] = useState<string>('company_performance_and_investment_thesis');
+const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate, isLoading = false, showInstructions = true, showFormFields = true, defaultReportType = 'company_performance_and_investment_thesis', modalMode = false }) => {
+  // Form state - use defaultReportType when provided
+  const [reportType, setReportType] = useState<string>(defaultReportType);
+
+  // Sync report type when modal tab changes (defaultReportType from parent)
+  useEffect(() => {
+    setReportType(defaultReportType);
+  }, [defaultReportType]);
+
   const [directSearchValue, setDirectSearchValue] = useState<string>('');
   const [industryName, setIndustryName] = useState<string>(''); // For industry deep-dive
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -348,6 +357,126 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({ onGenerate,
           {isLoading ? 'Generating Report...' : 'Generate'}
         </button>
       </div>
+      </div>
+    );
+  }
+
+  // Modal mode: only the fields for the current tab (Company / Industry / Custom)
+  if (modalMode) {
+    return (
+      <div className="space-y-4">
+        {/* Company tab: Company field + Instructions + Generate */}
+        {reportType === 'company_performance_and_investment_thesis' && (
+          <>
+            <div className="relative" ref={directSearchRef}>
+              <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Company</label>
+              <input
+                type="text"
+                value={directSearchValue}
+                onChange={(e) => setDirectSearchValue(e.target.value)}
+                onFocus={() => { if (filteredDirectSearch.length > 0) setShowDirectSearchDropdown(true); }}
+                placeholder="Type company name or ticker"
+                className="w-full px-3 py-2 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
+              />
+              {showDirectSearchDropdown && filteredDirectSearch.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-y-auto">
+                  {filteredDirectSearch.map((company) => (
+                    <button
+                      key={company.ticker}
+                      onClick={() => handleDirectSearchSelect(company)}
+                      className="w-full px-3 py-2 text-sm text-left text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
+                    >
+                      {company.name} ({company.ticker})
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Instructions</label>
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
+                rows={3}
+                className="w-full px-3 py-2 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
+              />
+            </div>
+          </>
+        )}
+
+        {/* Industry tab: Industry field + Instructions + Generate */}
+        {reportType === 'industry_deep_drive' && (
+          <>
+            <div className="relative" ref={industrySearchRef}>
+              <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Industry</label>
+              <input
+                type="text"
+                value={industryName}
+                onChange={(e) => { setIndustryName(e.target.value); setShowIndustryDropdown(allIndustries.length > 0); }}
+                onFocus={() => { if (allIndustries.length > 0) setShowIndustryDropdown(true); }}
+                placeholder="e.g. Artificial Intelligence, EV, Retail"
+                className="w-full px-3 py-2 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691]"
+              />
+              {showIndustryDropdown && filteredIndustries.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#161C1A] border border-gray-300 dark:border-[#161C1A] rounded shadow-lg max-h-60 overflow-y-auto">
+                  {filteredIndustries.map((ind) => (
+                    <button
+                      key={ind.industryId}
+                      onClick={() => handleIndustrySelect(ind)}
+                      className="w-full px-3 py-2 text-sm text-left text-gray-900 dark:text-[#E0E6E4] hover:bg-gray-100 dark:hover:bg-[#1C2220]"
+                    >
+                      {ind.industryName}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Instructions</label>
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                placeholder="Add any specific instructions, focus areas, KPIs to analyze, etc."
+                rows={3}
+                className="w-full px-3 py-2 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
+              />
+            </div>
+          </>
+        )}
+
+        {/* Custom tab: only Instructions + Generate (as in image) */}
+        {reportType === 'custom_instructions' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-[#E0E6E4] mb-1">Instructions</label>
+            <textarea
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder="e.g., which Industry is performing well? and why?"
+              rows={4}
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-[#161C1A] text-gray-900 dark:text-[#E0E6E4] rounded border border-gray-300 dark:border-[#161C1A] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:placeholder-[#889691] resize-none"
+            />
+          </div>
+        )}
+
+        {isLoading && (
+          <p className="text-xs text-gray-500 dark:text-[#889691] italic">⏳ The report is generating, this might take up to 30-60 seconds...</p>
+        )}
+
+        <div className="flex justify-end pt-3 border-t border-gray-200 dark:border-[#161C1A]">
+          <button
+            onClick={handleGenerate}
+            disabled={
+              isLoading ||
+              (reportType === 'company_performance_and_investment_thesis' && !selectedCompany) ||
+              (reportType === 'industry_deep_drive' && !industryName.trim()) ||
+              (reportType === 'custom_instructions' && !instructions.trim())
+            }
+            className="px-4 py-2 text-sm bg-[#144D37] text-white rounded hover:bg-[#0F3A28] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Generating Report...' : 'Generate'}
+          </button>
+        </div>
       </div>
     );
   }
